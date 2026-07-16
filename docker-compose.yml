@@ -42,6 +42,15 @@ services:
     volumes:
       - miniodata:/data
 
+  # WeKnora 文档解析引擎（ADR-001：只借解析能力，gRPC 直连，不部署 WeKnora 全家桶）
+  docreader:
+    image: wechatopenai/weknora-docreader:latest
+    container_name: careeros-docreader
+    ports:
+      - "50061:50051"
+    environment:
+      LOG_LEVEL: INFO
+
   # 首次启动时自动建桶
   minio-init:
     image: minio/mc:latest

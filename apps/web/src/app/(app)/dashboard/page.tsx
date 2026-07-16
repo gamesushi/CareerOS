@@ -54,8 +54,8 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <Button disabled title="Sprint 2 上线">
-              上传简历自动导入（即将上线）
+            <Button asChild>
+              <Link href="/imports">上传简历自动导入</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/knowledge">手动添加工作经历</Link>
