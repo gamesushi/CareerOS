@@ -1,0 +1,588 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, pg_trgm, citext, pgcrypto]
+}
+
+// ============ 枚举（与 docs/design/01 DDL 一一对应） ============
+
+enum UserRole {
+  guest
+  user
+  recruiter
+  admin
+  enterprise
+
+  @@map("user_role")
+}
+
+enum JobStatus {
+  open
+  passive
+  closed
+
+  @@map("job_status")
+}
+
+enum EntitySource {
+  manual
+  import
+  ai
+
+  @@map("entity_source")
+}
+
+enum ImportStatus {
+  pending
+  parsing
+  extracting
+  review
+  applied
+  failed
+
+  @@map("import_status")
+}
+
+enum JdStatus {
+  pending
+  parsing
+  parsed
+  failed
+
+  @@map("jd_status")
+}
+
+enum ResumeType {
+  zh
+  en
+  ja_shokumu
+  linkedin
+  cover_letter
+
+  @@map("resume_type")
+}
+
+enum ResumeStatus {
+  draft
+  final
+  archived
+
+  @@map("resume_status")
+}
+
+enum EvidenceSource {
+  project
+  experience
+  work_log
+  achievement
+  certificate
+  external
+
+  @@map("evidence_source")
+}
+
+enum WorklogSource {
+  manual
+  voice
+  email
+  notion
+  github
+
+  @@map("worklog_source")
+}
+
+enum ConnectionType {
+  follow
+  friend
+  colleague
+
+  @@map("connection_type")
+}
+
+enum ConnectionStatus {
+  pending
+  accepted
+  blocked
+
+  @@map("connection_status")
+}
+
+enum AiRunKind {
+  resume_parse
+  jd_parse
+  resume_generate
+  profile_generate
+  worklog_summarize
+  job_match
+  skill_extract
+  translate
+
+  @@map("ai_run_kind")
+}
+
+enum AiRunStatus {
+  queued
+  running
+  succeeded
+  failed
+
+  @@map("ai_run_status")
+}
+
+// ============ 用户与认证（Auth.js Prisma Adapter 标准模型 + 业务字段） ============
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @unique @db.Citext
+  name          String    @db.VarChar(128)
+  emailVerified DateTime? @map("email_verified")
+  avatarUrl     String?   @map("avatar_url")
+  role          UserRole  @default(user)
+  locale        String    @default("zh") @db.VarChar(8)
+  region        String?   @db.VarChar(64)
+  languages     String[]  @default([])
+  jobStatus     JobStatus @default(passive) @map("job_status")
+  privacy       Json      @default("{\"profile_public\": false, \"resume_searchable\": false, \"recruiter_contact\": false, \"feed_visible\": false}")
+  weknoraKbId   String?   @map("weknora_kb_id") @db.VarChar(64)
+  weknoraApiKey String?   @map("weknora_api_key")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
+
+  accounts      Account[]
+  sessions      Session[]
+  careerProfile CareerProfile?
+  experiences   CareerExperience[]
+  projects      Project[]
+  skills        Skill[]
+  achievements  Achievement[]
+  educations    Education[]
+  workLogs      WorkLog[]
+  resumeImports ResumeImport[]
+  jds           JobDescription[]
+  jobMatches    JobMatch[]
+  resumes       Resume[]
+  embeddings    Embedding[]
+  aiRuns        AiRun[]
+  connectionsFrom Connection[] @relation("ConnFrom")
+  connectionsTo   Connection[] @relation("ConnTo")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============ 职业画像与实体 ============
+
+model CareerProfile {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  headline        String?  @db.VarChar(128)
+  summary         String?
+  careerTags      String[] @default([]) @map("career_tags")
+  careerLevel     String?  @map("career_level") @db.VarChar(32)
+  yearsExperience Decimal? @map("years_experience") @db.Decimal(4, 1)
+  industryTags    String[] @default([]) @map("industry_tags")
+  isStale         Boolean  @default(true) @map("is_stale")
+  generatedRunId  String?  @map("generated_run_id") @db.Uuid
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("career_profiles")
+}
+
+model CareerExperience {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  company        String       @db.VarChar(128)
+  companyNorm    String       @map("company_norm") @db.VarChar(128)
+  title          String       @db.VarChar(128)
+  employmentType String?      @map("employment_type") @db.VarChar(32)
+  startDate      DateTime     @map("start_date") @db.Date
+  endDate        DateTime?    @map("end_date") @db.Date
+  location       String?      @db.VarChar(128)
+  description    String?
+  highlights     String[]     @default([])
+  lang           String       @default("zh") @db.VarChar(8)
+  source         EntitySource @default(manual)
+  importId       String?      @map("import_id") @db.Uuid
+  sortOrder      Int          @default(0) @map("sort_order")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  import       ResumeImport?  @relation(fields: [importId], references: [id], onDelete: SetNull)
+  projects     Project[]
+  achievements Achievement[]
+
+  @@index([userId, startDate(sort: Desc)])
+  @@map("career_experiences")
+}
+
+model Project {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  experienceId String?      @map("experience_id") @db.Uuid
+  name         String       @db.VarChar(160)
+  role         String?      @db.VarChar(128)
+  startDate    DateTime?    @map("start_date") @db.Date
+  endDate      DateTime?    @map("end_date") @db.Date
+  description  String?
+  outcome      String?
+  links        Json         @default("[]")
+  techStack    String[]     @default([]) @map("tech_stack")
+  lang         String       @default("zh") @db.VarChar(8)
+  source       EntitySource @default(manual)
+  importId     String?      @map("import_id") @db.Uuid
+  sortOrder    Int          @default(0) @map("sort_order")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experience   CareerExperience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+  import       ResumeImport?     @relation(fields: [importId], references: [id], onDelete: SetNull)
+  achievements Achievement[]
+  skills       ProjectSkill[]
+  workLogs     WorkLogProject[]
+
+  @@index([userId, startDate(sort: Desc)])
+  @@index([experienceId])
+  @@map("projects")
+}
+
+model Skill {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  name        String       @db.VarChar(80)
+  nameNorm    String       @map("name_norm") @db.VarChar(80)
+  category    String?      @db.VarChar(48)
+  level       Int          @default(0) @db.SmallInt
+  levelSource EntitySource @default(manual) @map("level_source")
+  firstUsedAt DateTime?    @map("first_used_at") @db.Date
+  lastUsedAt  DateTime?    @map("last_used_at") @db.Date
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evidences SkillEvidence[]
+  projects  ProjectSkill[]
+  workLogs  WorkLogSkill[]
+
+  @@unique([userId, nameNorm])
+  @@map("skills")
+}
+
+model SkillEvidence {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  skillId    String         @map("skill_id") @db.Uuid
+  sourceType EvidenceSource @map("source_type")
+  sourceId   String?        @map("source_id") @db.Uuid
+  note       String?
+  url        String?
+  weight     Int            @default(1) @db.SmallInt
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([skillId, sourceType, sourceId])
+  @@index([sourceType, sourceId])
+  @@map("skill_evidences")
+}
+
+model Achievement {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  experienceId String?   @map("experience_id") @db.Uuid
+  projectId    String?   @map("project_id") @db.Uuid
+  title        String    @db.VarChar(200)
+  metricValue  Decimal?  @map("metric_value")
+  metricUnit   String?   @map("metric_unit") @db.VarChar(32)
+  metricText   String?   @map("metric_text") @db.VarChar(120)
+  evidence     String?
+  occurredAt   DateTime? @map("occurred_at") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experience CareerExperience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+  project    Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([experienceId])
+  @@index([projectId])
+  @@map("achievements")
+}
+
+model Education {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  school      String    @db.VarChar(160)
+  degree      String?   @db.VarChar(64)
+  major       String?   @db.VarChar(128)
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  gpa         String?   @db.VarChar(16)
+  description String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("educations")
+}
+
+// ============ 工作日志 ============
+
+model WorkLog {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String        @map("user_id") @db.Uuid
+  logDate            DateTime      @map("log_date") @db.Date
+  title              String        @db.VarChar(200)
+  content            String
+  tags               String[]      @default([])
+  aiSummary          String?       @map("ai_summary")
+  source             WorklogSource @default(manual)
+  externalRef        Json?         @map("external_ref")
+  weknoraKnowledgeId String?       @map("weknora_knowledge_id") @db.VarChar(64)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt          DateTime?     @map("deleted_at") @db.Timestamptz()
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects WorkLogProject[]
+  skills   WorkLogSkill[]
+
+  @@index([userId, logDate(sort: Desc)])
+  @@map("work_logs")
+}
+
+model WorkLogProject {
+  workLogId String @map("work_log_id") @db.Uuid
+  projectId String @map("project_id") @db.Uuid
+
+  workLog WorkLog @relation(fields: [workLogId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([workLogId, projectId])
+  @@map("work_log_projects")
+}
+
+model WorkLogSkill {
+  workLogId String @map("work_log_id") @db.Uuid
+  skillId   String @map("skill_id") @db.Uuid
+
+  workLog WorkLog @relation(fields: [workLogId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([workLogId, skillId])
+  @@map("work_log_skills")
+}
+
+model ProjectSkill {
+  projectId String @map("project_id") @db.Uuid
+  skillId   String @map("skill_id") @db.Uuid
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, skillId])
+  @@map("project_skills")
+}
+
+// ============ 导入 / JD / 匹配 / 简历 ============
+
+model ResumeImport {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String       @map("user_id") @db.Uuid
+  fileKey            String       @map("file_key")
+  fileName           String       @map("file_name") @db.VarChar(255)
+  mimeType           String       @map("mime_type") @db.VarChar(128)
+  status             ImportStatus @default(pending)
+  rawText            String?      @map("raw_text")
+  extracted          Json?
+  appliedDiff        Json?        @map("applied_diff")
+  error              String?
+  weknoraKnowledgeId String?      @map("weknora_knowledge_id") @db.VarChar(64)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiences CareerExperience[]
+  projects    Project[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("resume_imports")
+}
+
+model JobDescription {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  company    String?  @db.VarChar(128)
+  title      String?  @db.VarChar(160)
+  sourceUrl  String?  @map("source_url")
+  fileKey    String?  @map("file_key")
+  rawContent String   @map("raw_content")
+  lang       String?  @db.VarChar(8)
+  status     JdStatus @default(pending)
+  parsed     Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches JobMatch[]
+  resumes Resume[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("job_descriptions")
+}
+
+model JobMatch {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jdId               String   @map("jd_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  matchScore         Decimal  @map("match_score") @db.Decimal(5, 2)
+  skillCoverage      Decimal  @map("skill_coverage") @db.Decimal(5, 2)
+  experienceCoverage Decimal  @map("experience_coverage") @db.Decimal(5, 2)
+  industryCoverage   Decimal  @map("industry_coverage") @db.Decimal(5, 2)
+  missingSkills      Json     @default("[]") @map("missing_skills")
+  matchedEvidence    Json     @default("[]") @map("matched_evidence")
+  resumeId           String?  @map("resume_id") @db.Uuid
+  runId              String?  @map("run_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  jd     JobDescription @relation(fields: [jdId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume?        @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  @@index([jdId, createdAt(sort: Desc)])
+  @@map("job_matches")
+}
+
+model Resume {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  title       String       @db.VarChar(160)
+  resumeType  ResumeType   @map("resume_type")
+  version     Int          @default(1)
+  templateId  String       @default("openresume-classic") @map("template_id") @db.VarChar(64)
+  resumeJson  Json         @map("resume_json")
+  jdId        String?      @map("jd_id") @db.Uuid
+  status      ResumeStatus @default(draft)
+  pdfFileKey  String?      @map("pdf_file_key")
+  generatedAt DateTime     @default(now()) @map("generated_at") @db.Timestamptz()
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jd      JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
+  matches JobMatch[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("resumes")
+}
+
+// ============ 社交（预留） / 向量 / 审计 ============
+
+model Connection {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  targetUserId String           @map("target_user_id") @db.Uuid
+  type         ConnectionType
+  status       ConnectionStatus @default(pending)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+
+  user   User @relation("ConnFrom", fields: [userId], references: [id], onDelete: Cascade)
+  target User @relation("ConnTo", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetUserId, type])
+  @@map("connections")
+}
+
+model Embedding {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String                 @map("user_id") @db.Uuid
+  sourceType  String                 @map("source_type") @db.VarChar(32)
+  sourceId    String                 @map("source_id") @db.Uuid
+  contentHash String                 @map("content_hash") @db.VarChar(64)
+  modelId     String                 @map("model_id") @db.VarChar(64)
+  dimension   Int
+  embedding   Unsupported("halfvec")
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceType, sourceId, modelId])
+  @@index([userId, sourceType])
+  @@map("embeddings")
+}
+
+model AiRun {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String?     @map("user_id") @db.Uuid
+  kind          AiRunKind
+  status        AiRunStatus @default(queued)
+  inputRef      Json?       @map("input_ref")
+  model         String?     @db.VarChar(64)
+  promptVersion String?     @map("prompt_version") @db.VarChar(32)
+  tokensIn      Int?        @map("tokens_in")
+  tokensOut     Int?        @map("tokens_out")
+  costUsd       Decimal?    @map("cost_usd") @db.Decimal(10, 6)
+  latencyMs     Int?        @map("latency_ms")
+  error         String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+  finishedAt    DateTime?   @map("finished_at") @db.Timestamptz()
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([kind, status])
+  @@map("ai_runs")
+}

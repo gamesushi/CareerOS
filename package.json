@@ -1,0 +1,17 @@
+{
+  "name": "careeros",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:worker": "pnpm --filter worker dev",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter @careeros/db migrate:dev",
+    "db:generate": "pnpm --filter @careeros/db generate",
+    "db:seed": "pnpm --filter @careeros/db seed",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.13.1"
+}

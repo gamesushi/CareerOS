@@ -1,0 +1,60 @@
+name: careeros
+
+# 端口刻意避开 WeKnora 官方 compose 的默认占用（5432/6379/9000），
+# 两套服务可同机并跑。WeKnora 本身在 ../WeKnora 用其官方 compose 启动，不在此文件管理。
+# 生产环境可考虑合并到同一 Postgres 实例（分 schema），开发期各跑各的最省心。
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: careeros-postgres
+    environment:
+      POSTGRES_USER: careeros
+      POSTGRES_PASSWORD: careeros_dev
+      POSTGRES_DB: careeros
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careeros"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: careeros-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: careeros-minio
+    command: server /data --console-address ":9101"
+    environment:
+      MINIO_ROOT_USER: careeros
+      MINIO_ROOT_PASSWORD: careeros_dev
+    ports:
+      - "9100:9000"
+      - "9101:9101"
+    volumes:
+      - miniodata:/data
+
+  # 首次启动时自动建桶
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 careeros careeros_dev;
+      mc mb -p local/careeros-files;
+      exit 0"
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
