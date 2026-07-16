@@ -79,28 +79,77 @@ export async function chat(opts: ChatOptions): Promise<ChatResult> {
   };
 }
 
-// mock：从原文里粗提一个可信的固定结构，用于无 key 联调整条管线
+// mock：按任务返回结构合法的占位数据，用于无 key 联调整条管线。
+// 通过 system prompt 中的标记识别任务类型。
 function mockChat(opts: ChatOptions): ChatResult {
   const text = opts.user;
-  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
-  const result = {
-    basics: { name: null, email: emailMatch?.[0] ?? null, phone: null, location: null, links: [], summary: null },
-    experiences: [
-      {
-        company: "Mock 株式会社",
-        title: "Mock 抽取的职位（请配置 AI Key 获得真实结果）",
-        startDate: "2022-01",
-        endDate: null,
-        location: null,
-        description: text.slice(0, 120),
-        highlights: ["这是 mock provider 生成的占位数据"],
-        confidence: "low",
-      },
-    ],
-    projects: [],
-    skills: [{ name: "Mock技能", category: "domain", evidenceHint: null }],
-    achievements: [],
-    educations: [],
-  };
+  let result: unknown;
+
+  if (opts.system.includes("简历结构化抽取")) {
+    const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+    result = {
+      basics: { name: null, email: emailMatch?.[0] ?? null, phone: null, location: null, links: [], summary: null },
+      experiences: [
+        {
+          company: "Mock 株式会社",
+          title: "Mock 抽取的职位（请配置 AI Key 获得真实结果）",
+          startDate: "2022-01",
+          endDate: null,
+          location: null,
+          description: text.slice(0, 120),
+          highlights: ["这是 mock provider 生成的占位数据"],
+          confidence: "low",
+        },
+      ],
+      projects: [],
+      skills: [{ name: "Mock技能", category: "domain", evidenceHint: null }],
+      achievements: [],
+      educations: [],
+    };
+  } else if (opts.system.includes("JD 结构化解析")) {
+    // mock 技能提取："精通/熟悉/擅长 X" 的宾语 + 大写英文词（SQL/Tableau），有真实区分度
+    const zhSkills = [...text.matchAll(/(?:精通|熟悉|擅长)([一-龥A-Za-z]{2,10})/g)].map((m) => m[1]);
+    const enSkills = [...new Set(text.match(/\b[A-Z][A-Za-z]{1,15}\b/g) ?? [])].filter(
+      (w) => !["JD", "JLPT", "Manager", "KOL"].includes(w),
+    );
+    const skills = [...new Set([...zhSkills, ...enSkills])].slice(0, 8);
+    // 经验要求：任职要求段落中含"经验"的行
+    const expLines = text.split("\n").filter((l) => l.includes("经验")).map((l) => l.replace(/^[-•\s]+/, "").trim());
+    result = {
+      company: text.match(/【(.{2,30}?)】/)?.[1] ?? null,
+      title: null,
+      skills: skills.map((name, i) => ({ name, required: i < 4, weight: i < 4 ? 4 : 2 })),
+      experience: expLines.slice(0, 3).map((desc) => ({ desc, yearsMin: Number(desc.match(/(\d+)\s*年/)?.[1]) || null })),
+      industry: text.match(/行业[:：]\s*(.+)/)?.[1]?.split(/[/／、\s]+/).filter(Boolean).slice(0, 4) ?? [],
+      keywords: skills.slice(0, 5),
+      languages: [],
+      seniority: null,
+      location: null,
+      salaryRange: null,
+    };
+  } else if (opts.system.includes("工作日志")) {
+    // 从提示词的"已有技能表"中挑出现于日志正文的技能，模拟建议
+    const skillLine = text.match(/已有技能表：(.+)/)?.[1] ?? "";
+    const existing = skillLine.split("、").map((s) => s.trim()).filter((s) => s && s !== "（空）");
+    const body = text.split("工作日志")[1] ?? text;
+    const suggestedSkills = existing.filter((s) => body.includes(s)).slice(0, 3);
+    result = {
+      summary: `（mock 摘要）${(body.split("：\n")[1] ?? body).replace(/\s+/g, " ").trim().slice(0, 60)}…`,
+      suggestedSkills,
+      suggestedProjects: [],
+    };
+  } else if (opts.system.includes("职业画像")) {
+    result = {
+      headline: "Mock 画像（请配置 AI Key）",
+      summary: "这是 mock provider 生成的画像占位。配置 DEEPSEEK_API_KEY 或 OPENAI_API_KEY 后重新生成。",
+      careerTags: ["mock"],
+      careerLevel: "mid",
+      yearsExperience: 5,
+      industryTags: [],
+    };
+  } else {
+    result = { note: "mock provider：未识别的任务类型" };
+  }
+
   return { content: JSON.stringify(result), model: "mock", tokensIn: 0, tokensOut: 0 };
 }

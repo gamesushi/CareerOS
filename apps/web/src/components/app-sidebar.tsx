@@ -23,8 +23,8 @@ const NAV = [
   { href: "/knowledge", label: "职业知识库", icon: Library },
   { href: "/imports", label: "导入简历", icon: FileUp },
   { href: "/skills", label: "技能中心", icon: Sparkles },
-  { href: "/worklogs", label: "工作日志", icon: NotebookPen, soon: true },
-  { href: "/jobs", label: "岗位匹配", icon: Target, soon: true },
+  { href: "/worklogs", label: "工作日志", icon: NotebookPen },
+  { href: "/jobs", label: "岗位匹配", icon: Target },
   { href: "/resumes", label: "简历中心", icon: FileText, soon: true },
   { href: "/settings", label: "设置", icon: Settings },
 ];

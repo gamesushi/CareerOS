@@ -1,5 +1,9 @@
 import { Worker } from "bullmq";
 import { handleResumeParseJob } from "./jobs/resumeParse";
+import { handleJdParseJob } from "./jobs/jdParse";
+import { handleJobMatchJob } from "./jobs/jobMatch";
+import { handleWorklogSummarizeJob } from "./jobs/worklogSummarize";
+import { handleProfileGenerateJob } from "./jobs/profileGenerate";
 
 // AI 任务 worker：队列拓扑见 docs/design/04-ai-workflows.md §5
 // 并发 2、超时由各步骤自身控制（docreader 120s、LLM 110s）
@@ -22,11 +26,15 @@ const worker = new Worker(
       case "resume_parse":
         return handleResumeParseJob(job.data.importId as string);
       case "jd_parse":
-      case "resume_generate":
-      case "profile_generate":
-      case "worklog_summarize":
+        return handleJdParseJob(job.data.jdId as string);
       case "job_match":
-        throw new Error(`handler for "${job.name}" not implemented yet (Sprint 3+)`);
+        return handleJobMatchJob(job.data.matchId as string);
+      case "worklog_summarize":
+        return handleWorklogSummarizeJob(job.data.workLogId as string);
+      case "profile_generate":
+        return handleProfileGenerateJob(job.data.userId as string);
+      case "resume_generate":
+        throw new Error(`handler for "${job.name}" not implemented yet (Sprint 4)`);
       default:
         throw new Error(`unknown job: ${job.name}`);
     }

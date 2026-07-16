@@ -389,6 +389,7 @@ model WorkLog {
   content            String
   tags               String[]      @default([])
   aiSummary          String?       @map("ai_summary")
+  aiSuggestions      Json?         @map("ai_suggestions") // { skills: [{name, skillId?}], projectIds: [] } 待用户采纳
   source             WorklogSource @default(manual)
   externalRef        Json?         @map("external_ref")
   weknoraKnowledgeId String?       @map("weknora_knowledge_id") @db.VarChar(64)

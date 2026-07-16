@@ -14,7 +14,8 @@
     "@careeros/shared": "workspace:*",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
-    "bullmq": "^5.56.0"
+    "bullmq": "^5.56.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

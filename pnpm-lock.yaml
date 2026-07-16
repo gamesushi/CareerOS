@@ -119,6 +119,9 @@ importers:
       bullmq:
         specifier: ^5.56.0
         version: 5.80.3
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^20.19.43

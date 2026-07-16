@@ -2,15 +2,9 @@ import Link from "next/link";
 import { prisma } from "@careeros/db";
 import { auth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProfileHero } from "@/components/profile-hero";
 import { Briefcase, FolderKanban, Sparkles, Trophy } from "lucide-react";
-
-const JOB_STATUS_LABEL: Record<string, string> = {
-  open: "看机会中",
-  passive: "观望",
-  closed: "不看机会",
-};
 
 function fmtMonth(d: Date) {
   return d.toISOString().slice(0, 7);
@@ -75,22 +69,23 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <Card>
-        <CardContent className="flex items-center gap-4 py-5">
-          <div className="flex size-14 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
-            {(user?.name ?? "U").slice(0, 1).toUpperCase()}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold">{user?.name}</h1>
-              <Badge variant="secondary">{JOB_STATUS_LABEL[user?.jobStatus ?? "passive"]}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {user?.careerProfile?.headline ?? "职业画像将在数据积累后由 AI 生成"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <ProfileHero
+        name={user?.name ?? "用户"}
+        jobStatus={user?.jobStatus ?? "passive"}
+        hasData={expCount + projCount > 0}
+        profile={
+          user?.careerProfile
+            ? {
+                headline: user.careerProfile.headline,
+                summary: user.careerProfile.summary,
+                careerTags: user.careerProfile.careerTags,
+                careerLevel: user.careerProfile.careerLevel,
+                yearsExperience: user.careerProfile.yearsExperience?.toString() ?? null,
+                isStale: user.careerProfile.isStale,
+              }
+            : null
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, href }) => (
