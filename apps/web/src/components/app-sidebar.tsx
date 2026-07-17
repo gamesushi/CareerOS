@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 const NAV = [
   { href: "/dashboard", label: "总览", icon: LayoutDashboard },
@@ -25,7 +24,7 @@ const NAV = [
   { href: "/skills", label: "技能中心", icon: Sparkles },
   { href: "/worklogs", label: "工作日志", icon: NotebookPen },
   { href: "/jobs", label: "岗位匹配", icon: Target },
-  { href: "/resumes", label: "简历中心", icon: FileText, soon: true },
+  { href: "/resumes", label: "简历中心", icon: FileText },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 
@@ -40,28 +39,21 @@ export function AppSidebar({ userName, userEmail }: { userName: string; userEmai
         <p className="mt-0.5 text-xs text-muted-foreground">职业操作系统</p>
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
-        {NAV.map(({ href, label, icon: Icon, soon }) => {
+        {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
-              href={soon ? "#" : href}
-              aria-disabled={soon}
+              href={href}
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
                 active
                   ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
-                soon && "cursor-default opacity-50 hover:bg-transparent hover:text-muted-foreground",
               )}
             >
               <Icon className="size-4" />
               <span className="flex-1">{label}</span>
-              {soon && (
-                <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal">
-                  即将上线
-                </Badge>
-              )}
             </Link>
           );
         })}

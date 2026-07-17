@@ -4,6 +4,7 @@ import { handleJdParseJob } from "./jobs/jdParse";
 import { handleJobMatchJob } from "./jobs/jobMatch";
 import { handleWorklogSummarizeJob } from "./jobs/worklogSummarize";
 import { handleProfileGenerateJob } from "./jobs/profileGenerate";
+import { handleResumeGenerateJob } from "./jobs/resumeGenerate";
 
 // AI 任务 worker：队列拓扑见 docs/design/04-ai-workflows.md §5
 // 并发 2、超时由各步骤自身控制（docreader 120s、LLM 110s）
@@ -34,7 +35,7 @@ const worker = new Worker(
       case "profile_generate":
         return handleProfileGenerateJob(job.data.userId as string);
       case "resume_generate":
-        throw new Error(`handler for "${job.name}" not implemented yet (Sprint 4)`);
+        return handleResumeGenerateJob(job.data.resumeId as string);
       default:
         throw new Error(`unknown job: ${job.name}`);
     }

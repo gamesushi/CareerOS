@@ -216,8 +216,17 @@ function JdDetailInner({ id }: { id: string }) {
                 </Card>
               )}
 
-              <Button className="w-full" disabled title="Sprint 4 上线">
-                基于此 JD 生成简历（即将上线）
+              <Button
+                className="w-full"
+                onClick={async () => {
+                  const res = await api<{ resumeId: string }>("/resumes/generate", {
+                    method: "POST",
+                    body: JSON.stringify({ jdId: id, resumeType: "zh" }),
+                  });
+                  if (res) router.push(`/resumes/${res.resumeId}`);
+                }}
+              >
+                基于此 JD 生成简历
               </Button>
             </>
           )}

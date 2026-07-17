@@ -1,0 +1,242 @@
+import { prisma, Prisma } from "@careeros/db";
+import { jsonResume, type JsonResume } from "@careeros/shared";
+import { chat } from "../ai/provider";
+import { startRun, finishRun } from "../ai/audit";
+
+// 简历生成（docs/design/04 §3）：
+// FactPack（实体事实包）→ LLM 选材+措辞 → zod 校验 → 事实包含性校验（x-warnings）→ 写快照。
+// 防幻觉硬约束：只允许使用 FactPack 中的事实；生成后对数字做包含性检查。
+
+export const PROMPT_VERSION = "resume-generate-v1";
+
+const SYSTEM_PROMPT = `你是简历撰写专家。基于「事实包」生成一份 JSON Resume。
+
+硬性规则：
+1. 只能使用事实包中的信息。可以改写措辞、精简、bullet 化，禁止新增数字、公司、职位、技能或成果。
+2. 若提供了 JD，按相关度选材排序：最相关的经历/项目在前，无关的可省略；不提供 JD 则全量收录按时间倒序。
+3. highlights 每条以动词开头、含量化结果（仅当事实包中有该数字）。
+4. summary 3-4 句，突出与目标岗位的匹配点。
+5. 目标语言：{LANG}。若与事实包语言不同，专业地道地翻译（不逐字直译）。
+6. 日期格式 YYYY-MM。当前在职的 endDate 留空。
+
+输出 JSON（严格遵守）：
+{ "basics": {"name","label","email","phone","location","summary"},
+  "work": [{"name","position","startDate","endDate","location","summary","highlights":[]}],
+  "projects": [{"name","description","highlights":[],"keywords":[],"roles":[],"startDate","endDate"}],
+  "skills": [{"name","level","keywords":[]}],
+  "education": [{"institution","studyType","area","startDate","endDate","score"}],
+  "awards": [{"title","date","summary"}] }`;
+
+const LANG_LABEL: Record<string, string> = { zh: "中文", en: "English", ja_shokumu: "日本語（職務経歴書文体）" };
+
+export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
+  const resume = await prisma.resume.findUnique({ where: { id: resumeId } });
+  if (!resume) throw new Error(`简历记录不存在: ${resumeId}`);
+  const { userId } = resume;
+
+  const run = await startRun({
+    userId,
+    kind: "resume_generate",
+    inputRef: { resumeId, jdId: resume.jdId },
+    promptVersion: PROMPT_VERSION,
+  });
+  const t0 = Date.now();
+
+  try {
+    const factPack = await buildFactPack(userId, resume.jdId);
+    const lang = LANG_LABEL[resume.resumeType] ?? "中文";
+
+    let result: JsonResume;
+    let model = "mock";
+    let tokens = { tokensIn: 0, tokensOut: 0 };
+
+    if (isMock()) {
+      result = programmaticResume(factPack);
+    } else {
+      const out = await generateWithLlm(factPack, lang);
+      result = out.result;
+      model = out.model;
+      tokens = { tokensIn: out.tokensIn, tokensOut: out.tokensOut };
+    }
+
+    // 事实包含性校验：产出中的数字必须能在 FactPack 文本中找到
+    result["x-warnings"] = containmentWarnings(result, factPack.digest);
+
+    await prisma.resume.update({
+      where: { id: resumeId },
+      data: { resumeJson: result as unknown as Prisma.InputJsonValue, status: "draft" },
+    });
+    await finishRun(run.id, { ok: true, model, ...tokens, latencyMs: Date.now() - t0 });
+  } catch (e) {
+    await finishRun(run.id, { ok: false, error: String(e), latencyMs: Date.now() - t0 });
+    throw e;
+  }
+}
+
+const isMock = () =>
+  process.env.AI_PROVIDER === "mock" || (!process.env.DEEPSEEK_API_KEY && !process.env.OPENAI_API_KEY);
+
+// ===== FactPack =====
+
+type FactPack = Awaited<ReturnType<typeof buildFactPack>>;
+
+async function buildFactPack(userId: string, jdId: string | null) {
+  const [user, profile, experiences, projects, skills, achievements, educations] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+    prisma.careerProfile.findUnique({ where: { userId } }),
+    prisma.careerExperience.findMany({ where: { userId, deletedAt: null }, orderBy: { startDate: "desc" } }),
+    prisma.project.findMany({ where: { userId, deletedAt: null }, orderBy: { startDate: { sort: "desc", nulls: "last" } } }),
+    prisma.skill.findMany({ where: { userId }, orderBy: { level: "desc" }, include: { _count: { select: { evidences: true } } } }),
+    prisma.achievement.findMany({ where: { userId } }),
+    prisma.education.findMany({ where: { userId }, orderBy: { startDate: { sort: "desc", nulls: "last" } } }),
+  ]);
+  if (experiences.length === 0 && projects.length === 0) {
+    throw new Error("职业数据不足（无经历与项目），请先在知识库补充");
+  }
+
+  // JD 相关性：有匹配记录时按 matched_evidence 提升相关实体排序
+  let relevantIds = new Set<string>();
+  let jdContext = "";
+  if (jdId) {
+    const jd = await prisma.jobDescription.findUnique({
+      where: { id: jdId },
+      include: { matches: { orderBy: { createdAt: "desc" }, take: 1 } },
+    });
+    if (jd) {
+      jdContext = `目标岗位：${[jd.company, jd.title].filter(Boolean).join(" · ")}\nJD 摘要：${jd.rawContent.slice(0, 1500)}`;
+      const evidence = (jd.matches[0]?.matchedEvidence ?? []) as { entityId: string }[];
+      relevantIds = new Set(evidence.map((e) => e.entityId));
+    }
+  }
+
+  const fmtM = (d: Date | null) => (d ? d.toISOString().slice(0, 7) : "");
+  const digestParts = [
+    `## 基本信息\n姓名：${user.name}｜邮箱：${user.email}｜地区：${user.region ?? ""}`,
+    profile?.headline ? `职业定位：${profile.headline}\n综述：${profile.summary ?? ""}` : "",
+    "## 工作经历",
+    ...experiences.map(
+      (e) =>
+        `- ${e.company}｜${e.title}｜${fmtM(e.startDate)}~${e.endDate ? fmtM(e.endDate) : "至今"}｜${e.location ?? ""}\n  ${e.description ?? ""}\n  亮点：${e.highlights.join("；")}`,
+    ),
+    "## 项目",
+    ...projects.map(
+      (p) =>
+        `- ${p.name}｜${p.role ?? ""}｜${fmtM(p.startDate)}~${fmtM(p.endDate)}\n  ${p.description ?? ""}\n  成果：${p.outcome ?? ""}\n  技术：${p.techStack.join("、")}`,
+    ),
+    "## 技能",
+    skills.map((s) => `${s.name}(熟练度${s.level}，证据${s._count.evidences}条)`).join("、"),
+    "## 成果",
+    ...achievements.map((a) => `- ${a.title}：${a.metricValue ?? ""}${a.metricUnit ?? ""}${a.metricText ?? ""}`),
+    "## 教育",
+    ...educations.map((e) => `- ${e.school}｜${e.degree ?? ""}｜${e.major ?? ""}｜${fmtM(e.startDate)}~${fmtM(e.endDate)}`),
+    jdContext,
+  ].filter(Boolean);
+
+  return {
+    user, profile, experiences, projects, skills, achievements, educations,
+    relevantIds, jdContext,
+    digest: digestParts.join("\n"),
+  };
+}
+
+// ===== LLM 路径 =====
+
+async function generateWithLlm(factPack: FactPack, lang: string) {
+  let lastError = "";
+  let totals = { tokensIn: 0, tokensOut: 0, model: "" };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const user =
+      attempt === 0
+        ? `事实包：\n\n${factPack.digest.slice(0, 20_000)}`
+        : `事实包：\n\n${factPack.digest.slice(0, 20_000)}\n\n上一次输出未通过校验：${lastError}\n请修正后重新输出完整 JSON。`;
+    const res = await chat({ system: SYSTEM_PROMPT.replace("{LANG}", lang), user, json: true });
+    totals = { tokensIn: totals.tokensIn + res.tokensIn, tokensOut: totals.tokensOut + res.tokensOut, model: res.model };
+    try {
+      const parsed = jsonResume.safeParse(JSON.parse(res.content));
+      if (parsed.success) return { result: parsed.data, ...totals };
+      lastError = JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 400);
+    } catch {
+      lastError = "输出不是合法 JSON";
+    }
+  }
+  throw new Error(`简历生成两次校验均失败：${lastError}`);
+}
+
+// ===== mock 路径：程序化映射（零幻觉，无 key 时的可靠兜底） =====
+
+function programmaticResume(fp: FactPack): JsonResume {
+  const fmtM = (d: Date | null) => (d ? d.toISOString().slice(0, 7) : undefined);
+  const relevanceSort = <T extends { id: string }>(items: T[]) =>
+    fp.relevantIds.size === 0
+      ? items
+      : [...items].sort((a, b) => Number(fp.relevantIds.has(b.id)) - Number(fp.relevantIds.has(a.id)));
+
+  return jsonResume.parse({
+    basics: {
+      name: fp.user.name,
+      label: fp.profile?.headline ?? undefined,
+      email: fp.user.email,
+      location: fp.user.region ?? undefined,
+      summary: fp.profile?.summary ?? undefined,
+    },
+    work: relevanceSort(fp.experiences).map((e) => ({
+      name: e.company,
+      position: e.title,
+      startDate: fmtM(e.startDate),
+      endDate: e.endDate ? fmtM(e.endDate) : undefined,
+      location: e.location ?? undefined,
+      summary: e.description ?? undefined,
+      highlights: e.highlights,
+    })),
+    projects: relevanceSort(fp.projects).map((p) => ({
+      name: p.name,
+      description: [p.description, p.outcome].filter(Boolean).join(" ") || undefined,
+      keywords: p.techStack,
+      roles: p.role ? [p.role] : [],
+      startDate: fmtM(p.startDate),
+      endDate: fmtM(p.endDate),
+      highlights: [],
+    })),
+    skills: fp.skills.map((s) => ({
+      name: s.name,
+      level: s.level >= 80 ? "精通" : s.level >= 60 ? "熟练" : "掌握",
+      keywords: [],
+    })),
+    education: fp.educations.map((e) => ({
+      institution: e.school,
+      studyType: e.degree ?? undefined,
+      area: e.major ?? undefined,
+      startDate: fmtM(e.startDate),
+      endDate: fmtM(e.endDate),
+      score: e.gpa ?? undefined,
+    })),
+    awards: fp.achievements.map((a) => ({
+      title: `${a.title}${a.metricValue != null ? `：${a.metricValue}${a.metricUnit ?? ""}` : a.metricText ? `：${a.metricText}` : ""}`,
+      date: a.occurredAt ? a.occurredAt.toISOString().slice(0, 7) : undefined,
+    })),
+  });
+}
+
+// ===== 事实包含性校验 =====
+
+function containmentWarnings(resume: JsonResume, digest: string): string[] {
+  const warnings: string[] = [];
+  const digestNumbers = new Set(digest.match(/\d+(?:\.\d+)?/g) ?? []);
+
+  const checkText = (path: string, text: string | undefined) => {
+    if (!text) return;
+    for (const num of text.match(/\d+(?:\.\d+)?/g) ?? []) {
+      // 年月日期不校验（格式转换来自事实包日期）
+      if (/^(19|20)\d{2}$/.test(num) || /^\d{1,2}$/.test(num)) continue;
+      if (!digestNumbers.has(num)) warnings.push(`${path}：数字「${num}」未在职业数据库中找到，请核实`);
+    }
+  };
+
+  resume.work.forEach((w, i) => {
+    checkText(`work[${i}].summary`, w.summary);
+    w.highlights.forEach((h, j) => checkText(`work[${i}].highlights[${j}]`, h));
+  });
+  resume.projects.forEach((p, i) => checkText(`projects[${i}].description`, p.description));
+  checkText("basics.summary", resume.basics.summary);
+  return warnings.slice(0, 20);
+}

@@ -15,6 +15,8 @@
     "@careeros/db": "workspace:*",
     "@careeros/shared": "workspace:*",
     "@hookform/resolvers": "^5.1.0",
+    "@react-pdf/renderer": "^4.5.1",
+    "@xyflow/react": "^12.11.2",
     "bullmq": "^5.80.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

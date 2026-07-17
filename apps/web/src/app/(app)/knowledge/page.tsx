@@ -14,12 +14,17 @@ function KnowledgeTabs() {
 
   return (
     <Tabs value={tab} onValueChange={(v) => router.replace(`/knowledge?tab=${v}`)}>
-      <TabsList>
-        <TabsTrigger value="experiences">工作经历</TabsTrigger>
-        <TabsTrigger value="projects">项目</TabsTrigger>
-        <TabsTrigger value="achievements">成果</TabsTrigger>
-        <TabsTrigger value="educations">教育</TabsTrigger>
-      </TabsList>
+      <div className="flex items-center justify-between">
+        <TabsList>
+          <TabsTrigger value="experiences">工作经历</TabsTrigger>
+          <TabsTrigger value="projects">项目</TabsTrigger>
+          <TabsTrigger value="achievements">成果</TabsTrigger>
+          <TabsTrigger value="educations">教育</TabsTrigger>
+        </TabsList>
+        <a href="/knowledge/graph" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+          图谱视图 ↗
+        </a>
+      </div>
       <TabsContent value="experiences"><ExperienceTab /></TabsContent>
       <TabsContent value="projects"><ProjectTab /></TabsContent>
       <TabsContent value="achievements"><AchievementTab /></TabsContent>
