@@ -59,6 +59,11 @@ export const jsonResume = z.object({
     .array(z.object({ title: z.string().max(200), date: z.string().max(10).optional(), summary: z.string().max(500).optional() }))
     .default([]),
   "x-warnings": z.array(z.string().max(300)).default([]),
+  "x-theme": z
+    .object({
+      accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), // 模板强调色，缺省用模板默认
+    })
+    .optional(),
   "x-jis": z
     .object({
       shokumuYoyaku: z.string().max(2000).optional(), // 職務要約

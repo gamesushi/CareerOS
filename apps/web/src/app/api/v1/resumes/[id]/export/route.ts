@@ -2,10 +2,11 @@ import { createElement } from "react";
 import { prisma } from "@careeros/db";
 import { jsonResume } from "@careeros/shared";
 import { auth } from "@/lib/auth";
-import { ClassicResume } from "@/lib/pdf/classic-template";
+import { resolveTemplate } from "@/lib/pdf/registry";
 
 // PDF 导出：react-pdf 服务端渲染，直接流式返回。
 // ?inline=1 时浏览器内嵌显示（编辑器预览 iframe 复用同一渲染器，所见即所得）。
+// ?template= / ?accent= 允许预览时临时覆盖（不落库，落库走 PUT）。
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +23,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = jsonResume.safeParse(resume.resumeJson);
   if (!parsed.success) return new Response("简历内容尚未生成或格式无效", { status: 409 });
 
+  const url = new URL(req.url);
+  const template = resolveTemplate(url.searchParams.get("template") ?? resume.templateId);
+  const accentParam = url.searchParams.get("accent");
+  const accent =
+    (accentParam && /^#[0-9a-fA-F]{6}$/.test(accentParam) ? accentParam : null) ??
+    parsed.data["x-theme"]?.accent ??
+    template.defaultAccent;
+
   const { renderToBuffer } = await import("@react-pdf/renderer");
   type DocElement = Parameters<typeof renderToBuffer>[0];
   const buffer = await renderToBuffer(
-    createElement(ClassicResume, { resume: parsed.data, lang: resume.resumeType }) as unknown as DocElement,
+    createElement(template.component, {
+      resume: parsed.data,
+      lang: resume.resumeType,
+      accent,
+    }) as unknown as DocElement,
   );
 
-  const inline = new URL(req.url).searchParams.get("inline") === "1";
+  const inline = url.searchParams.get("inline") === "1";
   const fileName = encodeURIComponent(`${resume.title.replace(/[\\/:*?"<>|]/g, "_")}.pdf`);
   return new Response(new Uint8Array(buffer), {
     headers: {

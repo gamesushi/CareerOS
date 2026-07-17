@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { TEMPLATE_META } from "@/lib/pdf/template-meta";
 import { FileText, Plus, Trash2 } from "lucide-react";
 
 type ResumeRow = {
@@ -37,7 +38,7 @@ export default function ResumesPage() {
   const [items, setItems] = useState<ResumeRow[] | null>(null);
   const [jds, setJds] = useState<JdOption[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ jdId: NONE, resumeType: "zh" });
+  const [form, setForm] = useState({ jdId: NONE, resumeType: "zh", templateId: "classic" });
   const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
@@ -58,6 +59,7 @@ export default function ResumesPage() {
       body: JSON.stringify({
         jdId: form.jdId === NONE ? null : form.jdId,
         resumeType: form.resumeType,
+        templateId: form.templateId,
       }),
     });
     setGenerating(false);
@@ -113,6 +115,17 @@ export default function ResumesPage() {
                     <SelectItem value="zh">中文简历</SelectItem>
                     <SelectItem value="en">English Resume</SelectItem>
                     <SelectItem value="ja_shokumu">日本語 職務経歴書</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>模板（生成后可随时切换）</Label>
+                <Select value={form.templateId} onValueChange={(v) => setForm({ ...form, templateId: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TEMPLATE_META.map((tm) => (
+                      <SelectItem key={tm.id} value={tm.id}>{tm.name} — {tm.description}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

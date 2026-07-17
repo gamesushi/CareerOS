@@ -12,12 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { TEMPLATE_META, resolveTemplateMeta } from "@/lib/pdf/template-meta";
 import { Loader2, Download, CircleAlert, TriangleAlert } from "lucide-react";
 
 type ResumeDetail = {
   id: string;
   title: string;
   resumeType: string;
+  templateId: string;
   status: string;
   resumeJson: JsonResume | Record<string, never>;
   state: "ready" | "generating" | "failed";
@@ -30,6 +35,8 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   const [detail, setDetail] = useState<ResumeDetail | null>(null);
   const [doc, setDoc] = useState<JsonResume | null>(null);
   const [title, setTitle] = useState("");
+  const [templateId, setTemplateId] = useState("classic");
+  const [accent, setAccent] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -39,7 +46,13 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
     if (!res) return;
     setDetail(res);
     setTitle(res.title);
-    if (res.state === "ready") setDoc(res.resumeJson as JsonResume);
+    const meta = resolveTemplateMeta(res.templateId);
+    setTemplateId(meta.id);
+    if (res.state === "ready") {
+      const rj = res.resumeJson as JsonResume;
+      setDoc(rj);
+      setAccent(rj["x-theme"]?.accent ?? null);
+    }
   }, [id]);
 
   // 生成中轮询
@@ -55,9 +68,18 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   async function save(markFinal = false) {
     if (!doc) return;
     setSaving(true);
+    const docWithTheme: JsonResume = {
+      ...doc,
+      "x-theme": accent ? { accent } : undefined,
+    };
     const res = await api(`/resumes/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ title, resumeJson: doc, ...(markFinal ? { status: "final" } : {}) }),
+      body: JSON.stringify({
+        title,
+        templateId,
+        resumeJson: docWithTheme,
+        ...(markFinal ? { status: "final" } : {}),
+      }),
     });
     setSaving(false);
     if (res) {
@@ -66,6 +88,12 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
       if (markFinal) void load();
     }
   }
+
+  // 预览/导出 URL：模板与颜色即时覆盖（未保存也能预览效果）
+  const previewParams = new URLSearchParams({ inline: "1", template: templateId });
+  if (accent) previewParams.set("accent", accent);
+  const exportParams = new URLSearchParams({ template: templateId });
+  if (accent) exportParams.set("accent", accent);
 
   if (!detail) return <div className="mx-auto max-w-6xl"><Skeleton className="h-96" /></div>;
 
@@ -106,7 +134,31 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   return (
     <div className="mx-auto flex h-[calc(100vh-3rem)] max-w-6xl flex-col gap-3">
       <div className="flex items-center gap-3">
-        <Input className="max-w-md font-medium" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input className="max-w-xs font-medium" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Select
+          value={templateId}
+          onValueChange={(v) => {
+            setTemplateId(v);
+            setPreviewKey((k) => k + 1);
+          }}
+        >
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TEMPLATE_META.map((tm) => (
+              <SelectItem key={tm.id} value={tm.id}>
+                {tm.name} · {tm.description.split("，")[0]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <input
+          type="color"
+          title="强调色"
+          className="size-8 cursor-pointer rounded border bg-transparent p-0.5"
+          value={accent ?? resolveTemplateMeta(templateId).defaultAccent}
+          onChange={(e) => setAccent(e.target.value)}
+          onBlur={() => setPreviewKey((k) => k + 1)}
+        />
         <span className="text-xs text-muted-foreground">{detail.status === "final" ? "定稿" : "草稿"}</span>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => router.push("/resumes")}>返回</Button>
@@ -115,7 +167,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           </Button>
           <Button variant="outline" onClick={() => save(true)} disabled={saving}>定稿</Button>
           <Button asChild>
-            <a href={`/api/v1/resumes/${id}/export`} download>
+            <a href={`/api/v1/resumes/${id}/export?${exportParams}`} download>
               <Download className="size-4" /> 导出 PDF
             </a>
           </Button>
@@ -199,7 +251,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           <iframe
             key={previewKey}
             ref={iframeRef}
-            src={`/api/v1/resumes/${id}/export?inline=1#toolbar=0`}
+            src={`/api/v1/resumes/${id}/export?${previewParams}#toolbar=0`}
             className="h-full w-full"
             title="简历预览"
           />
