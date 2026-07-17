@@ -1,0 +1,17 @@
+diff --git a/lib/textkit.js b/lib/textkit.js
+index 0b8b6fa636c48ef0ac9cecb27040d2bac9303ce8..8070714c3d73729d0b21624c3bfe10b1f61dac46 100644
+--- a/lib/textkit.js
++++ b/lib/textkit.js
+@@ -2600,7 +2600,11 @@ const breakLines = (attributedString, nodes, breaks) => {
+             // @ts-expect-error penalty node will always preceed box or glue node
+             end = prevNode.end;
+             line = slice(start, end, attributedString);
+-            line = insertGlyph(line.string.length, HYPHEN, line);
++            // CareerOS patch: CJK 断点不插连字符（中日文按字断行是正常排版，连字符是错误的）
++            const lastChar = line.string[line.string.length - 1];
++            if (!/[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u303f]/.test(lastChar || '')) {
++                line = insertGlyph(line.string.length, HYPHEN, line);
++            }
+         }
+         else {
+             end = node.end;

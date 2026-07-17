@@ -14,8 +14,10 @@ Font.register({
     { src: path.join(fontsDir, "NotoSansSC-Bold.ttf"), fontWeight: 700 },
   ],
 });
-// 禁用连字符断词（CJK 不适用）
-Font.registerHyphenationCallback((word) => [word]);
+// 断行策略：CJK 逐字作为断点（配合 patches/@react-pdf__textkit 对 CJK 断点不插连字符）
+Font.registerHyphenationCallback((word) =>
+  /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/.test(word) ? word.split("") : [word],
+);
 
 const s = StyleSheet.create({
   page: { fontFamily: "NotoSansSC", fontSize: 9.5, lineHeight: 1.5, color: "#1a1a1a", padding: 42 },
@@ -132,7 +134,7 @@ export function ClassicResume({ resume, lang = "zh" }: { resume: JsonResume; lan
               {resume.skills.map((sk, i) => (
                 <Text key={i} style={s.skillChip}>
                   {sk.name}
-                  {sk.level ? `（${sk.level}）` : ""}
+                  {sk.level && sk.level !== "0" ? `（${sk.level}）` : ""}
                 </Text>
               ))}
             </View>
