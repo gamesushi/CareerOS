@@ -66,9 +66,17 @@ export const jsonResume = z.object({
     .optional(),
   "x-jis": z
     .object({
+      // 職務経歴書
       shokumuYoyaku: z.string().max(2000).optional(), // 職務要約
       ikaseruKeiken: z.array(z.string().max(300)).default([]), // 活かせる経験・知識
       jikoPR: z.string().max(2000).optional(), // 自己PR
+      // 履歴書（JIS 様式）
+      furigana: z.string().max(128).optional(), // 氏名ふりがな
+      birthDate: z.string().max(10).optional(), // YYYY-MM-DD（用户在编辑器补填，AI 不得编造）
+      address: z.string().max(300).optional(), // 現住所
+      shiboudouki: z.string().max(1500).optional(), // 志望動機
+      menkyoShikaku: z.array(z.object({ date: z.string().max(10).optional(), name: z.string().max(120) })).default([]), // 免許・資格
+      honninKibou: z.string().max(500).optional(), // 本人希望記入欄
     })
     .optional(),
 });
@@ -77,7 +85,7 @@ export type JsonResume = z.infer<typeof jsonResume>;
 
 export const resumeGenerateInput = z.object({
   jdId: z.string().uuid().nullable().optional(),
-  resumeType: z.enum(["zh", "en", "ja_shokumu"]).default("zh"),
+  resumeType: z.enum(["zh", "en", "ja_shokumu", "ja_rirekisho"]).default("zh"),
   templateId: z.string().max(64).default("classic"),
   emphasis: z.array(z.string().max(64)).default([]), // 用户希望突出的方向
 });

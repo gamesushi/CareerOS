@@ -115,6 +115,7 @@ export default function ResumesPage() {
                     <SelectItem value="zh">中文简历</SelectItem>
                     <SelectItem value="en">English Resume</SelectItem>
                     <SelectItem value="ja_shokumu">日本語 職務経歴書</SelectItem>
+                    <SelectItem value="ja_rirekisho">日本語 履歴書（JIS）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

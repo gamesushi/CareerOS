@@ -18,16 +18,39 @@ const SYSTEM_PROMPT = `你是简历撰写专家。基于「事实包」生成一
 4. summary 3-4 句，突出与目标岗位的匹配点。
 5. 目标语言：{LANG}。若与事实包语言不同，专业地道地翻译（不逐字直译）。
 6. 日期格式 YYYY-MM。当前在职的 endDate 留空。
-
+{EXTRA}
 输出 JSON（严格遵守）：
 { "basics": {"name","label","email","phone","location","summary"},
   "work": [{"name","position","startDate","endDate","location","summary","highlights":[]}],
   "projects": [{"name","description","highlights":[],"keywords":[],"roles":[],"startDate","endDate"}],
   "skills": [{"name","level","keywords":[]}],
   "education": [{"institution","studyType","area","startDate","endDate","score"}],
-  "awards": [{"title","date","summary"}] }`;
+  "awards": [{"title","date","summary"}]{JIS_SHAPE} }`;
 
-const LANG_LABEL: Record<string, string> = { zh: "中文", en: "English", ja_shokumu: "日本語（職務経歴書文体）" };
+const LANG_LABEL: Record<string, string> = {
+  zh: "中文",
+  en: "English",
+  ja_shokumu: "日本語（職務経歴書）",
+  ja_rirekisho: "日本語（履歴書）",
+};
+
+// 日文文书的追加指令与 x-jis 输出形状（docs/design/00 ADR-004：JIS 扩展段）
+const JA_EXTRA: Record<string, string> = {
+  ja_shokumu: `7. 職務経歴書の文体で書く：見出し体・簡潔、常体（だ・である調）または体言止め。数字は半角。
+8. 追加で "x-jis" を出力する：
+   - shokumuYoyaku（職務要約）：3〜4文。経験年数・専門領域・代表的実績を要約。
+   - ikaseruKeiken（活かせる経験・知識）：事実包由来の箇条書き 3〜6 件。
+   - jikoPR（自己PR）：200〜300字。事実包の実績のみ根拠に使う。`,
+  ja_rirekisho: `7. 履歴書用の控えめで丁寧な文体（です・ます調）。学歴・職歴の表はテンプレート側で機械生成するため、work/education は事実のまま出力する。
+8. 追加で "x-jis" を出力する：
+   - shiboudouki（志望動機）：JD がある場合のみ 150〜250字で、事実包の経験と JD の接点を軸に書く。JD が無ければ省略。
+   - jikoPR（自己PR）：150〜250字。
+   - menkyoShikaku（免許・資格）：事実包に明記された資格・検定のみ（JLPT 等）。無ければ空配列。日付不明は date 省略。
+   - furigana / birthDate / address / honninKibou：出力しない（本人が編集画面で記入する。推測・創作は厳禁）。`,
+};
+
+const JIS_SHAPE = `,
+  "x-jis": { "shokumuYoyaku"?, "ikaseruKeiken"?:[], "jikoPR"?, "shiboudouki"?, "menkyoShikaku"?:[{"date"?,"name"}] }`;
 
 export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
   const resume = await prisma.resume.findUnique({ where: { id: resumeId } });
@@ -53,7 +76,7 @@ export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
     if (isMock()) {
       result = programmaticResume(factPack);
     } else {
-      const out = await generateWithLlm(factPack, lang);
+      const out = await generateWithLlm(factPack, lang, resume.resumeType);
       result = out.result;
       model = out.model;
       tokens = { tokensIn: out.tokensIn, tokensOut: out.tokensOut };
@@ -141,15 +164,18 @@ async function buildFactPack(userId: string, jdId: string | null) {
 
 // ===== LLM 路径 =====
 
-async function generateWithLlm(factPack: FactPack, lang: string) {
+async function generateWithLlm(factPack: FactPack, lang: string, resumeType: string) {
   let lastError = "";
   let totals = { tokensIn: 0, tokensOut: 0, model: "" };
+  const system = SYSTEM_PROMPT.replace("{LANG}", lang)
+    .replace("{EXTRA}", JA_EXTRA[resumeType] ? `${JA_EXTRA[resumeType]}\n` : "")
+    .replace("{JIS_SHAPE}", JA_EXTRA[resumeType] ? JIS_SHAPE : "");
   for (let attempt = 0; attempt < 2; attempt++) {
     const user =
       attempt === 0
         ? `事实包：\n\n${factPack.digest.slice(0, 20_000)}`
         : `事实包：\n\n${factPack.digest.slice(0, 20_000)}\n\n上一次输出未通过校验：${lastError}\n请修正后重新输出完整 JSON。`;
-    const res = await chat({ system: SYSTEM_PROMPT.replace("{LANG}", lang), user, json: true });
+    const res = await chat({ system, user, json: true });
     totals = { tokensIn: totals.tokensIn + res.tokensIn, tokensOut: totals.tokensOut + res.tokensOut, model: res.model };
     try {
       const parsed = jsonResume.safeParse(JSON.parse(res.content));

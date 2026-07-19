@@ -13,6 +13,7 @@ import {
   FileUp,
   Settings,
   LogOut,
+  Radar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const NAV = [
   { href: "/skills", label: "技能中心", icon: Sparkles },
   { href: "/worklogs", label: "工作日志", icon: NotebookPen },
   { href: "/jobs", label: "岗位匹配", icon: Target },
+  { href: "/monitor", label: "岗位监测", icon: Radar },
   { href: "/resumes", label: "简历中心", icon: FileText },
   { href: "/settings", label: "设置", icon: Settings },
 ];

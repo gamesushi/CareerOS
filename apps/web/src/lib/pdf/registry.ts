@@ -4,6 +4,8 @@ import { ClassicTemplate } from "./templates/classic";
 import { ModernTemplate } from "./templates/modern";
 import { SidebarTemplate } from "./templates/sidebar";
 import { CompactTemplate } from "./templates/compact";
+import { ShokumuTemplate } from "./templates/shokumu";
+import { RirekishoTemplate } from "./templates/rirekisho";
 
 // 模板注册表（docs/design/00 ADR-004：渲染器可插拔）。仅服务端使用（react-pdf）。
 // modern/sidebar/compact 布局参考 Reactive Resume（MIT）的 Onyx/Azurill/Kakuna 设计思路，
@@ -18,6 +20,8 @@ const COMPONENTS: Record<string, TemplateDef["component"]> = {
   modern: ModernTemplate,
   sidebar: SidebarTemplate,
   compact: CompactTemplate,
+  shokumu: ShokumuTemplate,
+  rirekisho: RirekishoTemplate,
 };
 
 export const TEMPLATES: TemplateDef[] = TEMPLATE_META.map((meta) => ({

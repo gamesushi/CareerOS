@@ -13,7 +13,15 @@ export const TEMPLATE_META: TemplateMeta[] = [
   { id: "modern", name: "现代", description: "强调色横线与标题，外企风", defaultAccent: "#2563eb" },
   { id: "sidebar", name: "侧栏", description: "双栏+时间线，信息密度高", defaultAccent: "#0f766e" },
   { id: "compact", name: "紧凑", description: "居中极简，一页装下更多", defaultAccent: "#525252" },
+  { id: "shokumu", name: "職務経歴書", description: "日本転職標準・会社別テーブル", defaultAccent: "#333333" },
+  { id: "rirekisho", name: "履歴書", description: "JIS 様式・表形式（写真枠付）", defaultAccent: "#333333" },
 ];
+
+/** resumeType → 推荐默认模板 */
+export const TYPE_DEFAULT_TEMPLATE: Record<string, string> = {
+  ja_shokumu: "shokumu",
+  ja_rirekisho: "rirekisho",
+};
 
 export function resolveTemplateMeta(templateId: string | null | undefined): TemplateMeta {
   const id = templateId?.replace(/^openresume-/, "") ?? "classic";

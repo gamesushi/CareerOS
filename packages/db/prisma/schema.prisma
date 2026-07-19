@@ -61,6 +61,7 @@ enum ResumeType {
   zh
   en
   ja_shokumu
+  ja_rirekisho
   linkedin
   cover_letter
 
@@ -171,6 +172,8 @@ model User {
   aiRuns        AiRun[]
   connectionsFrom Connection[] @relation("ConnFrom")
   connectionsTo   Connection[] @relation("ConnTo")
+  jobWatches      JobWatch[]
+  discoveredJobs  DiscoveredJob[]
 
   @@map("users")
 }
@@ -477,9 +480,10 @@ model JobDescription {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
-  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  matches JobMatch[]
-  resumes Resume[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches        JobMatch[]
+  resumes        Resume[]
+  discoveredJobs DiscoveredJob[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("job_descriptions")
@@ -528,6 +532,65 @@ model Resume {
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
+}
+
+// ============ 岗位监测 ============
+
+enum DiscoveredJobStatus {
+  new
+  viewed
+  imported
+  dismissed
+
+  @@map("discovered_job_status")
+}
+
+model JobWatch {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  name            String    @db.VarChar(120)
+  keywords        String[]  @default([]) // OR 语义，每个关键词各查一次
+  sources         String[]  @default([]) // 适配器 id：tencent / bytedance / ...
+  locations       String[]  @default([]) // 城市过滤（适配器内含义各异，见适配器注释）
+  intervalMinutes Int       @default(60) @map("interval_minutes")
+  enabled         Boolean   @default(true)
+  lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz()
+  lastError       String?   @map("last_error")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs DiscoveredJob[]
+
+  @@index([enabled, lastRunAt])
+  @@map("job_watches")
+}
+
+model DiscoveredJob {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchId     String              @map("watch_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  source      String              @db.VarChar(32)
+  externalId  String              @map("external_id") @db.VarChar(128)
+  title       String              @db.VarChar(200)
+  company     String?             @db.VarChar(128)
+  location    String?             @db.VarChar(128)
+  salary      String?             @db.VarChar(64)
+  url         String
+  snippet     String?             // 职责摘要（列表接口给多少存多少）
+  publishedAt DateTime?           @map("published_at") @db.Timestamptz()
+  raw         Json?
+  status      DiscoveredJobStatus @default(new)
+  jdId        String?             @map("jd_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()
+
+  watch JobWatch        @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jd    JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
+
+  @@unique([watchId, source, externalId])
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@map("discovered_jobs")
 }
 
 // ============ 社交（预留） / 向量 / 审计 ============

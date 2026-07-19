@@ -18,6 +18,15 @@ export function ensureFonts() {
       { src: path.join(fontsDir, "NotoSansSC-Bold.ttf"), fontWeight: 700 },
     ],
   });
+  // 日文文书（履歴書/職務経歴書）：完整版 Noto Sans CJK JP——
+  // 日式字形优先且覆盖全部 CJK（含简体专有名词，如中国公司名），避免子集字体缺字。
+  Font.register({
+    family: "NotoSansJP",
+    fonts: [
+      { src: path.join(fontsDir, "NotoSansCJKjp-Regular.otf") },
+      { src: path.join(fontsDir, "NotoSansCJKjp-Bold.otf"), fontWeight: 700 },
+    ],
+  });
   Font.registerHyphenationCallback((word) =>
     /[぀-ヿ㐀-鿿豈-﫿]/.test(word) ? word.split("") : [word],
   );

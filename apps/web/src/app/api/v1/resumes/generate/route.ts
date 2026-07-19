@@ -2,8 +2,14 @@ import { prisma } from "@careeros/db";
 import { resumeGenerateInput } from "@careeros/shared";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 import { aiQueue } from "@/lib/queue";
+import { TYPE_DEFAULT_TEMPLATE } from "@/lib/pdf/template-meta";
 
-const TYPE_LABEL: Record<string, string> = { zh: "中文简历", en: "English Resume", ja_shokumu: "職務経歴書" };
+const TYPE_LABEL: Record<string, string> = {
+  zh: "中文简历",
+  en: "English Resume",
+  ja_shokumu: "職務経歴書",
+  ja_rirekisho: "履歴書",
+};
 
 export const POST = handler(async (req) => {
   const { userId } = await requireUser();
@@ -23,7 +29,11 @@ export const POST = handler(async (req) => {
       title,
       resumeType: input.resumeType,
       version: version + 1,
-      templateId: input.templateId,
+      // 日文文书类型未显式选模板时强制专用模板
+      templateId:
+        input.templateId === "classic" && TYPE_DEFAULT_TEMPLATE[input.resumeType]
+          ? TYPE_DEFAULT_TEMPLATE[input.resumeType]
+          : input.templateId,
       resumeJson: {}, // 生成完成前为空，编辑器轮询
       jdId: input.jdId ?? null,
       status: "draft",
