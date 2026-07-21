@@ -17,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { TEMPLATE_META } from "@/lib/pdf/template-meta";
 import { FileText, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type ResumeRow = {
   id: string;
@@ -30,11 +31,11 @@ type ResumeRow = {
 
 type JdOption = { id: string; company?: string | null; title?: string | null; status: string };
 
-const TYPE_LABEL: Record<string, string> = { zh: "中文", en: "EN", ja_shokumu: "職務経歴書" };
 const NONE = "__none__";
 
 export default function ResumesPage() {
   const router = useRouter();
+  const t = useT();
   const [items, setItems] = useState<ResumeRow[] | null>(null);
   const [jds, setJds] = useState<JdOption[]>([]);
   const [open, setOpen] = useState(false);
@@ -72,7 +73,7 @@ export default function ResumesPage() {
   async function remove(id: string) {
     const res = await api(`/resumes/${id}`, { method: "DELETE" });
     if (res) {
-      toast.success("已删除");
+      toast.success(t("common.deleted"));
       void load();
     }
   }
@@ -81,24 +82,24 @@ export default function ResumesPage() {
     <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold">简历中心</h1>
+          <h1 className="text-xl font-semibold">{t("resumes.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            简历是职业数据库的视图——想改事实去知识库，这里只管生成、微调与导出。
+            {t("resumes.subtitle")}
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="size-4" /> 生成简历</Button>
+            <Button><Plus className="size-4" /> {t("resumes.generate")}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
-            <DialogHeader><DialogTitle>生成简历</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("resumes.generate")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>目标 JD（可选，将按相关度选材）</Label>
+                <Label>{t("resumes.targetJd")}</Label>
                 <Select value={form.jdId} onValueChange={(v) => setForm({ ...form, jdId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>不指定（通用简历）</SelectItem>
+                    <SelectItem value={NONE}>{t("resumes.targetJdNone")}</SelectItem>
                     {jds.map((j) => (
                       <SelectItem key={j.id} value={j.id}>
                         {[j.company, j.title].filter(Boolean).join(" · ") || j.id.slice(0, 8)}
@@ -108,19 +109,19 @@ export default function ResumesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>语言 / 格式</Label>
+                <Label>{t("resumes.langFormat")}</Label>
                 <Select value={form.resumeType} onValueChange={(v) => setForm({ ...form, resumeType: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="zh">中文简历</SelectItem>
-                    <SelectItem value="en">English Resume</SelectItem>
-                    <SelectItem value="ja_shokumu">日本語 職務経歴書</SelectItem>
-                    <SelectItem value="ja_rirekisho">日本語 履歴書（JIS）</SelectItem>
+                    <SelectItem value="zh">{t("resumes.lang.zh")}</SelectItem>
+                    <SelectItem value="en">{t("resumes.lang.en")}</SelectItem>
+                    <SelectItem value="ja_shokumu">{t("resumes.lang.ja_shokumu")}</SelectItem>
+                    <SelectItem value="ja_rirekisho">{t("resumes.lang.ja_rirekisho")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>模板（生成后可随时切换）</Label>
+                <Label>{t("resumes.template")}</Label>
                 <Select value={form.templateId} onValueChange={(v) => setForm({ ...form, templateId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -133,7 +134,7 @@ export default function ResumesPage() {
             </div>
             <DialogFooter>
               <Button onClick={generate} disabled={generating}>
-                {generating ? "创建中…" : "开始生成"}
+                {generating ? t("resumes.creating") : t("resumes.startGenerate")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -143,7 +144,7 @@ export default function ResumesPage() {
       {!items && <Skeleton className="h-40" />}
       {items?.length === 0 && (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-          还没有简历。点击右上角「生成简历」，从职业数据库生成第一份。
+          {t("resumes.empty")}
         </CardContent></Card>
       )}
 
@@ -162,8 +163,8 @@ export default function ResumesPage() {
                   v{r.version} · {new Date(r.generatedAt).toLocaleString("zh-CN")}
                 </p>
                 <div className="mt-1.5 flex gap-1.5">
-                  <Badge variant="secondary" className="font-normal">{TYPE_LABEL[r.resumeType]}</Badge>
-                  <Badge variant="outline" className="font-normal">{r.status === "final" ? "定稿" : "草稿"}</Badge>
+                  <Badge variant="secondary" className="font-normal">{t(`resumes.type.${r.resumeType}`)}</Badge>
+                  <Badge variant="outline" className="font-normal">{r.status === "final" ? t("resumes.final") : t("resumes.draft")}</Badge>
                 </div>
               </div>
               <Button

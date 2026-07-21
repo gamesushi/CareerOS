@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, RefreshCw } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type ProfileData = {
   headline?: string | null;
@@ -18,12 +19,12 @@ type ProfileData = {
   isStale: boolean;
 };
 
-const JOB_STATUS_LABEL: Record<string, string> = {
-  open: "看机会中", passive: "观望", closed: "不看机会",
+const JOB_STATUS_KEY: Record<string, string> = {
+  open: "profile.status.open", passive: "profile.status.passive", closed: "profile.status.closed",
 };
 
-const LEVEL_LABEL: Record<string, string> = {
-  junior: "初级", mid: "中级", senior: "资深", staff: "专家", exec: "高管",
+const LEVEL_KEY: Record<string, string> = {
+  junior: "profile.level.junior", mid: "profile.level.mid", senior: "profile.level.senior", staff: "profile.level.staff", exec: "profile.level.exec",
 };
 
 export function ProfileHero({
@@ -31,6 +32,7 @@ export function ProfileHero({
 }: {
   name: string; jobStatus: string; profile: ProfileData | null; hasData: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [generating, setGenerating] = useState(false);
 
@@ -47,13 +49,13 @@ export function ProfileHero({
       const p = await api<ProfileData>("/career/profile", { silent: true });
       if (p && !p.isStale) {
         setGenerating(false);
-        toast.success("职业画像已更新");
+        toast.success(t("profile.updated"));
         router.refresh();
         return;
       }
     }
     setGenerating(false);
-    toast.error("画像生成超时，请稍后重试");
+    toast.error(t("profile.timeout"));
   }
 
   return (
@@ -66,22 +68,22 @@ export function ProfileHero({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold">{name}</h1>
-              <Badge variant="secondary">{JOB_STATUS_LABEL[jobStatus] ?? jobStatus}</Badge>
+              <Badge variant="secondary">{JOB_STATUS_KEY[jobStatus] ? t(JOB_STATUS_KEY[jobStatus]) : jobStatus}</Badge>
               {profile?.careerLevel && (
-                <Badge variant="outline">{LEVEL_LABEL[profile.careerLevel] ?? profile.careerLevel}</Badge>
+                <Badge variant="outline">{LEVEL_KEY[profile.careerLevel] ? t(LEVEL_KEY[profile.careerLevel]) : profile.careerLevel}</Badge>
               )}
               {profile?.yearsExperience != null && (
-                <Badge variant="outline">{Number(profile.yearsExperience).toFixed(0)} 年经验</Badge>
+                <Badge variant="outline">{t("profile.yearsExperience", { years: Number(profile.yearsExperience).toFixed(0) })}</Badge>
               )}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {profile?.headline ?? "职业画像将在数据积累后由 AI 生成"}
+              {profile?.headline ?? t("profile.placeholder")}
             </p>
           </div>
           {hasData && (
             <Button variant="outline" size="sm" onClick={regenerate} disabled={generating}>
               {generating ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-              {profile?.headline ? "重新生成" : "生成画像"}
+              {profile?.headline ? t("profile.regenerate") : t("profile.generate")}
             </Button>
           )}
         </div>
@@ -90,15 +92,15 @@ export function ProfileHero({
 
         {(profile?.careerTags?.length ?? 0) > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {profile!.careerTags.map((t) => (
-              <Badge key={t} variant="secondary" className="font-normal">{t}</Badge>
+            {profile!.careerTags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
             ))}
           </div>
         )}
 
         {profile?.isStale && profile?.headline && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-            职业数据有更新，画像可能已过时——点「重新生成」刷新。
+            {t("profile.staleHint")}
           </p>
         )}
       </CardContent>

@@ -20,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ExternalLink, Play, Plus, Radar, Trash2, Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type Watch = {
   id: string; name: string; keywords: string[]; sources: string[]; locations: string[];
@@ -40,6 +41,7 @@ const EMPTY_FORM = { name: "", keywords: "", sources: ["tencent", "bytedance"] a
 
 export default function MonitorPage() {
   const router = useRouter();
+  const t = useT();
   const [watches, setWatches] = useState<Watch[] | null>(null);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -61,7 +63,7 @@ export default function MonitorPage() {
   async function createWatch() {
     const keywords = form.keywords.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
     if (!form.name || keywords.length === 0 || form.sources.length === 0) {
-      toast.error("名称、关键词、来源均为必填");
+      toast.error(t("monitor.requiredError"));
       return;
     }
     const res = await api("/watches", {
@@ -75,7 +77,7 @@ export default function MonitorPage() {
       }),
     });
     if (res) {
-      toast.success("已创建，首次抓取已排队");
+      toast.success(t("monitor.created"));
       setCreateOpen(false);
       setForm(EMPTY_FORM);
       const created = res as { id: string };
@@ -89,7 +91,7 @@ export default function MonitorPage() {
     setRunning(id);
     const res = await api(`/watches/${id}/run`, { method: "POST" });
     if (res) {
-      toast.success("已触发抓取，稍候刷新");
+      toast.success(t("monitor.fetchTriggered"));
       setTimeout(() => { void load(); setRunning(null); }, 5000);
     } else {
       setRunning(null);
@@ -103,13 +105,13 @@ export default function MonitorPage() {
 
   async function removeWatch(id: string) {
     const res = await api(`/watches/${id}`, { method: "DELETE" });
-    if (res) { toast.success("已删除"); void load(); }
+    if (res) { toast.success(t("common.deleted")); void load(); }
   }
 
   async function importJob(job: Job) {
     const res = await api<{ jdId: string }>(`/discovered-jobs/${job.id}/import`, { method: "POST" });
     if (res) {
-      toast.success("已导入为 JD，解析中");
+      toast.success(t("monitor.importedToast"));
       router.push(`/jobs/${res.jdId}`);
     }
   }
@@ -123,28 +125,28 @@ export default function MonitorPage() {
     <div className="mx-auto max-w-5xl space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold">岗位监测</h1>
+          <h1 className="text-xl font-semibold">{t("monitor.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            按关键词自动盯住招聘渠道的新岗位，一键导入为 JD 做匹配。来源可在代码中扩展。
+            {t("monitor.subtitle")}
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="size-4" /> 新建监测</Button>
+            <Button size="sm"><Plus className="size-4" /> {t("monitor.newWatch")}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>新建岗位监测</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("monitor.newWatchTitle")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>名称 *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="海外发行 · 大厂" />
+                <Label>{t("monitor.name")}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("monitor.namePlaceholder")} />
               </div>
               <div className="space-y-1.5">
-                <Label>关键词（逗号分隔，最多 5 个）*</Label>
-                <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder="海外发行, 游戏运营" />
+                <Label>{t("monitor.keywords")}</Label>
+                <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder={t("monitor.keywordsPlaceholder")} />
               </div>
               <div className="space-y-1.5">
-                <Label>来源 *</Label>
+                <Label>{t("monitor.source")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {WATCH_SOURCES.map((s) => {
                     const on = form.sources.includes(s.id);
@@ -167,25 +169,25 @@ export default function MonitorPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>城市过滤（可空）</Label>
-                  <Input value={form.locations} onChange={(e) => setForm({ ...form, locations: e.target.value })} placeholder="深圳, 上海" />
+                  <Label>{t("monitor.locations")}</Label>
+                  <Input value={form.locations} onChange={(e) => setForm({ ...form, locations: e.target.value })} placeholder={t("monitor.locationsPlaceholder")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>检查间隔</Label>
+                  <Label>{t("monitor.interval")}</Label>
                   <Select value={form.intervalMinutes} onValueChange={(v) => setForm({ ...form, intervalMinutes: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="30">30 分钟</SelectItem>
-                      <SelectItem value="60">1 小时</SelectItem>
-                      <SelectItem value="240">4 小时</SelectItem>
-                      <SelectItem value="1440">每天</SelectItem>
+                      <SelectItem value="30">{t("monitor.interval.30")}</SelectItem>
+                      <SelectItem value="60">{t("monitor.interval.60")}</SelectItem>
+                      <SelectItem value="240">{t("monitor.interval.240")}</SelectItem>
+                      <SelectItem value="1440">{t("monitor.interval.1440")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={createWatch}>创建并抓取</Button>
+              <Button onClick={createWatch}>{t("monitor.createAndRun")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -195,7 +197,7 @@ export default function MonitorPage() {
       {!watches ? <Skeleton className="h-20" /> : watches.length === 0 ? (
         <Card><CardContent className="flex flex-col items-center gap-2 py-8 text-sm text-muted-foreground">
           <Radar className="size-6" />
-          还没有监测任务。建一个，让新岗位自己来找你。
+          {t("monitor.watchEmpty")}
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
@@ -205,17 +207,17 @@ export default function MonitorPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{w.name}</p>
-                    {w.newJobCount > 0 && <Badge>{w.newJobCount} 新</Badge>}
-                    {w.lastError && <Badge variant="destructive" title={w.lastError}>抓取异常</Badge>}
+                    {w.newJobCount > 0 && <Badge>{t("monitor.newBadge", { count: w.newJobCount })}</Badge>}
+                    {w.lastError && <Badge variant="destructive" title={w.lastError}>{t("monitor.fetchError")}</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {w.keywords.join(" / ")} · {w.sources.map((s) => SOURCE_LABEL[s] ?? s).join("、")}
                     {w.locations.length > 0 && ` · ${w.locations.join("/")}`}
-                    {` · 每 ${w.intervalMinutes >= 60 ? `${w.intervalMinutes / 60} 小时` : `${w.intervalMinutes} 分钟`}`}
-                    {w.lastRunAt && ` · 上次 ${new Date(w.lastRunAt).toLocaleString("zh-CN")}`}
+                    {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
+                    {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="size-8" title="立即抓取" disabled={running === w.id} onClick={() => runNow(w.id)}>
+                <Button variant="ghost" size="icon" className="size-8" title={t("monitor.runNow")} disabled={running === w.id} onClick={() => runNow(w.id)}>
                   {running === w.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                 </Button>
                 <Switch checked={w.enabled} onCheckedChange={() => toggleWatch(w)} />
@@ -232,20 +234,20 @@ export default function MonitorPage() {
 
       {/* 岗位 feed */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">发现的岗位</h2>
+        <h2 className="text-sm font-semibold">{t("monitor.discoveredJobs")}</h2>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部</SelectItem>
-            <SelectItem value="new">未读</SelectItem>
-            <SelectItem value="imported">已导入</SelectItem>
-            <SelectItem value="dismissed">已忽略</SelectItem>
+            <SelectItem value="all">{t("monitor.filter.all")}</SelectItem>
+            <SelectItem value="new">{t("monitor.filter.new")}</SelectItem>
+            <SelectItem value="imported">{t("monitor.filter.imported")}</SelectItem>
+            <SelectItem value="dismissed">{t("monitor.filter.dismissed")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {!jobs ? <Skeleton className="h-32" /> : jobs.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">暂无岗位。创建监测或点「立即抓取」。</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("monitor.jobsEmpty")}</p>
       ) : (
         <div className="space-y-2">
           {jobs.map((j) => (
@@ -258,7 +260,7 @@ export default function MonitorPage() {
                         {j.title} <ExternalLink className="inline size-3 text-muted-foreground" />
                       </a>
                       {j.status === "new" && <Badge className="px-1.5 py-0 text-[10px]">NEW</Badge>}
-                      {j.status === "imported" && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">已导入</Badge>}
+                      {j.status === "imported" && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{t("monitor.imported")}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {[j.company, j.location, j.salary].filter(Boolean).join(" · ")}
@@ -269,12 +271,12 @@ export default function MonitorPage() {
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     {j.jdId ? (
-                      <Button size="sm" variant="outline" onClick={() => router.push(`/jobs/${j.jdId}`)}>看匹配</Button>
+                      <Button size="sm" variant="outline" onClick={() => router.push(`/jobs/${j.jdId}`)}>{t("monitor.seeMatch")}</Button>
                     ) : (
-                      <Button size="sm" onClick={() => importJob(j)}>导入为 JD</Button>
+                      <Button size="sm" onClick={() => importJob(j)}>{t("monitor.importAsJd")}</Button>
                     )}
                     {j.status !== "dismissed" && (
-                      <Button size="sm" variant="ghost" onClick={() => dismissJob(j.id)}>忽略</Button>
+                      <Button size="sm" variant="ghost" onClick={() => dismissJob(j.id)}>{t("monitor.dismiss")}</Button>
                     )}
                   </div>
                 </div>

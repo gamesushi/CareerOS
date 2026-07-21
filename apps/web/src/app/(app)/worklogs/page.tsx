@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
+import { useT } from "@/lib/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ type ProjectOption = { id: string; name: string };
 const NONE = "__none__";
 
 export default function WorkLogsPage() {
+  const t = useT();
   const [items, setItems] = useState<WorkLog[] | null>(null);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [form, setForm] = useState({
@@ -63,7 +65,7 @@ export default function WorkLogsPage() {
 
   async function save() {
     if (!form.title || !form.content) {
-      toast.error("标题和内容为必填");
+      toast.error(t("worklogs.requiredError"));
       return;
     }
     setSaving(true);
@@ -80,7 +82,7 @@ export default function WorkLogsPage() {
     });
     setSaving(false);
     if (res) {
-      toast.success("已记录，AI 正在生成摘要");
+      toast.success(t("worklogs.recorded"));
       setForm({ ...form, title: "", content: "", tags: "" });
       void load();
     }
@@ -96,7 +98,7 @@ export default function WorkLogsPage() {
       }),
     });
     if (res) {
-      toast.success(`已采纳：${res.evidenceCount} 个技能获得新证据`);
+      toast.success(t("worklogs.accepted", { count: res.evidenceCount }));
       void load();
     }
   }
@@ -117,9 +119,9 @@ export default function WorkLogsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">工作日志</h1>
+        <h1 className="text-xl font-semibold">{t("worklogs.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          持续记录是职业资产的日常来源——AI 会自动摘要，并把日志变成技能证据。
+          {t("worklogs.subtitle")}
         </p>
       </div>
 
@@ -134,14 +136,14 @@ export default function WorkLogsPage() {
               onChange={(e) => setForm({ ...form, logDate: e.target.value })}
             />
             <Input
-              placeholder="今天做了什么？（标题）"
+              placeholder={t("worklogs.titlePlaceholder")}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
           <Textarea
             rows={3}
-            placeholder="细节、进展、思考…（支持 Markdown，⌘Enter 保存）"
+            placeholder={t("worklogs.contentPlaceholder")}
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
             onKeyDown={(e) => {
@@ -151,19 +153,19 @@ export default function WorkLogsPage() {
           <div className="flex gap-2">
             <Input
               className="flex-1"
-              placeholder="标签（逗号分隔）"
+              placeholder={t("worklogs.tagsPlaceholder")}
               value={form.tags}
               onChange={(e) => setForm({ ...form, tags: e.target.value })}
             />
             <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
               <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>不关联项目</SelectItem>
+                <SelectItem value={NONE}>{t("worklogs.noProject")}</SelectItem>
                 {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button onClick={save} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : "记录"}
+              {saving ? <Loader2 className="size-4 animate-spin" /> : t("worklogs.record")}
             </Button>
           </div>
         </CardContent>
@@ -173,7 +175,7 @@ export default function WorkLogsPage() {
       {!items && <Skeleton className="h-40" />}
       {items?.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          还没有日志。写下第一篇，让技能开始积累证据。
+          {t("worklogs.empty")}
         </p>
       )}
       <div className="space-y-3">
@@ -197,7 +199,7 @@ export default function WorkLogsPage() {
                 </p>
               ) : (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" /> AI 摘要生成中…
+                  <Loader2 className="size-3 animate-spin" /> {t("worklogs.summarizing")}
                 </p>
               )}
 
@@ -220,10 +222,10 @@ export default function WorkLogsPage() {
               {/* SuggestionRow：飞轮的采纳点 */}
               {log.aiSuggestions && (log.aiSuggestions.skills.length > 0 || log.aiSuggestions.projects.length > 0) && (
                 <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2">
-                  <span className="text-xs text-muted-foreground">AI 检测到：</span>
+                  <span className="text-xs text-muted-foreground">{t("worklogs.aiDetected")}</span>
                   {log.aiSuggestions.skills.map((s) => (
                     <Badge key={s.name} variant="outline" className="font-normal">
-                      {s.name}{s.skillId ? "" : "（新）"}
+                      {s.name}{s.skillId ? "" : t("worklogs.newSuffix")}
                     </Badge>
                   ))}
                   {log.aiSuggestions.projects.map((p) => (
@@ -231,10 +233,10 @@ export default function WorkLogsPage() {
                   ))}
                   <div className="ml-auto flex gap-1">
                     <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => dismissSuggestions(log)}>
-                      忽略
+                      {t("worklogs.ignore")}
                     </Button>
                     <Button size="sm" className="h-7 text-xs" onClick={() => acceptSuggestions(log)}>
-                      采纳为技能证据
+                      {t("worklogs.acceptAsEvidence")}
                     </Button>
                   </div>
                 </div>

@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type Achievement = {
   id: string;
@@ -40,6 +41,7 @@ const EMPTY_FORM = {
 };
 
 export function AchievementTab() {
+  const t = useT();
   const [items, setItems] = useState<Achievement[] | null>(null);
   const [expOptions, setExpOptions] = useState<Option[]>([]);
   const [projOptions, setProjOptions] = useState<Option[]>([]);
@@ -83,7 +85,7 @@ export function AchievementTab() {
 
   async function save() {
     if (!form.title) {
-      toast.error("成果标题为必填");
+      toast.error(t("achievement.requiredError"));
       return;
     }
     setSaving(true);
@@ -101,7 +103,7 @@ export function AchievementTab() {
       : await api("/achievements", { method: "POST", body });
     setSaving(false);
     if (res) {
-      toast.success(editing ? "已更新" : "已添加");
+      toast.success(editing ? t("common.updated") : t("common.added"));
       setOpen(false);
       void load();
     }
@@ -110,7 +112,7 @@ export function AchievementTab() {
   async function remove(id: string) {
     const res = await api(`/achievements/${id}`, { method: "DELETE" });
     if (res) {
-      toast.success("已删除");
+      toast.success(t("common.deleted"));
       void load();
     }
   }
@@ -120,22 +122,22 @@ export function AchievementTab() {
   return (
     <div className="space-y-3 pt-2">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openCreate}><Plus className="size-4" /> 添加成果</Button>
+        <Button size="sm" onClick={openCreate}><Plus className="size-4" /> {t("achievement.add")}</Button>
       </div>
 
       {items.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          还没有量化成果。「增长30%」「管理20人团队」这类记录是简历说服力的核心。
+          {t("achievement.empty")}
         </CardContent></Card>
       ) : (
         <Card><CardContent className="px-0 py-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>成果</TableHead>
-                <TableHead className="w-28">指标</TableHead>
-                <TableHead className="w-44">挂靠</TableHead>
-                <TableHead className="w-28">时间</TableHead>
+                <TableHead>{t("achievement.colTitle")}</TableHead>
+                <TableHead className="w-28">{t("achievement.colMetric")}</TableHead>
+                <TableHead className="w-44">{t("achievement.colLink")}</TableHead>
+                <TableHead className="w-28">{t("achievement.colTime")}</TableHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
@@ -171,55 +173,55 @@ export function AchievementTab() {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-md">
-          <SheetHeader><SheetTitle>{editing ? "编辑成果" : "添加成果"}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{editing ? t("achievement.editTitle") : t("achievement.addTitle")}</SheetTitle></SheetHeader>
           <div className="space-y-4 px-4">
             <div className="space-y-1.5">
-              <Label>成果标题 *</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="日本区收入增长" />
+              <Label>{t("achievement.titleField")}</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={t("achievement.titlePlaceholder")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>数值</Label>
+                <Label>{t("achievement.metricValue")}</Label>
                 <Input type="number" value={form.metricValue} onChange={(e) => setForm({ ...form, metricValue: e.target.value })} placeholder="30" />
               </div>
               <div className="space-y-1.5">
-                <Label>单位</Label>
-                <Input value={form.metricUnit} onChange={(e) => setForm({ ...form, metricUnit: e.target.value })} placeholder="% / 人 / 万元" />
+                <Label>{t("achievement.metricUnit")}</Label>
+                <Input value={form.metricUnit} onChange={(e) => setForm({ ...form, metricUnit: e.target.value })} placeholder={t("achievement.metricUnitPlaceholder")} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>无法量化时的描述</Label>
-              <Input value={form.metricText} onChange={(e) => setForm({ ...form, metricText: e.target.value })} placeholder="管理20人团队" />
+              <Label>{t("achievement.metricText")}</Label>
+              <Input value={form.metricText} onChange={(e) => setForm({ ...form, metricText: e.target.value })} placeholder={t("achievement.metricTextPlaceholder")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>挂靠经历</Label>
+                <Label>{t("achievement.linkExperience")}</Label>
                 <Select value={form.experienceId} onValueChange={(v) => setForm({ ...form, experienceId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>无</SelectItem>
+                    <SelectItem value={NONE}>{t("common.none")}</SelectItem>
                     {expOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>挂靠项目</Label>
+                <Label>{t("achievement.linkProject")}</Label>
                 <Select value={form.projectId} onValueChange={(v) => setForm({ ...form, projectId: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>无</SelectItem>
+                    <SelectItem value={NONE}>{t("common.none")}</SelectItem>
                     {projOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>发生时间</Label>
+              <Label>{t("achievement.date")}</Label>
               <Input type="date" value={form.occurredAt} onChange={(e) => setForm({ ...form, occurredAt: e.target.value })} />
             </div>
           </div>
           <SheetFooter>
-            <Button onClick={save} disabled={saving}>{saving ? "保存中…" : "保存"}</Button>
+            <Button onClick={save} disabled={saving}>{saving ? t("common.saving") : t("common.save")}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

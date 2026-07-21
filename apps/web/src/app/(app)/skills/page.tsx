@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
+import { useT } from "@/lib/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,19 +44,20 @@ type Evidence = {
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
-  language: "语言", framework: "框架", tool: "工具", domain: "领域", soft: "软技能",
+  language: "skills.cat.language", framework: "skills.cat.framework", tool: "skills.cat.tool", domain: "skills.cat.domain", soft: "skills.cat.soft",
 };
 
 const SOURCE_META: Record<Evidence["sourceType"], { label: string; icon: typeof FolderKanban }> = {
-  project: { label: "项目", icon: FolderKanban },
-  experience: { label: "经历", icon: Briefcase },
-  work_log: { label: "日志", icon: NotebookPen },
-  achievement: { label: "成果", icon: Trophy },
-  certificate: { label: "证书", icon: FileBadge },
-  external: { label: "外部", icon: Link2 },
+  project: { label: "skills.src.project", icon: FolderKanban },
+  experience: { label: "skills.src.experience", icon: Briefcase },
+  work_log: { label: "skills.src.work_log", icon: NotebookPen },
+  achievement: { label: "skills.src.achievement", icon: Trophy },
+  certificate: { label: "skills.src.certificate", icon: FileBadge },
+  external: { label: "skills.src.external", icon: Link2 },
 };
 
 export default function SkillsPage() {
+  const t = useT();
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [detail, setDetail] = useState<Skill | null>(null);
   const [evidences, setEvidences] = useState<Evidence[] | null>(null);
@@ -101,7 +103,7 @@ export default function SkillsPage() {
 
   async function createSkill() {
     if (!newSkill.name) {
-      toast.error("技能名称为必填");
+      toast.error(t("skills.nameRequired"));
       return;
     }
     const res = await api("/skills", {
@@ -113,7 +115,7 @@ export default function SkillsPage() {
       }),
     });
     if (res) {
-      toast.success("已添加技能");
+      toast.success(t("skills.skillAdded"));
       setCreateOpen(false);
       setNewSkill({ name: "", category: "", level: "" });
       void load();
@@ -123,7 +125,7 @@ export default function SkillsPage() {
   async function addEvidence() {
     if (!detail) return;
     if (evForm.sourceType !== "external" && !evForm.sourceId) {
-      toast.error("请选择证据来源实体");
+      toast.error(t("skills.sourceRequired"));
       return;
     }
     const res = await api(`/skills/${detail.id}/evidences`, {
@@ -137,7 +139,7 @@ export default function SkillsPage() {
       }),
     });
     if (res) {
-      toast.success("已添加证据");
+      toast.success(t("skills.evidenceAdded"));
       setEvForm({ sourceType: "external", sourceId: "", note: "", url: "", weight: "3" });
       void openDetail(detail);
       void load();
@@ -156,7 +158,7 @@ export default function SkillsPage() {
   async function removeSkill(id: string) {
     const res = await api(`/skills/${id}`, { method: "DELETE" });
     if (res) {
-      toast.success("已删除");
+      toast.success(t("common.deleted"));
       setDetail(null);
       void load();
     }
@@ -170,40 +172,40 @@ export default function SkillsPage() {
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold">技能中心</h1>
-          <p className="text-sm text-muted-foreground">技能 → 证据 → 熟练度。没有证据的技能没有说服力。</p>
+          <h1 className="text-xl font-semibold">{t("skills.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("skills.subtitle")}</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="size-4" /> 添加技能</Button>
+            <Button size="sm"><Plus className="size-4" /> {t("skills.add")}</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
-            <DialogHeader><DialogTitle>添加技能</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("skills.add")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>名称 *</Label>
-                <Input value={newSkill.name} onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })} placeholder="SQL / 市场分析 / 日语" />
+                <Label>{t("skills.name")}</Label>
+                <Input value={newSkill.name} onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })} placeholder={t("skills.namePlaceholder")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>分类</Label>
+                  <Label>{t("skills.category")}</Label>
                   <Select value={newSkill.category} onValueChange={(v) => setNewSkill({ ...newSkill, category: v })}>
-                    <SelectTrigger><SelectValue placeholder="选择" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("common.select")} /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                        <SelectItem key={k} value={k}>{t(v)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>熟练度 0-100（可留空）</Label>
+                  <Label>{t("skills.level")}</Label>
                   <Input type="number" min={0} max={100} value={newSkill.level} onChange={(e) => setNewSkill({ ...newSkill, level: e.target.value })} />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={createSkill}>保存</Button>
+              <Button onClick={createSkill}>{t("common.save")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -211,7 +213,7 @@ export default function SkillsPage() {
 
       {skills.length === 0 && (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          还没有技能。手动添加，或在项目/日志中积累后自动出现（Sprint 2+）。
+          {t("skills.empty")}
         </CardContent></Card>
       )}
 
@@ -221,13 +223,13 @@ export default function SkillsPage() {
             <CardContent className="space-y-2 py-4">
               <div className="flex items-center justify-between">
                 <p className="font-medium">{s.name}</p>
-                {s.category && <Badge variant="outline" className="font-normal">{CATEGORY_LABEL[s.category] ?? s.category}</Badge>}
+                {s.category && <Badge variant="outline" className="font-normal">{CATEGORY_LABEL[s.category] ? t(CATEGORY_LABEL[s.category]) : s.category}</Badge>}
               </div>
               <Progress value={s.level} />
-              <p className="text-xs text-muted-foreground">
-                熟练度 {s.level} · {s.evidenceCount} 条证据
-                {s.levelSource === "ai" && " · AI 推算"}
-              </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("skills.levelLine", { level: s.level, count: s.evidenceCount })}
+                  {s.levelSource === "ai" && t("skills.aiInferred")}
+                </p>
             </CardContent>
           </Card>
         ))}
@@ -240,15 +242,15 @@ export default function SkillsPage() {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   {detail.name}
-                  <Badge variant="secondary" className="font-normal">熟练度 {detail.level}</Badge>
+                  <Badge variant="secondary" className="font-normal">{t("skills.levelBadge", { level: detail.level })}</Badge>
                 </SheetTitle>
               </SheetHeader>
               <div className="space-y-5 px-4 pb-6">
                 <div>
-                  <h3 className="mb-2 text-sm font-medium">证据（{evidences?.length ?? "…"}）</h3>
+                  <h3 className="mb-2 text-sm font-medium">{t("skills.evidenceHeading", { count: evidences?.length ?? "…" })}</h3>
                   {!evidences && <Skeleton className="h-16" />}
                   {evidences?.length === 0 && (
-                    <p className="text-sm text-muted-foreground">还没有证据，添加一条让这个技能可信。</p>
+                    <p className="text-sm text-muted-foreground">{t("skills.evidenceEmpty")}</p>
                   )}
                   <div className="space-y-2">
                     {evidences?.map((ev) => {
@@ -257,7 +259,7 @@ export default function SkillsPage() {
                         <div key={ev.id} className="flex items-start gap-2 rounded-md border p-2.5 text-sm">
                           <Meta.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">{Meta.label} · 权重 {ev.weight}</p>
+                            <p className="text-xs text-muted-foreground">{t("skills.evidenceWeight", { label: t(Meta.label), weight: ev.weight })}</p>
                             {ev.note && <p className="mt-0.5">{ev.note}</p>}
                             {ev.url && (
                               <a className="truncate text-xs text-muted-foreground underline" href={ev.url} target="_blank" rel="noreferrer">
@@ -277,31 +279,31 @@ export default function SkillsPage() {
                 <Separator />
 
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium">添加证据</h3>
+                  <h3 className="text-sm font-medium">{t("skills.addEvidence")}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label>来源类型</Label>
+                      <Label>{t("skills.sourceType")}</Label>
                       <Select value={evForm.sourceType} onValueChange={(v) => setEvForm({ ...evForm, sourceType: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="project">项目</SelectItem>
-                          <SelectItem value="experience">工作经历</SelectItem>
-                          <SelectItem value="achievement">成果</SelectItem>
-                          <SelectItem value="certificate">证书</SelectItem>
-                          <SelectItem value="external">外部链接</SelectItem>
+                          <SelectItem value="project">{t("skills.src.project")}</SelectItem>
+                          <SelectItem value="experience">{t("skills.src.experienceFull")}</SelectItem>
+                          <SelectItem value="achievement">{t("skills.src.achievement")}</SelectItem>
+                          <SelectItem value="certificate">{t("skills.src.certificateFull")}</SelectItem>
+                          <SelectItem value="external">{t("skills.src.externalFull")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>权重 1-5</Label>
+                      <Label>{t("skills.weight")}</Label>
                       <Input type="number" min={1} max={5} value={evForm.weight} onChange={(e) => setEvForm({ ...evForm, weight: e.target.value })} />
                     </div>
                   </div>
                   {sourceOptions.length > 0 && (
                     <div className="space-y-1.5">
-                      <Label>来源实体</Label>
+                      <Label>{t("skills.sourceEntity")}</Label>
                       <Select value={evForm.sourceId} onValueChange={(v) => setEvForm({ ...evForm, sourceId: v })}>
-                        <SelectTrigger><SelectValue placeholder="选择" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t("common.select")} /></SelectTrigger>
                         <SelectContent>
                           {sourceOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
                         </SelectContent>
@@ -310,21 +312,21 @@ export default function SkillsPage() {
                   )}
                   {(evForm.sourceType === "external" || evForm.sourceType === "certificate") && (
                     <div className="space-y-1.5">
-                      <Label>链接</Label>
+                      <Label>{t("skills.link")}</Label>
                       <Input value={evForm.url} onChange={(e) => setEvForm({ ...evForm, url: e.target.value })} placeholder="https://…" />
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <Label>说明</Label>
-                    <Input value={evForm.note} onChange={(e) => setEvForm({ ...evForm, note: e.target.value })} placeholder="在项目A负责全部SQL调优" />
+                    <Label>{t("skills.note")}</Label>
+                    <Input value={evForm.note} onChange={(e) => setEvForm({ ...evForm, note: e.target.value })} placeholder={t("skills.notePlaceholder")} />
                   </div>
-                  <Button size="sm" onClick={addEvidence}>添加证据</Button>
+                  <Button size="sm" onClick={addEvidence}>{t("skills.addEvidence")}</Button>
                 </div>
 
                 <Separator />
 
                 <Button variant="destructive" size="sm" onClick={() => removeSkill(detail.id)}>
-                  删除该技能
+                  {t("skills.deleteSkill")}
                 </Button>
               </div>
             </>

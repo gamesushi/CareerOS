@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileUp, Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type ImportRow = {
   id: string;
@@ -18,19 +19,20 @@ type ImportRow = {
   createdAt: string;
 };
 
-const STATUS_META: Record<ImportRow["status"], { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending: { label: "排队中", variant: "outline" },
-  parsing: { label: "解析文档", variant: "secondary" },
-  extracting: { label: "AI 抽取", variant: "secondary" },
-  review: { label: "待确认", variant: "default" },
-  applied: { label: "已入库", variant: "outline" },
-  failed: { label: "失败", variant: "destructive" },
+const STATUS_META: Record<ImportRow["status"], { variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  pending: { variant: "outline" },
+  parsing: { variant: "secondary" },
+  extracting: { variant: "secondary" },
+  review: { variant: "default" },
+  applied: { variant: "outline" },
+  failed: { variant: "destructive" },
 };
 
 const RUNNING = new Set(["pending", "parsing", "extracting"]);
 
 export default function ImportsPage() {
   const router = useRouter();
+  const t = useT();
   const [items, setItems] = useState<ImportRow[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -58,20 +60,20 @@ export default function ImportsPage() {
     setUploading(false);
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      toast.error(body?.error?.message ?? `上传失败（${res.status}）`);
+      toast.error(body?.error?.message ?? t("imports.uploadFailed", { status: res.status }));
       return;
     }
     const { importId } = await res.json();
-    toast.success("已开始解析");
+    toast.success(t("imports.parsingStarted"));
     router.push(`/imports/${importId}/review`);
   }
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">导入简历</h1>
+        <h1 className="text-xl font-semibold">{t("imports.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          上传简历 → 自动解析 → 人工确认 → 写入职业数据库。AI 结果不直接入库，最终以你确认的为准。
+          {t("imports.subtitle")}
         </p>
       </div>
 
@@ -88,11 +90,11 @@ export default function ImportsPage() {
       >
         <CardContent className="flex flex-col items-center gap-3 py-10">
           <FileUp className="size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">拖拽文件到此处，或</p>
+          <p className="text-sm text-muted-foreground">{t("imports.dropHint")}</p>
           <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? <><Loader2 className="size-4 animate-spin" /> 上传中…</> : "选择文件"}
+            {uploading ? <><Loader2 className="size-4 animate-spin" /> {t("imports.uploading")}</> : t("imports.chooseFile")}
           </Button>
-          <p className="text-xs text-muted-foreground">支持 PDF / DOCX / DOC / Markdown / TXT，≤15MB</p>
+          <p className="text-xs text-muted-foreground">{t("imports.fileTypes")}</p>
           <input
             ref={fileInput}
             type="file"
@@ -108,10 +110,10 @@ export default function ImportsPage() {
       </Card>
 
       <div className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground">导入历史</h2>
+        <h2 className="text-sm font-medium text-muted-foreground">{t("imports.history")}</h2>
         {!items && <Skeleton className="h-24" />}
         {items?.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted-foreground">还没有导入记录。</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">{t("imports.historyEmpty")}</p>
         )}
         {items?.map((item) => {
           const meta = STATUS_META[item.status];
@@ -130,9 +132,9 @@ export default function ImportsPage() {
                   </p>
                 </div>
                 {RUNNING.has(item.status) && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-                <Badge variant={meta.variant}>{meta.label}</Badge>
+                <Badge variant={meta.variant}>{t(`imports.status.${item.status}`)}</Badge>
                 {item.status === "review" && (
-                  <Button size="sm" variant="outline">去确认</Button>
+                  <Button size="sm" variant="outline">{t("imports.goReview")}</Button>
                 )}
               </CardContent>
             </Card>

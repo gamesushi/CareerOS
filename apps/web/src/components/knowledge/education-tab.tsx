@@ -12,6 +12,7 @@ import {
   Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type Education = {
   id: string;
@@ -26,6 +27,7 @@ type Education = {
 const EMPTY_FORM = { school: "", degree: "", major: "", startDate: "", endDate: "", gpa: "" };
 
 export function EducationTab() {
+  const t = useT();
   const [items, setItems] = useState<Education[] | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Education | null>(null);
@@ -60,7 +62,7 @@ export function EducationTab() {
 
   async function save() {
     if (!form.school) {
-      toast.error("学校为必填");
+      toast.error(t("education.requiredError"));
       return;
     }
     setSaving(true);
@@ -77,7 +79,7 @@ export function EducationTab() {
       : await api("/educations", { method: "POST", body });
     setSaving(false);
     if (res) {
-      toast.success(editing ? "已更新" : "已添加");
+      toast.success(editing ? t("common.updated") : t("common.added"));
       setOpen(false);
       void load();
     }
@@ -86,7 +88,7 @@ export function EducationTab() {
   async function remove(id: string) {
     const res = await api(`/educations/${id}`, { method: "DELETE" });
     if (res) {
-      toast.success("已删除");
+      toast.success(t("common.deleted"));
       void load();
     }
   }
@@ -96,12 +98,12 @@ export function EducationTab() {
   return (
     <div className="space-y-3 pt-2">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openCreate}><Plus className="size-4" /> 添加教育经历</Button>
+        <Button size="sm" onClick={openCreate}><Plus className="size-4" /> {t("education.add")}</Button>
       </div>
 
       {items.length === 0 && (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          还没有教育经历。
+          {t("education.empty")}
         </CardContent></Card>
       )}
 
@@ -114,7 +116,7 @@ export function EducationTab() {
                 <p className="font-medium">{e.school}</p>
                 <p className="text-xs text-muted-foreground">
                   {[e.degree, e.major].filter(Boolean).join(" · ")}
-                  {e.startDate && ` · ${fmtDate(e.startDate).slice(0, 4)} ~ ${e.endDate ? fmtDate(e.endDate).slice(0, 4) : "至今"}`}
+                  {e.startDate && ` · ${fmtDate(e.startDate).slice(0, 4)} ~ ${e.endDate ? fmtDate(e.endDate).slice(0, 4) : t("common.present")}`}
                   {e.gpa && ` · GPA ${e.gpa}`}
                 </p>
               </div>
@@ -133,29 +135,29 @@ export function EducationTab() {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-md">
-          <SheetHeader><SheetTitle>{editing ? "编辑教育经历" : "添加教育经历"}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{editing ? t("education.editTitle") : t("education.addTitle")}</SheetTitle></SheetHeader>
           <div className="space-y-4 px-4">
             <div className="space-y-1.5">
-              <Label>学校 *</Label>
+              <Label>{t("education.school")}</Label>
               <Input value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>学位</Label>
-                <Input value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} placeholder="本科 / 修士" />
+                <Label>{t("education.degree")}</Label>
+                <Input value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} placeholder={t("education.degreePlaceholder")} />
               </div>
               <div className="space-y-1.5">
-                <Label>专业</Label>
+                <Label>{t("education.major")}</Label>
                 <Input value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>入学</Label>
+                <Label>{t("education.start")}</Label>
                 <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>毕业</Label>
+                <Label>{t("education.end")}</Label>
                 <Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
               </div>
             </div>
@@ -165,7 +167,7 @@ export function EducationTab() {
             </div>
           </div>
           <SheetFooter>
-            <Button onClick={save} disabled={saving}>{saving ? "保存中…" : "保存"}</Button>
+            <Button onClick={save} disabled={saving}>{saving ? t("common.saving") : t("common.save")}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

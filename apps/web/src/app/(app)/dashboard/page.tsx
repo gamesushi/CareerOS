@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ProfileHero } from "@/components/profile-hero";
 import { Briefcase, FolderKanban, Sparkles, Trophy } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
 
 function fmtMonth(d: Date) {
   return d.toISOString().slice(0, 7);
 }
 
 export default async function DashboardPage() {
+  const t = await getT();
   const session = await auth();
   const userId = session!.user.id;
 
@@ -42,17 +44,17 @@ export default async function DashboardPage() {
       <div className="flex min-h-[70vh] items-center justify-center">
         <Card className="max-w-md text-center">
           <CardHeader>
-            <CardTitle>开始建立你的职业数据库</CardTitle>
+            <CardTitle>{t("dashboard.emptyTitle")}</CardTitle>
             <CardDescription>
-              简历只是视图，职业数据才是资产。先把经历沉淀进来。
+              {t("dashboard.emptyDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Button asChild>
-              <Link href="/imports">上传简历自动导入</Link>
+              <Link href="/imports">{t("dashboard.emptyImport")}</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/knowledge">手动添加工作经历</Link>
+              <Link href="/knowledge">{t("dashboard.emptyManual")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -61,16 +63,16 @@ export default async function DashboardPage() {
   }
 
   const stats = [
-    { label: "工作经历", value: expCount, icon: Briefcase, href: "/knowledge" },
-    { label: "项目", value: projCount, icon: FolderKanban, href: "/knowledge?tab=projects" },
-    { label: "技能", value: skillCount, icon: Sparkles, href: "/skills" },
-    { label: "成果", value: achCount, icon: Trophy, href: "/knowledge?tab=achievements" },
+    { label: t("dashboard.statExperiences"), value: expCount, icon: Briefcase, href: "/knowledge" },
+    { label: t("dashboard.statProjects"), value: projCount, icon: FolderKanban, href: "/knowledge?tab=projects" },
+    { label: t("dashboard.statSkills"), value: skillCount, icon: Sparkles, href: "/skills" },
+    { label: t("dashboard.statAchievements"), value: achCount, icon: Trophy, href: "/knowledge?tab=achievements" },
   ];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <ProfileHero
-        name={user?.name ?? "用户"}
+        name={user?.name ?? t("app.defaultUser")}
         jobStatus={user?.jobStatus ?? "passive"}
         hasData={expCount + projCount > 0}
         profile={
@@ -106,13 +108,13 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">职业时间轴</CardTitle>
+            <CardTitle className="text-base">{t("dashboard.timeline")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {experiences.map((e) => (
               <div key={e.id} className="flex items-baseline gap-3 text-sm">
                 <span className="w-32 shrink-0 font-mono text-xs text-muted-foreground">
-                  {fmtMonth(e.startDate)} ~ {e.endDate ? fmtMonth(e.endDate) : "至今"}
+                  {fmtMonth(e.startDate)} ~ {e.endDate ? fmtMonth(e.endDate) : t("common.present")}
                 </span>
                 <span className="truncate">
                   <span className="font-medium">{e.company}</span>
@@ -124,12 +126,12 @@ export default async function DashboardPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">最近项目</CardTitle>
+            <CardTitle className="text-base">{t("dashboard.recentProjects")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {projects.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                还没有项目，去<Link className="underline" href="/knowledge?tab=projects">知识库</Link>添加。
+                {t("dashboard.noProjectsPrefix")}<Link className="underline" href="/knowledge?tab=projects">{t("dashboard.noProjectsLink")}</Link>{t("dashboard.noProjectsSuffix")}
               </p>
             )}
             {projects.map((p) => (

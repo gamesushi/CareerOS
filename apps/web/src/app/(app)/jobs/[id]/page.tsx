@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Target, CircleAlert } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 import { Suspense } from "react";
 
 type JdDetail = {
@@ -44,6 +45,7 @@ type MatchDetail = {
 function JdDetailInner({ id }: { id: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useT();
   const [jd, setJd] = useState<JdDetail | null>(null);
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [matchId, setMatchId] = useState<string | null>(searchParams.get("match"));
@@ -90,17 +92,17 @@ function JdDetailInner({ id }: { id: string }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">
-            {[jd.company, jd.title].filter(Boolean).join(" · ") || "JD 详情"}
+            {[jd.company, jd.title].filter(Boolean).join(" · ") || t("jobDetail.fallbackTitle")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {jd.parsed?.seniority && `职级 ${jd.parsed.seniority} · `}
+            {jd.parsed?.seniority && `${t("jobDetail.seniority", { level: jd.parsed.seniority })} · `}
             {jd.parsed?.location && `${jd.parsed.location} · `}
-            历史匹配 {jd.matches.length} 次
+            {t("jobDetail.historyMatches", { count: jd.matches.length })}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/jobs")}>返回</Button>
-          <Button onClick={rematch}><Target className="size-4" /> 重新匹配</Button>
+          <Button variant="outline" onClick={() => router.push("/jobs")}>{t("common.back")}</Button>
+          <Button onClick={rematch}><Target className="size-4" /> {t("jobDetail.rematch")}</Button>
         </div>
       </div>
 
@@ -109,7 +111,7 @@ function JdDetailInner({ id }: { id: string }) {
         <div className="space-y-4">
           {jd.parsed && (
             <Card>
-              <CardHeader><CardTitle className="text-base">解析出的要求</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("jobDetail.parsedRequirements")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-1.5">
                   {jd.parsed.skills.map((s) => (
@@ -122,12 +124,12 @@ function JdDetailInner({ id }: { id: string }) {
                 {jd.parsed.experience.length > 0 && (
                   <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                     {jd.parsed.experience.map((e, i) => (
-                      <li key={i}>{e.desc}{e.yearsMin ? `（≥${e.yearsMin} 年）` : ""}</li>
+                      <li key={i}>{e.desc}{e.yearsMin ? t("jobDetail.yearsMin", { years: e.yearsMin }) : ""}</li>
                     ))}
                   </ul>
                 )}
                 {jd.parsed.industry.length > 0 && (
-                  <p className="text-xs text-muted-foreground">行业：{jd.parsed.industry.join(" / ")}</p>
+                  <p className="text-xs text-muted-foreground">{t("jobDetail.industry", { list: jd.parsed.industry.join(" / ") })}</p>
                 )}
               </CardContent>
             </Card>
@@ -145,23 +147,23 @@ function JdDetailInner({ id }: { id: string }) {
         <div className="space-y-4">
           {!match && matchId && (
             <Card><CardContent className="flex items-center justify-center gap-2 py-10">
-              <Loader2 className="size-4 animate-spin" /><span className="text-sm">计算匹配中…</span>
+              <Loader2 className="size-4 animate-spin" /><span className="text-sm">{t("jobDetail.computing")}</span>
             </CardContent></Card>
           )}
           {!matchId && (
             <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-              还没有匹配记录，点右上角「重新匹配」。
+              {t("jobDetail.noMatch")}
             </CardContent></Card>
           )}
           {match?.state === "computing" && (
             <Card><CardContent className="flex items-center justify-center gap-2 py-10">
-              <Loader2 className="size-4 animate-spin" /><span className="text-sm">正在补齐向量并打分…</span>
+              <Loader2 className="size-4 animate-spin" /><span className="text-sm">{t("jobDetail.scoring")}</span>
             </CardContent></Card>
           )}
           {match?.state === "failed" && (
             <Card><CardContent className="space-y-2 py-8 text-center">
               <CircleAlert className="mx-auto size-6 text-destructive" />
-              <p className="text-sm text-muted-foreground">{match.error ?? "匹配失败"}</p>
+              <p className="text-sm text-muted-foreground">{match.error ?? t("jobDetail.matchFailed")}</p>
             </CardContent></Card>
           )}
           {match?.state === "succeeded" && (
@@ -169,21 +171,21 @@ function JdDetailInner({ id }: { id: string }) {
               <Card>
                 <CardContent className="space-y-4 py-5">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-medium">匹配总分</span>
+                    <span className="text-sm font-medium">{t("jobDetail.totalScore")}</span>
                     <span className="text-4xl font-bold">{Number(match.matchScore).toFixed(0)}</span>
                   </div>
-                  <ScoreRow label="技能覆盖（×0.5）" value={Number(match.skillCoverage)} />
-                  <ScoreRow label="经历覆盖（×0.3）" value={Number(match.experienceCoverage)} />
-                  <ScoreRow label="行业覆盖（×0.2）" value={Number(match.industryCoverage)} />
+                  <ScoreRow label={t("jobDetail.skillCoverage")} value={Number(match.skillCoverage)} />
+                  <ScoreRow label={t("jobDetail.expCoverage")} value={Number(match.experienceCoverage)} />
+                  <ScoreRow label={t("jobDetail.industryCoverage")} value={Number(match.industryCoverage)} />
                   <p className="text-xs text-muted-foreground">
-                    {new Date(match.createdAt).toLocaleString("zh-CN")} · 补充证据后可重新匹配对比分数变化
+                    {new Date(match.createdAt).toLocaleString()} · {t("jobDetail.rematchHint")}
                   </p>
                 </CardContent>
               </Card>
 
               {match.missingSkills.length > 0 && (
                 <Card>
-                  <CardHeader><CardTitle className="text-base">缺失技能（{match.missingSkills.length}）</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">{t("jobDetail.missingSkills", { count: match.missingSkills.length })}</CardTitle></CardHeader>
                   <CardContent className="space-y-2">
                     {match.missingSkills.map((s) => (
                       <div key={s.name} className="flex items-start gap-2 text-sm">
@@ -199,7 +201,7 @@ function JdDetailInner({ id }: { id: string }) {
 
               {match.matchedEvidence.length > 0 && (
                 <Card>
-                  <CardHeader><CardTitle className="text-base">命中证据（{match.matchedEvidence.length}）</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">{t("jobDetail.matchedEvidence", { count: match.matchedEvidence.length })}</CardTitle></CardHeader>
                   <CardContent className="space-y-2">
                     {match.matchedEvidence.map((e, i) => (
                       <div key={i} className="rounded-md border p-2.5 text-sm">
@@ -207,7 +209,7 @@ function JdDetailInner({ id }: { id: string }) {
                         <p className="mt-0.5">
                           → {e.entityLabel || e.entityType}
                           <span className="ml-2 text-xs text-muted-foreground">
-                            相似度 {(e.similarity * 100).toFixed(0)}%
+                            {t("jobDetail.similarity", { percent: (e.similarity * 100).toFixed(0) })}
                           </span>
                         </p>
                       </div>
@@ -226,7 +228,7 @@ function JdDetailInner({ id }: { id: string }) {
                   if (res) router.push(`/resumes/${res.resumeId}`);
                 }}
               >
-                基于此 JD 生成简历
+                {t("jobDetail.generateResume")}
               </Button>
             </>
           )}

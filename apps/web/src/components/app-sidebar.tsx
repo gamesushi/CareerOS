@@ -17,31 +17,35 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 const NAV = [
-  { href: "/dashboard", label: "总览", icon: LayoutDashboard },
-  { href: "/knowledge", label: "职业知识库", icon: Library },
-  { href: "/imports", label: "导入简历", icon: FileUp },
-  { href: "/skills", label: "技能中心", icon: Sparkles },
-  { href: "/worklogs", label: "工作日志", icon: NotebookPen },
-  { href: "/jobs", label: "岗位匹配", icon: Target },
-  { href: "/monitor", label: "岗位监测", icon: Radar },
-  { href: "/resumes", label: "简历中心", icon: FileText },
-  { href: "/settings", label: "设置", icon: Settings },
-];
+  { href: "/dashboard", key: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/knowledge", key: "nav.knowledge", icon: Library },
+  { href: "/imports", key: "nav.imports", icon: FileUp },
+  { href: "/skills", key: "nav.skills", icon: Sparkles },
+  { href: "/worklogs", key: "nav.worklogs", icon: NotebookPen },
+  { href: "/jobs", key: "nav.jobs", icon: Target },
+  { href: "/monitor", key: "nav.monitor", icon: Radar },
+  { href: "/resumes", key: "nav.resumes", icon: FileText },
+  { href: "/settings", key: "nav.settings", icon: Settings },
+] as const;
 
 export function AppSidebar({ userName, userEmail }: { userName: string; userEmail: string }) {
   const pathname = usePathname();
+  const t = useT();
+  const displayName = userName || t("app.defaultUser");
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
       <div className="px-5 py-5">
         <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-          CareerOS
+          {t("app.name")}
         </Link>
-        <p className="mt-0.5 text-xs text-muted-foreground">职业操作系统</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("app.tagline")}</p>
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, key, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
             <Link
@@ -55,25 +59,26 @@ export function AppSidebar({ userName, userEmail }: { userName: string; userEmai
               )}
             >
               <Icon className="size-4" />
-              <span className="flex-1">{label}</span>
+              <span className="flex-1">{t(key)}</span>
             </Link>
           );
         })}
       </nav>
-      <div className="border-t p-3">
+      <div className="border-t p-3 space-y-2">
+        <LocaleSwitcher className="w-full" />
         <div className="flex items-center gap-2 px-1.5">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-            {userName.slice(0, 1).toUpperCase()}
+            {displayName.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{userName}</p>
+            <p className="truncate text-sm font-medium">{displayName}</p>
             <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             className="size-8"
-            title="退出登录"
+            title={t("app.logout")}
             onClick={() => signOut({ callbackUrl: "/login" })}
           >
             <LogOut className="size-4" />

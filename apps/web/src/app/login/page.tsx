@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 function LoginForm() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const params = useSearchParams();
@@ -24,13 +27,18 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-2xl">CareerOS</CardTitle>
-        <CardDescription>职业操作系统 · 让职业经历成为长期数字资产</CardDescription>
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1.5">
+            <CardTitle className="text-2xl">{t("app.name")}</CardTitle>
+            <CardDescription>{t("login.description")}</CardDescription>
+          </div>
+          <LocaleSwitcher className="w-auto shrink-0" />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleDevLogin} className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="email">邮箱</Label>
+            <Label htmlFor="email">{t("login.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -41,11 +49,11 @@ function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "登录中…" : "登录 / 注册"}
+            {loading ? t("login.loading") : t("login.submit")}
           </Button>
         </form>
         <p className="text-xs text-muted-foreground">
-          开发模式：输入邮箱即登录。生产环境将替换为邮件验证链接与 Google 登录。
+          {t("login.devHint")}
         </p>
       </CardContent>
     </Card>

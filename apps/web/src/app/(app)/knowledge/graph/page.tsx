@@ -8,6 +8,7 @@ import { api } from "@/lib/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type GraphData = {
   nodes: { id: string; type: string; label: string; meta?: Record<string, unknown> }[];
@@ -26,6 +27,7 @@ const NODE_STYLE: Record<string, React.CSSProperties> = {
 
 export default function CareerGraphPage() {
   const [data, setData] = useState<GraphData | null>(null);
+  const t = useT();
 
   useEffect(() => {
     void api<GraphData>("/career/graph").then((res) => res && setData(res));
@@ -65,13 +67,13 @@ export default function CareerGraphPage() {
     <div className="flex h-[calc(100vh-3rem)] flex-col gap-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">职业图谱</h1>
+          <h1 className="text-xl font-semibold">{t("graph.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            你 → 经历 → 项目 → 技能/成果。黄色边 = 技能证据链。
+            {t("graph.subtitle")}
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/knowledge"><ArrowLeft className="size-4" /> 返回知识库</Link>
+          <Link href="/knowledge"><ArrowLeft className="size-4" /> {t("graph.back")}</Link>
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-background">

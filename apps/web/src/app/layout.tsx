@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/lib/i18n/provider";
+import { getMessages } from "@/lib/i18n/messages";
+import { getLocale } from "@/lib/i18n/server";
+import { htmlLangFor } from "@/lib/i18n/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,20 +17,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "CareerOS",
-  description: "职业操作系统：让职业经历成为持续积累、可搜索、可匹配、可生成的长期数字资产",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const messages = getMessages(locale);
+  return {
+    title: messages["app.name"],
+    description: messages["app.description"],
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = getMessages(locale);
   return (
-    <html lang="zh" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang={htmlLangFor(locale)}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
-        {children}
+        <I18nProvider locale={locale} messages={messages}>
+          {children}
+        </I18nProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

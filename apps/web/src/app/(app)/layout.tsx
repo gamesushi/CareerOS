@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <AppSidebar
-        userName={session.user.name ?? "用户"}
+        userName={session.user.name ?? ""}
         userEmail={session.user.email ?? ""}
       />
       <main className="min-w-0 flex-1 bg-muted/20 px-8 py-6">{children}</main>

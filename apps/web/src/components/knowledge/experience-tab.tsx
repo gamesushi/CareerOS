@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
 
 type Experience = {
   id: string;
@@ -43,6 +44,7 @@ const EMPTY_FORM = {
 };
 
 export function ExperienceTab() {
+  const t = useT();
   const [items, setItems] = useState<Experience[] | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Experience | null>(null);
@@ -79,7 +81,7 @@ export function ExperienceTab() {
 
   async function save() {
     if (!form.company || !form.title || !form.startDate) {
-      toast.error("公司、职位、开始日期为必填");
+      toast.error(t("experience.requiredError"));
       return;
     }
     setSaving(true);
@@ -98,7 +100,7 @@ export function ExperienceTab() {
       : await api("/experiences", { method: "POST", body });
     setSaving(false);
     if (res) {
-      toast.success(editing ? "已更新" : "已添加");
+      toast.success(editing ? t("common.updated") : t("common.added"));
       setOpen(false);
       void load();
     }
@@ -107,7 +109,7 @@ export function ExperienceTab() {
   async function remove(id: string) {
     const res = await api(`/experiences/${id}`, { method: "DELETE" });
     if (res) {
-      toast.success("已删除");
+      toast.success(t("common.deleted"));
       void load();
     }
   }
@@ -120,13 +122,13 @@ export function ExperienceTab() {
     <div className="space-y-3 pt-2">
       <div className="flex justify-end">
         <Button size="sm" onClick={openCreate}>
-          <Plus className="size-4" /> 添加经历
+          <Plus className="size-4" /> {t("experience.add")}
         </Button>
       </div>
 
       {items.length === 0 && (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-          还没有工作经历。点击右上角「添加经历」开始。
+          {t("experience.empty")}
         </CardContent></Card>
       )}
 
@@ -159,16 +161,16 @@ export function ExperienceTab() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>删除这段经历？</AlertDialogTitle>
+                          <AlertDialogTitle>{t("experience.deleteTitle")}</AlertDialogTitle>
                           <AlertDialogDescription>
                             {exp.projects.length > 0
-                              ? `关联的 ${exp.projects.length} 个项目将保留但失去归属。`
-                              : "此操作可在数据库层恢复（软删除），但界面上会立即消失。"}
+                              ? t("experience.deleteWithProjects", { count: exp.projects.length })
+                              : t("experience.deleteDesc")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>取消</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => remove(exp.id)}>删除</AlertDialogAction>
+                          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remove(exp.id)}>{t("common.delete")}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -195,56 +197,56 @@ export function ExperienceTab() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>{editing ? "编辑经历" : "添加经历"}</SheetTitle>
+            <SheetTitle>{editing ? t("experience.editTitle") : t("experience.addTitle")}</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 px-4">
             <div className="space-y-1.5">
-              <Label>公司 *</Label>
+              <Label>{t("experience.company")}</Label>
               <Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>职位 *</Label>
+              <Label>{t("experience.titleField")}</Label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>开始日期 *</Label>
+                <Label>{t("experience.startDate")}</Label>
                 <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>结束日期（在职留空）</Label>
+                <Label>{t("experience.endDate")}</Label>
                 <Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>类型</Label>
+                <Label>{t("experience.type")}</Label>
                 <Select value={form.employmentType} onValueChange={(v) => setForm({ ...form, employmentType: v })}>
-                  <SelectTrigger><SelectValue placeholder="选择" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("common.select")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fulltime">全职</SelectItem>
-                    <SelectItem value="contract">合同</SelectItem>
-                    <SelectItem value="intern">实习</SelectItem>
-                    <SelectItem value="freelance">自由职业</SelectItem>
+                    <SelectItem value="fulltime">{t("experience.type.fulltime")}</SelectItem>
+                    <SelectItem value="contract">{t("experience.type.contract")}</SelectItem>
+                    <SelectItem value="intern">{t("experience.type.intern")}</SelectItem>
+                    <SelectItem value="freelance">{t("experience.type.freelance")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>地点</Label>
+                <Label>{t("experience.location")}</Label>
                 <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>职责综述</Label>
+              <Label>{t("experience.summary")}</Label>
               <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>亮点（每行一条，将成为简历 bullet）</Label>
+              <Label>{t("experience.highlights")}</Label>
               <Textarea rows={4} value={form.highlights} onChange={(e) => setForm({ ...form, highlights: e.target.value })} />
             </div>
           </div>
           <SheetFooter>
-            <Button onClick={save} disabled={saving}>{saving ? "保存中…" : "保存"}</Button>
+            <Button onClick={save} disabled={saving}>{saving ? t("common.saving") : t("common.save")}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

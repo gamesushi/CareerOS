@@ -7,8 +7,10 @@ import { ExperienceTab } from "@/components/knowledge/experience-tab";
 import { ProjectTab } from "@/components/knowledge/project-tab";
 import { AchievementTab } from "@/components/knowledge/achievement-tab";
 import { EducationTab } from "@/components/knowledge/education-tab";
+import { useT } from "@/lib/i18n/provider";
 
 function KnowledgeTabs() {
+  const t = useT();
   const router = useRouter();
   const tab = useSearchParams().get("tab") ?? "experiences";
 
@@ -16,13 +18,13 @@ function KnowledgeTabs() {
     <Tabs value={tab} onValueChange={(v) => router.replace(`/knowledge?tab=${v}`)}>
       <div className="flex items-center justify-between">
         <TabsList>
-          <TabsTrigger value="experiences">工作经历</TabsTrigger>
-          <TabsTrigger value="projects">项目</TabsTrigger>
-          <TabsTrigger value="achievements">成果</TabsTrigger>
-          <TabsTrigger value="educations">教育</TabsTrigger>
+          <TabsTrigger value="experiences">{t("knowledge.tab.experiences")}</TabsTrigger>
+          <TabsTrigger value="projects">{t("knowledge.tab.projects")}</TabsTrigger>
+          <TabsTrigger value="achievements">{t("knowledge.tab.achievements")}</TabsTrigger>
+          <TabsTrigger value="educations">{t("knowledge.tab.educations")}</TabsTrigger>
         </TabsList>
         <a href="/knowledge/graph" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-          图谱视图 ↗
+          {t("knowledge.graphLink")}
         </a>
       </div>
       <TabsContent value="experiences"><ExperienceTab /></TabsContent>
@@ -33,15 +35,22 @@ function KnowledgeTabs() {
   );
 }
 
+function KnowledgeHeader() {
+  const t = useT();
+  return (
+    <div>
+      <h1 className="text-xl font-semibold">{t("knowledge.title")}</h1>
+      <p className="text-sm text-muted-foreground">
+        {t("knowledge.desc")}
+      </p>
+    </div>
+  );
+}
+
 export default function KnowledgePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">职业知识库</h1>
-        <p className="text-sm text-muted-foreground">
-          所有简历都从这里生成——维护的是数据，不是文档。
-        </p>
-      </div>
+      <KnowledgeHeader />
       <Suspense>
         <KnowledgeTabs />
       </Suspense>
