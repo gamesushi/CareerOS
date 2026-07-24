@@ -104,7 +104,7 @@ const isMock = () =>
 type FactPack = Awaited<ReturnType<typeof buildFactPack>>;
 
 async function buildFactPack(userId: string, jdId: string | null) {
-  const [user, profile, experiences, projects, skills, achievements, educations] = await Promise.all([
+  const [user, profile, experiences, projects, skills, achievements, educations, honors] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     prisma.careerProfile.findUnique({ where: { userId } }),
     prisma.careerExperience.findMany({ where: { userId, deletedAt: null }, orderBy: { startDate: "desc" } }),
@@ -112,6 +112,7 @@ async function buildFactPack(userId: string, jdId: string | null) {
     prisma.skill.findMany({ where: { userId }, orderBy: { level: "desc" }, include: { _count: { select: { evidences: true } } } }),
     prisma.achievement.findMany({ where: { userId } }),
     prisma.education.findMany({ where: { userId }, orderBy: { startDate: { sort: "desc", nulls: "last" } } }),
+    prisma.honor.findMany({ where: { userId }, orderBy: { sortOrder: "asc" } }),
   ]);
   if (experiences.length === 0 && projects.length === 0) {
     throw new Error("职业数据不足（无经历与项目），请先在知识库补充");
@@ -133,13 +134,23 @@ async function buildFactPack(userId: string, jdId: string | null) {
   }
 
   const fmtM = (d: Date | null) => (d ? d.toISOString().slice(0, 7) : "");
+  const langText = Array.isArray(user.languages)
+    ? (user.languages as { name: string; proficiency?: string | null }[])
+        .map((l) => (l.proficiency ? `${l.name}(${l.proficiency})` : l.name))
+        .join("、")
+    : "";
+  const snsText = Array.isArray(user.snsLinks)
+    ? (user.snsLinks as { network: string; url: string }[]).map((s) => `${s.network}: ${s.url}`).join("、")
+    : "";
   const digestParts = [
-    `## 基本信息\n姓名：${user.name}｜邮箱：${user.email}｜地区：${user.region ?? ""}`,
+    `## 基本信息\n姓名：${user.name}｜邮箱：${user.email}｜手机：${user.mobile ?? ""}｜地区：${user.region ?? ""}｜意向城市：${user.preferredCity ?? ""}`,
     profile?.headline ? `职业定位：${profile.headline}\n综述：${profile.summary ?? ""}` : "",
+    langText ? `语言：${langText}` : "",
+    snsText ? `社交链接：${snsText}` : "",
     "## 工作经历",
     ...experiences.map(
       (e) =>
-        `- ${e.company}｜${e.title}｜${fmtM(e.startDate)}~${e.endDate ? fmtM(e.endDate) : "至今"}｜${e.location ?? ""}\n  ${e.description ?? ""}\n  亮点：${e.highlights.join("；")}`,
+        `- ${e.company}｜${e.title}${e.employmentType === "internship" ? "（实习）" : ""}｜${fmtM(e.startDate)}~${e.endDate ? fmtM(e.endDate) : "至今"}｜${e.location ?? ""}\n  ${e.description ?? ""}\n  亮点：${e.highlights.join("；")}`,
     ),
     "## 项目",
     ...projects.map(
@@ -150,13 +161,18 @@ async function buildFactPack(userId: string, jdId: string | null) {
     skills.map((s) => `${s.name}(熟练度${s.level}，证据${s._count.evidences}条)`).join("、"),
     "## 成果",
     ...achievements.map((a) => `- ${a.title}：${a.metricValue ?? ""}${a.metricUnit ?? ""}${a.metricText ?? ""}`),
+    honors.length > 0
+      ? ["## 荣誉奖项", ...honors.map((h) => `- ${h.title}｜${h.issuer ?? ""}｜${h.date ? fmtM(h.date) : ""}`)].join("\n")
+      : "",
     "## 教育",
-    ...educations.map((e) => `- ${e.school}｜${e.degree ?? ""}｜${e.major ?? ""}｜${fmtM(e.startDate)}~${fmtM(e.endDate)}`),
+    ...educations.map(
+      (e) => `- ${e.school}｜${e.faculty ?? ""}｜${e.degree ?? ""}｜${e.major ?? ""}｜${fmtM(e.startDate)}~${fmtM(e.endDate)}`,
+    ),
     jdContext,
   ].filter(Boolean);
 
   return {
-    user, profile, experiences, projects, skills, achievements, educations,
+    user, profile, experiences, projects, skills, achievements, educations, honors,
     relevantIds, jdContext,
     digest: digestParts.join("\n"),
   };
@@ -197,17 +213,27 @@ function programmaticResume(fp: FactPack): JsonResume {
       ? items
       : [...items].sort((a, b) => Number(fp.relevantIds.has(b.id)) - Number(fp.relevantIds.has(a.id)));
 
+  const snsLinks = Array.isArray(fp.user.snsLinks)
+    ? (fp.user.snsLinks as { network: string; url: string; username?: string }[])
+    : [];
+  const languages = Array.isArray(fp.user.languages)
+    ? (fp.user.languages as { name: string; proficiency?: string | null }[])
+    : [];
+
   return jsonResume.parse({
     basics: {
       name: fp.user.name,
       label: fp.profile?.headline ?? undefined,
       email: fp.user.email,
-      location: fp.user.region ?? undefined,
+      phone: fp.user.mobile ?? undefined,
+      location: fp.user.preferredCity ?? fp.user.region ?? undefined,
       summary: fp.profile?.summary ?? undefined,
+      url: snsLinks.find((s) => /linkedin|personal|个人|blog|site/i.test(s.network))?.url ?? undefined,
+      profiles: snsLinks.map((s) => ({ network: s.network, url: s.url, username: s.username })),
     },
     work: relevanceSort(fp.experiences).map((e) => ({
       name: e.company,
-      position: e.title,
+      position: e.title + (e.employmentType === "internship" ? "（实习）" : ""),
       startDate: fmtM(e.startDate),
       endDate: e.endDate ? fmtM(e.endDate) : undefined,
       location: e.location ?? undefined,
@@ -230,16 +256,27 @@ function programmaticResume(fp: FactPack): JsonResume {
     })),
     education: fp.educations.map((e) => ({
       institution: e.school,
-      studyType: e.degree ?? undefined,
+      studyType: [e.faculty, e.degree].filter(Boolean).join(" · ") || undefined,
       area: e.major ?? undefined,
       startDate: fmtM(e.startDate),
       endDate: fmtM(e.endDate),
       score: e.gpa ?? undefined,
     })),
-    awards: fp.achievements.map((a) => ({
-      title: `${a.title}${a.metricValue != null ? `：${a.metricValue}${a.metricUnit ?? ""}` : a.metricText ? `：${a.metricText}` : ""}`,
-      date: a.occurredAt ? a.occurredAt.toISOString().slice(0, 7) : undefined,
-    })),
+    awards: [
+      ...fp.achievements.map((a) => ({
+        title: `${a.title}${a.metricValue != null ? `：${a.metricValue}${a.metricUnit ?? ""}` : a.metricText ? `：${a.metricText}` : ""}`,
+        date: a.occurredAt ? a.occurredAt.toISOString().slice(0, 7) : undefined,
+      })),
+      ...fp.honors.map((h) => ({
+        title: h.title,
+        issuer: h.issuer ?? undefined,
+        date: h.date ? fmtM(h.date) : undefined,
+        summary: h.description ?? undefined,
+      })),
+    ],
+    "x-meta": {
+      languages: languages.map((l) => (l.proficiency ? `${l.name}（${l.proficiency}）` : l.name)),
+    },
   });
 }
 

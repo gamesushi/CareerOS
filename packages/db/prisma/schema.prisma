@@ -135,6 +135,26 @@ enum AiRunStatus {
   @@map("ai_run_status")
 }
 
+// 工作授权状态（应聘表单合规字段，如字节/美企岗）
+enum WorkAuthStatus {
+  us_authorized      // 可在美国无限制工作
+  requires_sponsorship // 需要签证赞助/转移
+  other
+
+  @@map("work_auth_status")
+}
+
+// 语言熟练度
+enum LanguageProficiency {
+  native            // 母语
+  fluent            // 流利
+  professional      // 职业级
+  conversational    // 日常交流
+  basic             // 基础
+
+  @@map("language_proficiency")
+}
+
 // ============ 用户与认证（Auth.js Prisma Adapter 标准模型 + 业务字段） ============
 
 model User {
@@ -146,7 +166,12 @@ model User {
   role          UserRole  @default(user)
   locale        String    @default("zh") @db.VarChar(8)
   region        String?   @db.VarChar(64)
-  languages     String[]  @default([])
+  // 应聘表单补充字段（对照字节等美企申请）
+  mobile         String?   @db.VarChar(64)            // 手机
+  preferredCity  String?   @map("preferred_city") @db.VarChar(128) // 意向工作城市
+  workAuthStatus WorkAuthStatus? @map("work_auth_status")
+  snsLinks       Json      @map("sns_links") @default("[]") // [{ network, url, username }]
+  languages      Json      @default("[]")              // [{ name, proficiency }]
   jobStatus     JobStatus @default(passive) @map("job_status")
   privacy       Json      @default("{\"profile_public\": false, \"resume_searchable\": false, \"recruiter_contact\": false, \"feed_visible\": false}")
   weknoraKbId   String?   @map("weknora_kb_id") @db.VarChar(64)
@@ -163,6 +188,7 @@ model User {
   skills        Skill[]
   achievements  Achievement[]
   educations    Education[]
+  honors        Honor[]
   workLogs      WorkLog[]
   resumeImports ResumeImport[]
   jds           JobDescription[]
@@ -366,6 +392,7 @@ model Education {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String    @map("user_id") @db.Uuid
   school      String    @db.VarChar(160)
+  faculty     String?   @db.VarChar(128) // 学院，如「传媒与人文学院」
   degree      String?   @db.VarChar(64)
   major       String?   @db.VarChar(128)
   startDate   DateTime? @map("start_date") @db.Date
@@ -380,6 +407,24 @@ model Education {
 
   @@index([userId])
   @@map("educations")
+}
+
+// 荣誉奖项（对照应聘表单 Honor and Awards 区块）
+model Honor {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(200)
+  issuer      String?  @db.VarChar(160) // 颁发机构
+  date        DateTime? @map("date") @db.Date
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("honors")
 }
 
 // ============ 工作日志 ============

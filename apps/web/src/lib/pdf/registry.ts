@@ -4,6 +4,7 @@ import { ClassicTemplate } from "./templates/classic";
 import { ModernTemplate } from "./templates/modern";
 import { SidebarTemplate } from "./templates/sidebar";
 import { CompactTemplate } from "./templates/compact";
+import { AtsTemplate } from "./templates/ats";
 import { ShokumuTemplate } from "./templates/shokumu";
 import { RirekishoTemplate } from "./templates/rirekisho";
 
@@ -20,6 +21,7 @@ const COMPONENTS: Record<string, TemplateDef["component"]> = {
   modern: ModernTemplate,
   sidebar: SidebarTemplate,
   compact: CompactTemplate,
+  ats: AtsTemplate,
   shokumu: ShokumuTemplate,
   rirekisho: RirekishoTemplate,
 };

@@ -7,6 +7,7 @@ import { ExperienceTab } from "@/components/knowledge/experience-tab";
 import { ProjectTab } from "@/components/knowledge/project-tab";
 import { AchievementTab } from "@/components/knowledge/achievement-tab";
 import { EducationTab } from "@/components/knowledge/education-tab";
+import { HonorTab } from "@/components/knowledge/honor-tab";
 import { useT } from "@/lib/i18n/provider";
 
 function KnowledgeTabs() {
@@ -22,6 +23,7 @@ function KnowledgeTabs() {
           <TabsTrigger value="projects">{t("knowledge.tab.projects")}</TabsTrigger>
           <TabsTrigger value="achievements">{t("knowledge.tab.achievements")}</TabsTrigger>
           <TabsTrigger value="educations">{t("knowledge.tab.educations")}</TabsTrigger>
+          <TabsTrigger value="honors">{t("knowledge.tab.honors")}</TabsTrigger>
         </TabsList>
         <a href="/knowledge/graph" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
           {t("knowledge.graphLink")}
@@ -31,6 +33,7 @@ function KnowledgeTabs() {
       <TabsContent value="projects"><ProjectTab /></TabsContent>
       <TabsContent value="achievements"><AchievementTab /></TabsContent>
       <TabsContent value="educations"><EducationTab /></TabsContent>
+      <TabsContent value="honors"><HonorTab /></TabsContent>
     </Tabs>
   );
 }

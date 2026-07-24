@@ -20,6 +20,7 @@ export const POST = handler(async (req) => {
       school: input.school,
       degree: input.degree,
       major: input.major,
+      faculty: input.faculty,
       startDate: toDate(input.startDate),
       endDate: toDate(input.endDate),
       gpa: input.gpa,

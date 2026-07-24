@@ -68,10 +68,19 @@ export const educationInput = z.object({
   school: z.string().min(1).max(160),
   degree: z.string().max(64).optional(),
   major: z.string().max(128).optional(),
+  faculty: z.string().max(160).optional(),
   startDate: dateStr.nullable().optional(),
   endDate: dateStr.nullable().optional(),
   gpa: z.string().max(16).optional(),
   description: z.string().max(4000).optional(),
+  sortOrder: z.number().int().default(0),
+});
+
+export const honorInput = z.object({
+  title: z.string().min(1).max(200),
+  issuer: z.string().max(160).optional(),
+  date: dateStr.nullable().optional(),
+  description: z.string().max(2000).optional(),
   sortOrder: z.number().int().default(0),
 });
 
@@ -96,7 +105,15 @@ export const meUpdateInput = z.object({
   avatarUrl: z.string().url().nullable().optional(),
   locale: langEnum.optional(),
   region: z.string().max(64).nullable().optional(),
-  languages: z.array(langEnum).optional(),
+  mobile: z.string().max(64).nullable().optional(),
+  preferredCity: z.string().max(128).nullable().optional(),
+  workAuthStatus: z.enum(["us_authorized", "requires_sponsorship", "other"]).nullable().optional(),
+  snsLinks: z
+    .array(z.object({ network: z.string().max(40), url: z.string().max(500) }))
+    .optional(),
+  languages: z
+    .array(z.object({ name: z.string().max(64), proficiency: z.string().max(40).optional() }))
+    .optional(),
   jobStatus: z.enum(["open", "passive", "closed"]).optional(),
   privacy: privacySettings.partial().optional(),
 });

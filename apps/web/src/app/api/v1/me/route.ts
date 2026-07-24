@@ -1,4 +1,4 @@
-import { prisma } from "@careeros/db";
+import { prisma, Prisma } from "@careeros/db";
 import { meUpdateInput } from "@careeros/shared";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 
@@ -29,7 +29,11 @@ export const PUT = handler(async (req) => {
       avatarUrl: input.avatarUrl,
       locale: input.locale,
       region: input.region,
-      languages: input.languages,
+      mobile: input.mobile,
+      preferredCity: input.preferredCity,
+      workAuthStatus: input.workAuthStatus,
+      snsLinks: input.snsLinks as unknown as Prisma.InputJsonValue | undefined,
+      languages: input.languages as unknown as Prisma.InputJsonValue | undefined,
       jobStatus: input.jobStatus,
       ...(privacy ? { privacy } : {}),
     },

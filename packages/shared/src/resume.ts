@@ -12,6 +12,10 @@ export const resumeBasics = z.object({
   location: z.string().max(128).optional(),
   summary: z.string().max(3000).optional(),
   url: z.string().max(500).optional(),
+  // 社交/主页链接（对照应聘表单 SNS 区块）：LinkedIn / 知乎 / 个人站 等
+  profiles: z
+    .array(z.object({ network: z.string().max(64), url: z.string().max(500), username: z.string().max(128).optional() }))
+    .default([]),
 });
 
 export const resumeWork = z.object({
@@ -56,7 +60,14 @@ export const jsonResume = z.object({
   skills: z.array(resumeSkill).default([]),
   education: z.array(resumeEducation).default([]),
   awards: z
-    .array(z.object({ title: z.string().max(200), date: z.string().max(10).optional(), summary: z.string().max(500).optional() }))
+    .array(
+      z.object({
+        title: z.string().max(200),
+        issuer: z.string().max(160).optional(), // 颁发机构（Honor.issuer）
+        date: z.string().max(10).optional(),
+        summary: z.string().max(500).optional(),
+      }),
+    )
     .default([]),
   "x-warnings": z.array(z.string().max(300)).default([]),
   "x-theme": z
@@ -77,6 +88,12 @@ export const jsonResume = z.object({
       shiboudouki: z.string().max(1500).optional(), // 志望動機
       menkyoShikaku: z.array(z.object({ date: z.string().max(10).optional(), name: z.string().max(120) })).default([]), // 免許・資格
       honninKibou: z.string().max(500).optional(), // 本人希望記入欄
+    })
+    .optional(),
+  // 程序化/种子数据透传的扩展字段（非 JSON Resume 标准键，以 x- 命名空间保留）
+  "x-meta": z
+    .object({
+      languages: z.array(z.string().max(120)).default([]), // 语言能力清单，ATS 模板单独成区
     })
     .optional(),
 });

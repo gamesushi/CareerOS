@@ -19,12 +19,13 @@ type Education = {
   school: string;
   degree?: string | null;
   major?: string | null;
+  faculty?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   gpa?: string | null;
 };
 
-const EMPTY_FORM = { school: "", degree: "", major: "", startDate: "", endDate: "", gpa: "" };
+const EMPTY_FORM = { school: "", degree: "", major: "", faculty: "", startDate: "", endDate: "", gpa: "" };
 
 export function EducationTab() {
   const t = useT();
@@ -53,6 +54,7 @@ export function EducationTab() {
       school: e.school,
       degree: e.degree ?? "",
       major: e.major ?? "",
+      faculty: e.faculty ?? "",
       startDate: fmtDate(e.startDate),
       endDate: fmtDate(e.endDate),
       gpa: e.gpa ?? "",
@@ -70,6 +72,7 @@ export function EducationTab() {
       school: form.school,
       degree: form.degree || undefined,
       major: form.major || undefined,
+      faculty: form.faculty || undefined,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
       gpa: form.gpa || undefined,
@@ -115,7 +118,7 @@ export function EducationTab() {
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{e.school}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[e.degree, e.major].filter(Boolean).join(" · ")}
+                  {[e.degree, e.major, e.faculty].filter(Boolean).join(" · ")}
                   {e.startDate && ` · ${fmtDate(e.startDate).slice(0, 4)} ~ ${e.endDate ? fmtDate(e.endDate).slice(0, 4) : t("common.present")}`}
                   {e.gpa && ` · GPA ${e.gpa}`}
                 </p>
@@ -150,6 +153,10 @@ export function EducationTab() {
                 <Label>{t("education.major")}</Label>
                 <Input value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("education.faculty")}</Label>
+              <Input value={form.faculty} onChange={(e) => setForm({ ...form, faculty: e.target.value })} placeholder="传媒与人文学院" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
