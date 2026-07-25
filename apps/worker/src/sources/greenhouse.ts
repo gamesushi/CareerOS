@@ -73,3 +73,21 @@ export const neteaseSource = makeGreenhouseSource({
   board: "neteasegames",
   category: "game",
 });
+
+// 更多游戏公司（均为 Greenhouse 官方招聘板，已实网验证 2026-07-25 返回真实岗位）。
+// 任何使用 Greenhouse 的游戏厂，只要知道 board token，一行即可接入。
+export const riotgamesSource = makeGreenhouseSource({
+  id: "riotgames", label: "Riot Games", board: "riotgames", category: "game",
+});
+export const scopelySource = makeGreenhouseSource({
+  id: "scopely", label: "Scopely", board: "scopely", category: "game",
+});
+export const kraftonSource = makeGreenhouseSource({
+  id: "krafton", label: "Krafton", board: "krafton", category: "game",
+});
+export const nintendoSource = makeGreenhouseSource({
+  id: "nintendo", label: "Nintendo", board: "nintendo", category: "game",
+});
+export const epicgamesSource = makeGreenhouseSource({
+  id: "epicgames", label: "Epic Games", board: "epicgames", category: "game",
+});

@@ -21,6 +21,37 @@ export const WATCH_SOURCES = [
   { id: "hackernews", label: "Hacker News" },
   { id: "netease", label: "网易游戏", category: "game" },
   { id: "mihoyo", label: "米哈游", category: "game" },
+  // 游戏公司（Greenhouse 官方招聘板）
+  { id: "riotgames", label: "Riot Games", category: "game" },
+  { id: "scopely", label: "Scopely", category: "game" },
+  { id: "krafton", label: "Krafton", category: "game" },
+  { id: "nintendo", label: "Nintendo", category: "game" },
+  { id: "epicgames", label: "Epic Games", category: "game" },
+  // 金融：银行 / 数字银行 / 借贷
+  { id: "sofi", label: "SoFi", category: "finance" },
+  { id: "brex", label: "Brex", category: "finance" },
+  { id: "chime", label: "Chime", category: "finance" },
+  { id: "monzo", label: "Monzo", category: "finance" },
+  { id: "n26", label: "N26", category: "finance" },
+  { id: "upgrade", label: "Upgrade", category: "finance" },
+  { id: "affirm", label: "Affirm", category: "finance" },
+  { id: "mercury", label: "Mercury", category: "finance" },
+  { id: "coinbase", label: "Coinbase", category: "finance" },
+  // 金融：保险
+  { id: "oscar", label: "Oscar Health", category: "finance" },
+  { id: "ethos", label: "Ethos", category: "finance" },
+  // 金融：基金 / 资管 / 量化交易
+  { id: "point72", label: "Point72", category: "finance" },
+  { id: "imc", label: "IMC", category: "finance" },
+  { id: "winton", label: "Winton", category: "finance" },
+  { id: "janestreet", label: "Jane Street", category: "finance" },
+  { id: "mangroup", label: "Man Group", category: "finance" },
+  { id: "jumptrading", label: "Jump Trading", category: "finance" },
+  { id: "flowtraders", label: "Flow Traders", category: "finance" },
+  // 金融：中文官网（best-effort，需 headless 浏览器）
+  { id: "pingan", label: "中国平安", category: "finance" },
+  { id: "efund", label: "易方达基金", category: "finance" },
+  { id: "cmb", label: "招商银行", category: "finance" },
 ] as const;
 
 export const watchSourceIds = WATCH_SOURCES.map((s) => s.id) as [string, ...string[]];
