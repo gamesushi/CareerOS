@@ -15,12 +15,20 @@ import {
   kraftonSource,
   nintendoSource,
   epicgamesSource,
+  taketwoSource,
+  nordeusSource,
+  bungieSource,
+  woogaSource,
+  remedySource,
+  bethesdaSource,
+  housemarqueSource,
 } from "./greenhouse";
 import {
   sofiSource, brexSource, chimeSource, monzoSource, n26Source, upgradeSource,
   affirmSource, mercurySource, coinbaseSource, oscarSource, ethosSource,
   point72Source, imcSource, wintonSource, janestreetSource, mangroupSource,
-  jumptradingSource, flowtradersSource, pinganSource, efundSource, cmbSource,
+  jumptradingSource, flowtradersSource, tideSource, adyenSource, payoneerSource,
+  robinhoodSource, schonfeldSource, exoduspointSource, pinganSource, efundSource, cmbSource,
 } from "./finance";
 import { mihoyoSource } from "./mihoyo";
 
@@ -43,6 +51,13 @@ export const SOURCES: Record<string, JobSource> = {
   [kraftonSource.id]: kraftonSource,
   [nintendoSource.id]: nintendoSource,
   [epicgamesSource.id]: epicgamesSource,
+  [taketwoSource.id]: taketwoSource,
+  [nordeusSource.id]: nordeusSource,
+  [bungieSource.id]: bungieSource,
+  [woogaSource.id]: woogaSource,
+  [remedySource.id]: remedySource,
+  [bethesdaSource.id]: bethesdaSource,
+  [housemarqueSource.id]: housemarqueSource,
   // 金融：银行 / 保险 / 基金（Greenhouse + best-effort 中文官网）
   [sofiSource.id]: sofiSource,
   [brexSource.id]: brexSource,
@@ -62,6 +77,12 @@ export const SOURCES: Record<string, JobSource> = {
   [mangroupSource.id]: mangroupSource,
   [jumptradingSource.id]: jumptradingSource,
   [flowtradersSource.id]: flowtradersSource,
+  [tideSource.id]: tideSource,
+  [adyenSource.id]: adyenSource,
+  [payoneerSource.id]: payoneerSource,
+  [robinhoodSource.id]: robinhoodSource,
+  [schonfeldSource.id]: schonfeldSource,
+  [exoduspointSource.id]: exoduspointSource,
   [pinganSource.id]: pinganSource,
   [efundSource.id]: efundSource,
   [cmbSource.id]: cmbSource,

@@ -37,6 +37,16 @@ export const mangroupSource = makeGreenhouseSource({ id: "mangroup", label: "Man
 export const jumptradingSource = makeGreenhouseSource({ id: "jumptrading", label: "Jump Trading", board: "jumptrading", category: "finance" });
 export const flowtradersSource = makeGreenhouseSource({ id: "flowtraders", label: "Flow Traders", board: "flowtraders", category: "finance" });
 
+// ---- 银行 / 支付 / 券商（补充，实网验证 2026-07-25）----
+export const tideSource = makeGreenhouseSource({ id: "tide", label: "Tide", board: "tide", category: "finance" });
+export const adyenSource = makeGreenhouseSource({ id: "adyen", label: "Adyen", board: "adyen", category: "finance" });
+export const payoneerSource = makeGreenhouseSource({ id: "payoneer", label: "Payoneer", board: "payoneer", category: "finance" });
+export const robinhoodSource = makeGreenhouseSource({ id: "robinhood", label: "Robinhood", board: "robinhood", category: "finance" });
+
+// ---- 基金 / 资管 / 量化交易（补充，实网验证 2026-07-25）----
+export const schonfeldSource = makeGreenhouseSource({ id: "schonfeld", label: "Schonfeld", board: "schonfeld", category: "finance" });
+export const exoduspointSource = makeGreenhouseSource({ id: "exoduspoint", label: "ExodusPoint", board: "exoduspoint", category: "finance" });
+
 // ============================================================
 // 中文金融机构官网（best-effort）
 // ------------------------------------------------------------

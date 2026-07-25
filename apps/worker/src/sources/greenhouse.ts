@@ -91,3 +91,26 @@ export const nintendoSource = makeGreenhouseSource({
 export const epicgamesSource = makeGreenhouseSource({
   id: "epicgames", label: "Epic Games", board: "epicgames", category: "game",
 });
+
+// 更多游戏公司（Greenhouse 官方招聘板，实网验证 2026-07-25 返回真实岗位）。
+export const taketwoSource = makeGreenhouseSource({
+  id: "taketwo", label: "Take-Two Interactive", board: "taketwo", category: "game",
+});
+export const nordeusSource = makeGreenhouseSource({
+  id: "nordeus", label: "Nordeus", board: "nordeus", category: "game",
+});
+export const bungieSource = makeGreenhouseSource({
+  id: "bungie", label: "Bungie", board: "bungie", category: "game",
+});
+export const woogaSource = makeGreenhouseSource({
+  id: "wooga", label: "Wooga", board: "wooga", category: "game",
+});
+export const remedySource = makeGreenhouseSource({
+  id: "remedy", label: "Remedy Entertainment", board: "remedy", category: "game",
+});
+export const bethesdaSource = makeGreenhouseSource({
+  id: "bethesda", label: "Bethesda", board: "bethesda", category: "game",
+});
+export const housemarqueSource = makeGreenhouseSource({
+  id: "housemarque", label: "Housemarque", board: "housemarque", category: "game",
+});
