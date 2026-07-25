@@ -597,6 +597,7 @@ model JobWatch {
   keywords        String[]  @default([]) // OR 语义，每个关键词各查一次
   sources         String[]  @default([]) // 适配器 id：tencent / bytedance / ...
   locations       String[]  @default([]) // 城市过滤（适配器内含义各异，见适配器注释）
+  matchCategories String[]  @default([]) // 品类匹配：非空时只保留命中品类的岗位（见 sources/lib/category.ts）
   intervalMinutes Int       @default(60) @map("interval_minutes")
   enabled         Boolean   @default(true)
   lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz()
@@ -625,6 +626,7 @@ model DiscoveredJob {
   snippet     String?             // 职责摘要（列表接口给多少存多少）
   publishedAt DateTime?           @map("published_at") @db.Timestamptz()
   raw         Json?
+  categories  Json      @default("[]") @map("categories") // 品类标签数组（游戏/金融/技术…）
   status      DiscoveredJobStatus @default(new)
   jdId        String?             @map("jd_id") @db.Uuid
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()

@@ -24,6 +24,7 @@ export const POST = handler(async (req) => {
       keywords: input.keywords,
       sources: input.sources,
       locations: input.locations,
+      matchCategories: input.matchCategories,
       intervalMinutes: input.intervalMinutes,
       enabled: input.enabled,
     },

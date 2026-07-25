@@ -413,5 +413,12 @@
   "honor.requiredError": "称号は必須です",
   "settings.contact": "連絡先とリンク",
   "settings.workAuth.none": "未設定",
-  "common.add": "追加"
+  "common.add": "追加",
+  "category.all": "すべて",
+  "category.game": "ゲーム",
+  "category.finance": "金融",
+  "category.tech": "テック",
+  "monitor.matchCategories": "カテゴリ匹配",
+  "monitor.matchCategoriesHint": "これらのカテゴリに一致する求人のみ保存（任意）",
+  "monitor.categoryFilter": "カテゴリ"
 }

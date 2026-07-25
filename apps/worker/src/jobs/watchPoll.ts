@@ -33,12 +33,19 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
       for (const keyword of watch.keywords) {
         try {
           const jobs = await source.search(keyword);
-          const filtered =
+          let filtered =
             watch.locations.length === 0
               ? jobs
               : jobs.filter(
                   (j) => !j.location || watch.locations.some((loc) => j.location!.includes(loc)),
                 );
+          // 品类匹配：若监测任务指定了匹配品类，只保留命中品类的岗位
+          if (watch.matchCategories && watch.matchCategories.length > 0) {
+            const want = new Set(watch.matchCategories);
+            filtered = filtered.filter((j) =>
+              (j.categories ?? []).some((c) => want.has(c)),
+            );
+          }
           if (filtered.length > 0) {
             const result = await prisma.discoveredJob.createMany({
               data: filtered.map((j) => ({
@@ -53,6 +60,7 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
                 url: j.url,
                 snippet: j.snippet,
                 publishedAt: j.publishedAt,
+                categories: (j.categories ?? []) as Prisma.InputJsonValue,
                 raw: (j.raw ?? undefined) as Prisma.InputJsonValue | undefined,
               })),
               skipDuplicates: true, // 唯一键 (watch_id, source, external_id) 去重

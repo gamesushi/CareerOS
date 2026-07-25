@@ -413,5 +413,12 @@
   "honor.requiredError": "榮譽名稱為必填",
   "settings.contact": "聯絡方式與連結",
   "settings.workAuth.none": "未設定",
-  "common.add": "新增"
+  "common.add": "新增",
+  "category.all": "All",
+  "category.game": "Game",
+  "category.finance": "Finance",
+  "category.tech": "Tech",
+  "monitor.matchCategories": "Match categories",
+  "monitor.matchCategoriesHint": "Only jobs matching these categories are saved (optional)",
+  "monitor.categoryFilter": "Category"
 }

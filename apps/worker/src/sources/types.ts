@@ -2,6 +2,8 @@
 // 约定：只调用公开的岗位搜索接口、只取第一页、低频轮询（默认 60 分钟），
 // 单次请求间 sleep 400ms，礼貌抓取。
 
+import type { JobCategory } from "./lib/category";
+
 export type SourceJob = {
   externalId: string;
   title: string;
@@ -11,12 +13,16 @@ export type SourceJob = {
   url: string;
   snippet?: string;
   publishedAt?: Date;
+  /** 品类标签（由适配器用分类器 + 来源亲和生成），用于用户端品类匹配 */
+  categories?: JobCategory[];
   raw?: unknown;
 };
 
 export interface JobSource {
   id: string;
   label: string;
+  /** 该来源的品类亲和（如游戏厂默认 "game"），用于来源级品类匹配 */
+  category?: JobCategory;
   /** 搜一个关键词，返回第一页结果（适配器内部自行处理分页大小） */
   search(keyword: string): Promise<SourceJob[]>;
 }

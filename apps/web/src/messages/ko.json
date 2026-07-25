@@ -413,5 +413,12 @@
   "honor.requiredError": "수상명은 필수입니다",
   "settings.contact": "연락처 및 링크",
   "settings.workAuth.none": "미설정",
-  "common.add": "추가"
+  "common.add": "추가",
+  "category.all": "전체",
+  "category.game": "게임",
+  "category.finance": "금융",
+  "category.tech": "기술",
+  "monitor.matchCategories": "카테고리 매칭",
+  "monitor.matchCategoriesHint": "이 카테고리에 해당하는 채용공고만 저장(선택)",
+  "monitor.categoryFilter": "카테고리"
 }

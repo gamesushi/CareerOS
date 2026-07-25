@@ -413,5 +413,12 @@
   "honor.requiredError": "Honor title is required",
   "settings.contact": "Contact & links",
   "settings.workAuth.none": "Not set",
-  "common.add": "Add"
+  "common.add": "Add",
+  "category.all": "All",
+  "category.game": "Game",
+  "category.finance": "Finance",
+  "category.tech": "Tech",
+  "monitor.matchCategories": "Match categories",
+  "monitor.matchCategoriesHint": "Only jobs matching these categories are saved (optional)",
+  "monitor.categoryFilter": "Category"
 }

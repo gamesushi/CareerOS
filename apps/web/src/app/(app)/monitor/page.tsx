@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { WATCH_SOURCES } from "@careeros/shared";
+import { WATCH_SOURCES, JOB_CATEGORIES } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,12 +32,17 @@ type Job = {
   id: string; source: string; title: string; company?: string | null; location?: string | null;
   salary?: string | null; url: string; snippet?: string | null; publishedAt?: string | null;
   status: "new" | "viewed" | "imported" | "dismissed"; jdId?: string | null;
+  categories?: string[] | null;
   createdAt: string; watch: { name: string };
 };
 
 const SOURCE_LABEL = Object.fromEntries(WATCH_SOURCES.map((s) => [s.id, s.label]));
 
-const EMPTY_FORM = { name: "", keywords: "", sources: ["tencent", "bytedance"] as string[], locations: "", intervalMinutes: "60" };
+const EMPTY_FORM = {
+  name: "", keywords: "", sources: ["tencent", "bytedance"] as string[], locations: "",
+  categories: [] as string[], intervalMinutes: "60",
+};
+const CATEGORY_FILTER_KEY = "careeros.categoryFilter";
 
 export default function MonitorPage() {
   const router = useRouter();
@@ -45,9 +50,20 @@ export default function MonitorPage() {
   const [watches, setWatches] = useState<Watch[] | null>(null);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [running, setRunning] = useState<string | null>(null);
+
+  // 品类匹配偏好（本地持久化，跨会话保留）
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(CATEGORY_FILTER_KEY) : null;
+    if (saved) setCategoryFilter(saved);
+  }, []);
+  const changeCategory = (c: string) => {
+    setCategoryFilter(c);
+    if (typeof window !== "undefined") localStorage.setItem(CATEGORY_FILTER_KEY, c);
+  };
 
   const load = useCallback(async () => {
     const [w, j] = await Promise.all([
@@ -73,6 +89,7 @@ export default function MonitorPage() {
         keywords,
         sources: form.sources,
         locations: form.locations.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+        matchCategories: form.categories,
         intervalMinutes: Number(form.intervalMinutes),
       }),
     });
@@ -121,6 +138,13 @@ export default function MonitorPage() {
     if (res) void load();
   }
 
+  const visibleJobs =
+    !jobs
+      ? null
+      : categoryFilter === "all"
+        ? jobs
+        : jobs.filter((j) => (j.categories ?? []).includes(categoryFilter));
+
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div className="flex items-start justify-between">
@@ -162,6 +186,31 @@ export default function MonitorPage() {
                         }
                       >
                         <Badge variant={on ? "default" : "outline"}>{s.label}</Badge>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("monitor.matchCategories")}</Label>
+                <p className="text-xs text-muted-foreground">{t("monitor.matchCategoriesHint")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {JOB_CATEGORIES.map((c) => {
+                    const on = form.categories.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            categories: on
+                              ? form.categories.filter((x) => x !== c.id)
+                              : [...form.categories, c.id],
+                          })
+                        }
+                      >
+                        <Badge variant={on ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
                       </button>
                     );
                   })}
@@ -232,6 +281,19 @@ export default function MonitorPage() {
 
       <Separator />
 
+      {/* 品类匹配：用户可选「游戏类」等，自动只显示命中品类的岗位 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">{t("monitor.categoryFilter")}</span>
+        <button type="button" onClick={() => changeCategory("all")}>
+          <Badge variant={categoryFilter === "all" ? "default" : "outline"}>{t("category.all")}</Badge>
+        </button>
+        {JOB_CATEGORIES.map((c) => (
+          <button key={c.id} type="button" onClick={() => changeCategory(c.id)}>
+            <Badge variant={categoryFilter === c.id ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
+          </button>
+        ))}
+      </div>
+
       {/* 岗位 feed */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t("monitor.discoveredJobs")}</h2>
@@ -246,11 +308,11 @@ export default function MonitorPage() {
         </Select>
       </div>
 
-      {!jobs ? <Skeleton className="h-32" /> : jobs.length === 0 ? (
+      {!visibleJobs ? <Skeleton className="h-32" /> : visibleJobs.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">{t("monitor.jobsEmpty")}</p>
       ) : (
         <div className="space-y-2">
-          {jobs.map((j) => (
+          {visibleJobs.map((j) => (
             <Card key={j.id} className={j.status === "new" ? "border-primary/40" : ""}>
               <CardContent className="py-3">
                 <div className="flex items-start gap-3">
@@ -261,6 +323,9 @@ export default function MonitorPage() {
                       </a>
                       {j.status === "new" && <Badge className="px-1.5 py-0 text-[10px]">NEW</Badge>}
                       {j.status === "imported" && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{t("monitor.imported")}</Badge>}
+                      {j.categories?.map((c) => (
+                        <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{t(`category.${c}`)}</Badge>
+                      ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {[j.company, j.location, j.salary].filter(Boolean).join(" · ")}

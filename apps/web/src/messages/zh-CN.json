@@ -413,5 +413,12 @@
   "honor.requiredError": "荣誉名称为必填",
   "settings.contact": "联系方式与链接",
   "settings.workAuth.none": "未设置",
-  "common.add": "添加"
+  "common.add": "添加",
+  "category.all": "全部",
+  "category.game": "游戏类",
+  "category.finance": "金融类",
+  "category.tech": "技术类",
+  "monitor.matchCategories": "匹配品类",
+  "monitor.matchCategoriesHint": "仅保存命中这些品类的岗位（可选）",
+  "monitor.categoryFilter": "品类"
 }
