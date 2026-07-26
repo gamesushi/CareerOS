@@ -21,9 +21,9 @@ export type ExpLevel = "junior" | "mid" | "senior" | "lead";
 const ROLE_RULES: Record<RoleId, RegExp> = {
   // 游戏
   game_design:
-    /游戏策划|数值策划|关卡策划|系统策划|剧情策划|文案策划|战斗策划|game\s?design|level\s?design|narrative\s?design|quest\s?design|systems?\s?design(?=.*game)|combat\s?design/i,
+    /游戏策划|数值策划|关卡策划|系统策划|剧情策划|文案策划|战斗策划|game\s?design|level\s?design|narrative\s?design|quest\s?design|systems?\s?design(?=.*game)|combat\s?design|ゲーム(プランナー|デザイナー)|レベルデザイ|シナリオライター/i,
   game_art:
-    /游戏美术|原画|角色美术|场景美术|特效美术|动作设计|技术美术|(2d|3d)\s?(artist|animator)|concept\s?art|character\s?art|environment\s?art|vfx\s?artist|technical\s?artist|animator|texture|rigging/i,
+    /游戏美术|原画|角色美术|场景美术|特效美术|动作设计|技术美术|(2d|3d)\s?(artist|animator|アーティスト)|concept\s?art|character\s?art|environment\s?art|vfx\s?artist|technical\s?artist|animator|texture|rigging|アーティスト|イラストレーター|キャラクターデザイ|背景デザイ|モデラー|アニメーター/i,
   game_client:
     /游戏(客户端|服务端|服务器|引擎)|unity|unreal|虚幻|cocos|gameplay\s?(engineer|programmer)|game\s?(engineer|programmer|developer)|engine\s?(engineer|programmer)|graphics\s?(engineer|programmer)|shader|渲染/i,
   game_qa:
