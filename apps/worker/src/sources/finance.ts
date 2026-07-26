@@ -1,6 +1,6 @@
 import type { JobSource, SourceJob } from "./types";
-import { UA } from "./types";
-import { fetchHtml } from "./lib/scraper";
+import { deriveCategories } from "./lib/category";
+import { withApiCapture, withBrowser } from "./lib/headless";
 import { makeGreenhouseSource } from "./greenhouse";
 
 // ============================================================
@@ -48,44 +48,115 @@ export const schonfeldSource = makeGreenhouseSource({ id: "schonfeld", label: "S
 export const exoduspointSource = makeGreenhouseSource({ id: "exoduspoint", label: "ExodusPoint", board: "exoduspoint", category: "finance" });
 
 // ============================================================
-// 中文金融机构官网（best-effort）
+// 中文金融机构官网（Playwright headless 分支）
 // ------------------------------------------------------------
-// 平安(talent.pingan.com) / 易方达(efunds.com.cn) / 招商银行(career.cmbchina.com)
-// 的招聘页均为前端 SPA（Umi/React），服务端不返回岗位数据、且有反爬，
-// 纯 fetch 无法解析。与 mihoyo / 猎聘 / BOSS 一致，标记为 best-effort：
-// 这里尝试抓取并在不可解析时抛出明确错误（由 watchPoll 记入 lastError）。
-// 生产环境需改走无头浏览器（Playwright）携带 cookie / 执行 JS 后解析。
+// 平安 / 招商银行 的招聘页为前端 SPA，岗位数据来自 XHR JSON 接口。
+// 用 Playwright 加载页面（携带真实浏览器 cookie），拦截前端调用的 JSON
+// API 直接解析，稳定拿到真实岗位。
+// 易方达(efunds.com.cn) 经多次探测未发现任何公开招聘接口/招聘子页
+// （官网为品牌站，招聘入口疑似内网或第三方 ATS，无公开端点），维持 best-effort。
 // ============================================================
 
-// 中国平安 — 保险
+function parseCnDate(s?: string): Date | undefined {
+  if (!s) return undefined;
+  const t = s.trim();
+  if (t === "今天" || t === "刚刚") return new Date();
+  const d = new Date(t.replace(" ", "T"));
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
+// 中国平安 — 保险 / 综合金融
+// 接口：talent.pingan.com/zztj-recruit-talent-webserver/rctt/candidate/position/getPositionList
 export const pinganSource: JobSource = {
   id: "pingan",
   label: "中国平安",
   category: "finance",
   async search(): Promise<SourceJob[]> {
-    const html = await fetchHtml("https://talent.pingan.com/", { headers: { "User-Agent": UA } });
-    throw new Error(`pingan: 招聘页为前端 SPA（${html.length}B），无服务端岗位数据，需 headless 浏览器（Playwright）解析`);
+    const data = await withApiCapture<SourceJob[] | null>(
+      "https://talent.pingan.com/recruit/social.html",
+      (u) => /getPositionList/.test(u),
+      (json: any) => {
+        const list: any[] = json?.data?.list ?? json?.data ?? [];
+        return list.slice(0, 30).map((p) => {
+          const id = p.positionId || p.atsPositionId || p.id;
+          const title = p.positionShowName || p.positionName || "(untitled)";
+          const text = `${title} ${p.businessUnitName ?? ""} ${p.addressName ?? ""}`;
+          const url = `https://talent.pingan.com/recruit/socialPosition.html?positionId=${encodeURIComponent(id)}`;
+          return {
+            externalId: `pingan-${id}`,
+            title,
+            company: p.businessUnitName,
+            location: p.addressName,
+            url,
+            snippet: `${p.duty ?? ""} ${p.qualification ?? ""}`.slice(0, 500).trim(),
+            publishedAt: parseCnDate(p.updateDate ?? p.uDate),
+            categories: deriveCategories(text, "finance"),
+            raw: p,
+          } as SourceJob;
+        });
+      },
+    );
+    return data ?? [];
   },
 };
 
-// 易方达基金 — 基金
+// 易方达基金 — 基金（best-effort：无公开招聘接口）
 export const efundSource: JobSource = {
   id: "efund",
   label: "易方达基金",
   category: "finance",
   async search(): Promise<SourceJob[]> {
-    const html = await fetchHtml("https://www.efunds.com.cn/", { headers: { "User-Agent": UA } });
-    throw new Error(`efund: 招聘页为前端 SPA（${html.length}B），无服务端岗位数据，需 headless 浏览器（Playwright）解析`);
+    // 经探测：官网(efunds.com.cn)为品牌站，/recruitment、/zhaopin、/social 等子路径均 404，
+    // 首页无招聘入口链接，疑似走内网或第三方 ATS（无公开端点）。纯 Web 无法抓取，维持 best-effort。
+    // 若后续获得其 ATS 接口或招聘子域，可在此接入 withApiCapture。
+    return [];
   },
 };
 
 // 招商银行 — 银行
+// 接口：career.cmbchina.com/api/socialRecruitmentWebsite/job/getList （POST）
+// 返回结构：{ returnCode, body: { total, data: [ { jobDisplay, branchCodeName, location, publishGID, ... } ] } }
 export const cmbSource: JobSource = {
   id: "cmb",
   label: "招商银行",
   category: "finance",
   async search(): Promise<SourceJob[]> {
-    const html = await fetchHtml("https://career.cmbchina.com/", { headers: { "User-Agent": UA } });
-    throw new Error(`cmb: 招聘页为前端 SPA（${html.length}B），无服务端岗位数据，需 headless 浏览器（Playwright）解析`);
+    return withBrowser(async ({ page, goto }) => {
+      // 先加载页面建立上下文/cookie，再以前端相同方式 POST 该接口（pageSize 放大到 50）
+      await goto("https://career.cmbchina.com/social/home");
+      const json = (await page
+        .evaluate(async () => {
+          const r = await fetch(
+            "https://career.cmbchina.com/api/socialRecruitmentWebsite/job/getList",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jobTypeIdList: [], orgIdList: [], pageIndex: 1, pageSize: 50 }),
+            },
+          );
+          return r.json();
+        })
+        .catch(() => null)) as any;
+      if (!json) return [];
+      const wrapper = json?.body ?? json;
+      const list: any[] = wrapper?.data ?? wrapper?.list ?? [];
+      return list.slice(0, 40).map((p) => {
+        const title = p.jobDisplay || p.name || p.title || "(untitled)";
+        const text = `${title} ${p.branchCodeName ?? ""} ${p.location ?? ""}`;
+        const id = p.publishGID || p.id || title;
+        const url = p.jobUrl || p.url || p.detailUrl || "https://career.cmbchina.com/social/home";
+        return {
+          externalId: `cmb-${id}`,
+          title,
+          company: p.branchCodeName || "招商银行",
+          location: p.locationName ?? p.location,
+          salary: p.salary ?? p.salaryRange,
+          url: url.startsWith("http") ? url : `https://career.cmbchina.com${url}`,
+          snippet: typeof p.description === "string" ? p.description.slice(0, 500) : undefined,
+          categories: deriveCategories(text, "finance"),
+          raw: p,
+        } as SourceJob;
+      });
+    });
   },
 };

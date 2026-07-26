@@ -1,72 +1,79 @@
 import type { JobSource, SourceJob } from "./types";
-import { UA } from "./types";
-import { stripHtml } from "./lib/scraper";
 import { deriveCategories } from "./lib/category";
+import { withBrowser } from "./lib/headless";
 
 // 米哈游招聘官网（jobs.mihoyo.com）— 自研 ATS（网关 ats.openout.mihoyo.com/ats-portal）。
-// 实测岗位列表接口：POST /v1/job/list，body 形如
-//   { data: { recruitChannel: "social", pageIndex: 1, pageSize: 20, keyword } }
-// 其中 recruitChannel 社招=social / 校招=campus。
-//
-// ⚠️ best-effort 实现：该接口疑似有 WAF / 请求签名校验，服务端会偶发
-//    "参数校验失败:职位渠道/页码/每页条数 不能为空"（相同请求轮询报错），
-//    纯服务端 fetch 不稳定。生产环境建议改走无头浏览器（Playwright）携带
-//    页面 cookie / 签名后再调用。解析逻辑已做防御式处理。
+// 历史：纯服务端 POST /v1/job/list 有 WAF / 请求签名校验，偶发参数校验失败，纯 fetch 不稳定。
+// 现方案：用 Playwright 无头浏览器加载社招页，点击职位分类展开真实职位列表（DOM 渲染），
+// 抽取 .jobName 标题与地点。详情页为前端路由（无静态 href），统一回链到社招列表页。
 
-const API = "https://ats.openout.mihoyo.com/ats-portal/v1/job/list";
-
-type MhJob = {
-  id?: string | number;
-  positionName?: string;
-  title?: string;
-  departmentName?: string;
-  cityName?: string;
-  workCity?: string;
-  jobDetail?: string;
-  publishDate?: string;
-};
+const BASE = "https://jobs.mihoyo.com/social";
 
 export const mihoyoSource: JobSource = {
   id: "mihoyo",
   label: "米哈游",
   category: "game",
-  async search(keyword: string): Promise<SourceJob[]> {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: {
-        "User-Agent": UA,
-        "Content-Type": "application/json",
-        clientId: "7a334db6d40ea6cc",
-        Referer: "https://jobs.mihoyo.com/",
-      },
-      body: JSON.stringify({
-        data: { recruitChannel: "social", pageIndex: 1, pageSize: 20, keyword },
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) throw new Error(`mihoyo HTTP ${res.status}`);
-    const body = (await res.json()) as {
-      success?: boolean;
-      data?: MhJob[] | { list?: MhJob[] };
-    };
-    const list: MhJob[] = Array.isArray(body.data)
-      ? body.data
-      : ((body.data as { list?: MhJob[] } | undefined)?.list ?? []);
+  async search(): Promise<SourceJob[]> {
+    return withBrowser(async ({ page, goto }) => {
+      await goto(BASE);
+      await page.waitForTimeout(2500);
 
-    return list.slice(0, 20).map((j) => {
-      const title = j.positionName ?? j.title ?? "(untitled)";
-      const text = `${title} ${j.departmentName ?? ""} ${j.cityName ?? j.workCity ?? ""}`;
-      return {
-        externalId: `mihoyo-${j.id ?? title}`,
-        title,
-        company: "米哈游",
-        location: j.cityName ?? j.workCity,
-        url: `https://jobs.mihoyo.com/social/position/${j.id ?? ""}`,
-        snippet: stripHtml(j.jobDetail).slice(0, 500),
-        publishedAt: j.publishDate ? new Date(j.publishDate) : undefined,
-        categories: deriveCategories(text, "game"),
-        raw: j,
-      };
+      // 分类卡片（含「共N个职位」文案），逐个点击以展开各分类下的职位。
+      // 默认展示首屏分类，点击进入后抽取该分类下的职位（去重累计）。
+      const seen = new Set<string>();
+      const jobs: SourceJob[] = [];
+      const MAX_CATS = 8;
+      for (let i = 0; i < MAX_CATS; i++) {
+        const handles = await page.$$('[class*="jobItem___"]');
+        const cats = (
+          await Promise.all(
+            handles.map(async (h) =>
+              ((await h.innerText().catch(() => "")) || "").includes("共") ? h : null,
+            ),
+          )
+        ).filter(Boolean) as typeof handles;
+        if (i >= cats.length) break;
+        await cats[i].click().catch(() => {});
+        await page.waitForTimeout(2000);
+        const items = await page.$$eval(
+          '[class*="jobItem___"]',
+          (els) =>
+            els
+              .map((el) => {
+                const nameEl = el.querySelector('[class*="jobName___"]');
+                if (!nameEl) return null;
+                const a = el.closest("a");
+                return {
+                  title: (nameEl.textContent || "").trim(),
+                  href: a ? a.getAttribute("href") || "" : "",
+                  text: (el.textContent || "").replace(/\s+/g, " ").trim(),
+                };
+              })
+              .filter(Boolean) as { title: string; href: string; text: string }[],
+        );
+        for (const it of items) {
+          if (!it.title || seen.has(it.title)) continue;
+          seen.add(it.title);
+          const locM = it.text.match(/(北京|上海|广州|深圳|杭州|成都|南京|武汉|西安|苏州|新加坡|美国|加拿大|日本|[\u4e00-\u9fa5]{2,6}?市)/);
+          const url = it.href
+            ? it.href.startsWith("http")
+              ? it.href
+              : `https://jobs.mihoyo.com${it.href}`
+            : BASE;
+          jobs.push({
+            externalId: `mihoyo-${it.title}`,
+            title: it.title,
+            company: "米哈游",
+            location: locM?.[1],
+            url,
+            categories: deriveCategories(`${it.title} ${it.text}`, "game"),
+            raw: it,
+          });
+          if (jobs.length >= 40) break;
+        }
+        if (jobs.length >= 40) break;
+      }
+      return jobs;
     });
   },
 };
