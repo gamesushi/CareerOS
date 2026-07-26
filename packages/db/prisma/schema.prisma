@@ -598,6 +598,10 @@ model JobWatch {
   sources         String[]  @default([]) // 适配器 id：tencent / bytedance / ...
   locations       String[]  @default([]) // 城市过滤（适配器内含义各异，见适配器注释）
   matchCategories String[]  @default([]) // 品类匹配：非空时只保留命中品类的岗位（见 sources/lib/category.ts）
+  matchRoles      String[]  @default([]) @map("match_roles") // 职种匹配（见 sources/lib/taxonomy.ts）
+  matchRegions    String[]  @default([]) @map("match_regions") // 地区匹配：预设 id 或自定义文本
+  matchLanguages  String[]  @default([]) @map("match_languages") // 语言匹配：zh/en/ja/ko
+  matchExperience String[]  @default([]) @map("match_experience") // 经验级别：junior/mid/senior/lead
   intervalMinutes Int       @default(60) @map("interval_minutes")
   enabled         Boolean   @default(true)
   lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz()
@@ -627,6 +631,10 @@ model DiscoveredJob {
   publishedAt DateTime?           @map("published_at") @db.Timestamptz()
   raw         Json?
   categories  Json      @default("[]") @map("categories") // 品类标签数组（游戏/金融/技术…）
+  roles       Json      @default("[]") // 职种标签数组（派生自 sources/lib/taxonomy.ts）
+  regions     Json      @default("[]") // 地区标签数组（location 归一化）
+  languages   Json      @default("[]") // 语言标签数组（JD 文本检测）
+  experience  Json      @default("[]") // 经验级别数组（JD 文本检测）
   status      DiscoveredJobStatus @default(new)
   jdId        String?             @map("jd_id") @db.Uuid
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()

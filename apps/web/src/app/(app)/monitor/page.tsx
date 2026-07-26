@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { WATCH_SOURCES, JOB_CATEGORIES } from "@careeros/shared";
+import {
+  WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES, REGIONS, JOB_LANGUAGES, EXPERIENCE_LEVELS,
+} from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +26,8 @@ import { useT } from "@/lib/i18n/provider";
 
 type Watch = {
   id: string; name: string; keywords: string[]; sources: string[]; locations: string[];
+  matchCategories?: string[]; matchRoles?: string[]; matchRegions?: string[];
+  matchLanguages?: string[]; matchExperience?: string[];
   intervalMinutes: number; enabled: boolean; lastRunAt?: string | null; lastError?: string | null;
   newJobCount: number;
 };
@@ -33,16 +37,29 @@ type Job = {
   salary?: string | null; url: string; snippet?: string | null; publishedAt?: string | null;
   status: "new" | "viewed" | "imported" | "dismissed"; jdId?: string | null;
   categories?: string[] | null;
+  roles?: string[] | null; regions?: string[] | null;
+  languages?: string[] | null; experience?: string[] | null;
   createdAt: string; watch: { name: string };
 };
 
 const SOURCE_LABEL = Object.fromEntries(WATCH_SOURCES.map((s) => [s.id, s.label]));
 
+// 职种按品类分组（表单分组渲染 / feed 二级筛选）
+const ROLE_GROUPS = ["game", "finance", "tech", "general"].map((cat) => ({
+  category: cat,
+  roles: JOB_ROLES.filter((r) => r.category === cat),
+}));
+const PRESET_REGION_IDS = new Set<string>(REGIONS.map((r) => r.id));
+
 const EMPTY_FORM = {
-  name: "", keywords: "", sources: ["tencent", "bytedance"] as string[], locations: "",
-  categories: [] as string[], intervalMinutes: "60",
+  name: "", keywords: "", sources: ["tencent", "bytedance"] as string[],
+  categories: [] as string[], roles: [] as string[],
+  regions: [] as string[], regionInput: "",
+  languages: [] as string[], experience: [] as string[],
+  intervalMinutes: "60",
 };
 const CATEGORY_FILTER_KEY = "careeros.categoryFilter";
+const ROLE_FILTER_KEY = "careeros.roleFilter";
 
 export default function MonitorPage() {
   const router = useRouter();
@@ -51,18 +68,41 @@ export default function MonitorPage() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [running, setRunning] = useState<string | null>(null);
 
-  // 品类匹配偏好（本地持久化，跨会话保留）
+  // 品类/职种匹配偏好（本地持久化，跨会话保留）
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(CATEGORY_FILTER_KEY) : null;
     if (saved) setCategoryFilter(saved);
+    const savedRole = typeof window !== "undefined" ? localStorage.getItem(ROLE_FILTER_KEY) : null;
+    if (savedRole) setRoleFilter(savedRole);
   }, []);
   const changeCategory = (c: string) => {
     setCategoryFilter(c);
-    if (typeof window !== "undefined") localStorage.setItem(CATEGORY_FILTER_KEY, c);
+    setRoleFilter("all"); // 切换品类时重置职种筛选
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CATEGORY_FILTER_KEY, c);
+      localStorage.setItem(ROLE_FILTER_KEY, "all");
+    }
+  };
+  const changeRole = (r: string) => {
+    setRoleFilter(r);
+    if (typeof window !== "undefined") localStorage.setItem(ROLE_FILTER_KEY, r);
+  };
+  const toggleInList = (key: "sources" | "categories" | "roles" | "regions" | "languages" | "experience", id: string) => {
+    setForm((f) => {
+      const list = f[key];
+      return { ...f, [key]: list.includes(id) ? list.filter((x) => x !== id) : [...list, id] };
+    });
+  };
+  const addCustomRegion = () => {
+    const v = form.regionInput.trim();
+    if (!v) return;
+    if (!form.regions.includes(v)) setForm({ ...form, regions: [...form.regions, v], regionInput: "" });
+    else setForm({ ...form, regionInput: "" });
   };
 
   const load = useCallback(async () => {
@@ -88,8 +128,12 @@ export default function MonitorPage() {
         name: form.name,
         keywords,
         sources: form.sources,
-        locations: form.locations.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+        locations: [],
         matchCategories: form.categories,
+        matchRoles: form.roles,
+        matchRegions: form.regions,
+        matchLanguages: form.languages,
+        matchExperience: form.experience,
         intervalMinutes: Number(form.intervalMinutes),
       }),
     });
@@ -141,9 +185,16 @@ export default function MonitorPage() {
   const visibleJobs =
     !jobs
       ? null
-      : categoryFilter === "all"
-        ? jobs
-        : jobs.filter((j) => (j.categories ?? []).includes(categoryFilter));
+      : jobs.filter(
+          (j) =>
+            (categoryFilter === "all" || (j.categories ?? []).includes(categoryFilter)) &&
+            (roleFilter === "all" || (j.roles ?? []).includes(roleFilter)),
+        );
+  // feed 二级职种筛选：选中具体品类时显示该品类职种 chips
+  const feedRoles =
+    categoryFilter === "all"
+      ? []
+      : JOB_ROLES.filter((r) => r.category === categoryFilter || (categoryFilter !== "general" && r.category === "general"));
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -158,7 +209,7 @@ export default function MonitorPage() {
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="size-4" /> {t("monitor.newWatch")}</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader><DialogTitle>{t("monitor.newWatchTitle")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -198,41 +249,101 @@ export default function MonitorPage() {
                   {JOB_CATEGORIES.map((c) => {
                     const on = form.categories.includes(c.id);
                     return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            categories: on
-                              ? form.categories.filter((x) => x !== c.id)
-                              : [...form.categories, c.id],
-                          })
-                        }
-                      >
+                      <button key={c.id} type="button" onClick={() => toggleInList("categories", c.id)}>
                         <Badge variant={on ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
                       </button>
                     );
                   })}
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label>{t("monitor.matchRoles")}</Label>
+                <p className="text-xs text-muted-foreground">{t("monitor.matchRolesHint")}</p>
+                <div className="space-y-2">
+                  {ROLE_GROUPS.map((g) => (
+                    <div key={g.category}>
+                      <p className="mb-1 text-[11px] text-muted-foreground">{t(`category.${g.category}`)}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {g.roles.map((r) => {
+                          const on = form.roles.includes(r.id);
+                          return (
+                            <button key={r.id} type="button" onClick={() => toggleInList("roles", r.id)}>
+                              <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("monitor.matchRegions")}</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {REGIONS.map((r) => {
+                    const on = form.regions.includes(r.id);
+                    return (
+                      <button key={r.id} type="button" onClick={() => toggleInList("regions", r.id)}>
+                        <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`region.${r.id}`)}</Badge>
+                      </button>
+                    );
+                  })}
+                  {form.regions.filter((r) => !PRESET_REGION_IDS.has(r)).map((r) => (
+                    <button key={r} type="button" onClick={() => toggleInList("regions", r)}>
+                      <Badge className="text-xs">{r} ×</Badge>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={form.regionInput}
+                    onChange={(e) => setForm({ ...form, regionInput: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomRegion(); } }}
+                    placeholder={t("monitor.regionCustomPlaceholder")}
+                    className="h-8 text-xs"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={addCustomRegion}>{t("common.add")}</Button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>{t("monitor.locations")}</Label>
-                  <Input value={form.locations} onChange={(e) => setForm({ ...form, locations: e.target.value })} placeholder={t("monitor.locationsPlaceholder")} />
+                  <Label>{t("monitor.matchLanguages")}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {JOB_LANGUAGES.map((l) => {
+                      const on = form.languages.includes(l);
+                      return (
+                        <button key={l} type="button" onClick={() => toggleInList("languages", l)}>
+                          <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`lang.${l}`)}</Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{t("monitor.interval")}</Label>
-                  <Select value={form.intervalMinutes} onValueChange={(v) => setForm({ ...form, intervalMinutes: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">{t("monitor.interval.30")}</SelectItem>
-                      <SelectItem value="60">{t("monitor.interval.60")}</SelectItem>
-                      <SelectItem value="240">{t("monitor.interval.240")}</SelectItem>
-                      <SelectItem value="1440">{t("monitor.interval.1440")}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>{t("monitor.matchExperience")}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EXPERIENCE_LEVELS.map((x) => {
+                      const on = form.experience.includes(x);
+                      return (
+                        <button key={x} type="button" onClick={() => toggleInList("experience", x)}>
+                          <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`exp.${x}`)}</Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("monitor.interval")}</Label>
+                <Select value={form.intervalMinutes} onValueChange={(v) => setForm({ ...form, intervalMinutes: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">{t("monitor.interval.30")}</SelectItem>
+                    <SelectItem value="60">{t("monitor.interval.60")}</SelectItem>
+                    <SelectItem value="240">{t("monitor.interval.240")}</SelectItem>
+                    <SelectItem value="1440">{t("monitor.interval.1440")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -262,6 +373,10 @@ export default function MonitorPage() {
                   <p className="text-xs text-muted-foreground">
                     {w.keywords.join(" / ")} · {w.sources.map((s) => SOURCE_LABEL[s] ?? s).join("、")}
                     {w.locations.length > 0 && ` · ${w.locations.join("/")}`}
+                    {(w.matchRoles?.length ?? 0) > 0 && ` · ${w.matchRoles!.map((r) => t(`role.${r}`)).join("/")}`}
+                    {(w.matchRegions?.length ?? 0) > 0 && ` · ${w.matchRegions!.map((r) => (PRESET_REGION_IDS.has(r) ? t(`region.${r}`) : r)).join("/")}`}
+                    {(w.matchLanguages?.length ?? 0) > 0 && ` · ${w.matchLanguages!.map((l) => t(`lang.${l}`)).join("/")}`}
+                    {(w.matchExperience?.length ?? 0) > 0 && ` · ${w.matchExperience!.map((x) => t(`exp.${x}`)).join("/")}`}
                     {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
                     {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
                   </p>
@@ -294,6 +409,21 @@ export default function MonitorPage() {
         ))}
       </div>
 
+      {/* 职种二级筛选：选中品类后出现该品类的职种 chips */}
+      {feedRoles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{t("monitor.roleFilter")}</span>
+          <button type="button" onClick={() => changeRole("all")}>
+            <Badge variant={roleFilter === "all" ? "default" : "outline"} className="text-xs">{t("role.all")}</Badge>
+          </button>
+          {feedRoles.map((r) => (
+            <button key={r.id} type="button" onClick={() => changeRole(r.id)}>
+              <Badge variant={roleFilter === r.id ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 岗位 feed */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t("monitor.discoveredJobs")}</h2>
@@ -325,6 +455,12 @@ export default function MonitorPage() {
                       {j.status === "imported" && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{t("monitor.imported")}</Badge>}
                       {j.categories?.map((c) => (
                         <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{t(`category.${c}`)}</Badge>
+                      ))}
+                      {j.roles?.map((r) => (
+                        <Badge key={r} variant="outline" className="px-1.5 py-0 text-[10px]">{t(`role.${r}`)}</Badge>
+                      ))}
+                      {j.experience?.map((x) => (
+                        <Badge key={x} variant="outline" className="px-1.5 py-0 text-[10px] text-muted-foreground">{t(`exp.${x}`)}</Badge>
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">

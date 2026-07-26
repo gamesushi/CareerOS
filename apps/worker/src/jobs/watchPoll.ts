@@ -1,6 +1,7 @@
 import { prisma, Prisma } from "@careeros/db";
 import { SOURCES } from "../sources";
 import { politeDelay } from "../sources/types";
+import { deriveJobTags, matchesTags } from "../sources/lib/taxonomy";
 
 // 岗位监测轮询：调度器每 5 分钟触发一次扫描，处理"到期"的监测任务
 // （enabled 且 距上次运行 ≥ intervalMinutes）。手动触发时直接传 watchId。
@@ -46,9 +47,32 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
               (j.categories ?? []).some((c) => want.has(c)),
             );
           }
-          if (filtered.length > 0) {
+          // 细化标签：中央派生职种/地区/语言/经验，并按监测条件过滤
+          const tagged = filtered
+            .map((j) => ({
+              job: j,
+              tags: deriveJobTags({
+                title: j.title,
+                company: j.company,
+                location: j.location,
+                snippet: j.snippet,
+              }),
+            }))
+            .filter(({ job, tags }) =>
+              matchesTags(
+                tags,
+                {
+                  matchRoles: watch.matchRoles ?? [],
+                  matchRegions: watch.matchRegions ?? [],
+                  matchLanguages: watch.matchLanguages ?? [],
+                  matchExperience: watch.matchExperience ?? [],
+                },
+                job.location,
+              ),
+            );
+          if (tagged.length > 0) {
             const result = await prisma.discoveredJob.createMany({
-              data: filtered.map((j) => ({
+              data: tagged.map(({ job: j, tags }) => ({
                 watchId: watch.id,
                 userId: watch.userId,
                 source: sourceId,
@@ -61,6 +85,10 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
                 snippet: j.snippet,
                 publishedAt: j.publishedAt,
                 categories: (j.categories ?? []) as Prisma.InputJsonValue,
+                roles: tags.roles as unknown as Prisma.InputJsonValue,
+                regions: tags.regions as unknown as Prisma.InputJsonValue,
+                languages: tags.languages as unknown as Prisma.InputJsonValue,
+                experience: tags.experience as unknown as Prisma.InputJsonValue,
                 raw: (j.raw ?? undefined) as Prisma.InputJsonValue | undefined,
               })),
               skipDuplicates: true, // 唯一键 (watch_id, source, external_id) 去重
