@@ -6,6 +6,8 @@ import { handleWorklogSummarizeJob } from "./jobs/worklogSummarize";
 import { handleProfileGenerateJob } from "./jobs/profileGenerate";
 import { handleResumeGenerateJob } from "./jobs/resumeGenerate";
 import { handleWatchPollJob } from "./jobs/watchPoll";
+import { handleCostAlertJob } from "./jobs/costAlertCheck";
+import { handleScoreDiscoveredJob } from "./jobs/scoreDiscovered";
 
 // AI 任务 worker：队列拓扑见 docs/design/04-ai-workflows.md §5
 // 并发 2、超时由各步骤自身控制（docreader 120s、LLM 110s）
@@ -21,7 +23,7 @@ const connection = {
 export const AI_QUEUE = "ai";
 export const WATCH_QUEUE = "watch";
 
-type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "profile_generate" | "worklog_summarize" | "job_match";
+type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered";
 
 const worker = new Worker(
   AI_QUEUE,
@@ -39,6 +41,8 @@ const worker = new Worker(
         return handleProfileGenerateJob(job.data.userId as string);
       case "resume_generate":
         return handleResumeGenerateJob(job.data.resumeId as string);
+      case "score_discovered":
+        return handleScoreDiscoveredJob(job.data.userId as string);
       default:
         throw new Error(`unknown job: ${job.name}`);
     }
@@ -51,7 +55,10 @@ worker.on("failed", (job, err) => console.error(`[ai] failed ${job?.name}#${job?
 
 const watchWorker = new Worker(
   WATCH_QUEUE,
-  async (job) => handleWatchPollJob(job.data?.watchId as string | undefined),
+  async (job) => {
+    if (job.name === "cost_alert_check") return handleCostAlertJob();
+    return handleWatchPollJob(job.data?.watchId as string | undefined);
+  },
   { connection, concurrency: 1 },
 );
 
@@ -66,5 +73,10 @@ const watchQueue = new Queue(WATCH_QUEUE, { connection });
 void watchQueue
   .upsertJobScheduler("watch-poll-scheduler", { every: 5 * 60_000 }, { name: "watch_poll", data: {} })
   .then(() => console.log("[watch] scheduler armed (every 5min)"));
+
+// 成本告警：每小时检查一次当日 AI 成本是否超阈值（当日只通知一次，见 runCostAlertCheck）
+void watchQueue
+  .upsertJobScheduler("cost-alert-scheduler", { every: 60 * 60_000 }, { name: "cost_alert_check", data: {} })
+  .then(() => console.log("[alert] cost-alert scheduler armed (hourly)"));
 
 console.log(`[worker] listening on queues "${AI_QUEUE}", "${WATCH_QUEUE}" (redis ${redisUrl.host})`);

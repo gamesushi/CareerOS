@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* 法律条款页（/terms /privacy）排版：项目未装 typography 插件，手写最小集 */
+.legal-article h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+.legal-article h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; }
+.legal-article p { line-height: 1.8; margin-bottom: 0.9rem; }
+.legal-article ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.9rem; }
+.legal-article li { line-height: 1.8; margin-bottom: 0.35rem; }
+.legal-article a { text-decoration: underline; text-underline-offset: 4px; }
+.legal-article hr { margin: 2rem 0; border-color: var(--border); }

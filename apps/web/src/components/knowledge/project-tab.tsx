@@ -64,7 +64,20 @@ export function ProjectTab() {
     if (expRes) setExperiences(expRes.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [projRes, expRes] = await Promise.all([
+        api<{ data: Project[] }>("/projects"),
+        api<{ data: ExperienceOption[] }>("/experiences"),
+      ]);
+      if (active) {
+        if (projRes) setItems(projRes.data);
+        if (expRes) setExperiences(expRes.data);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   function openCreate() {
     setEditing(null);

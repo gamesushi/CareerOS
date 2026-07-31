@@ -29,6 +29,8 @@ export const POST = handler(async (req) => {
       matchRegions: input.matchRegions,
       matchLanguages: input.matchLanguages,
       matchExperience: input.matchExperience,
+      excludeKeywords: input.excludeKeywords,
+      maxAgeDays: input.maxAgeDays ?? null,
       intervalMinutes: input.intervalMinutes,
       enabled: input.enabled,
     },

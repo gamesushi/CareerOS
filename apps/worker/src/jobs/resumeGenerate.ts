@@ -13,7 +13,7 @@ const SYSTEM_PROMPT = `你是简历撰写专家。基于「事实包」生成一
 
 硬性规则：
 1. 只能使用事实包中的信息。可以改写措辞、精简、bullet 化，禁止新增数字、公司、职位、技能或成果。
-2. 若提供了 JD，按相关度选材排序：最相关的经历/项目在前，无关的可省略；不提供 JD 则全量收录按时间倒序。
+2. 若提供了 JD，按相关度选材排序：最相关的经历/项目在前。禁止完全省略所有项目经历：当项目总数 ≤3 时全部保留；当项目总数 >3 时至少保留 2 个与 JD 最相关的项目。不提供 JD 则全量收录按时间倒序。
 3. highlights 每条以动词开头、含量化结果（仅当事实包中有该数字）。
 4. summary 3-4 句，突出与目标岗位的匹配点。
 5. 目标语言：{LANG}。若与事实包语言不同，专业地道地翻译（不逐字直译）。
@@ -84,6 +84,9 @@ export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
 
     // 事实包含性校验：产出中的数字必须能在 FactPack 文本中找到
     result["x-warnings"] = containmentWarnings(result, factPack.digest);
+
+    // 注：照片/地址/日本履历书个人信息等由「共享个人档案」统一管理，
+    // 在导出/预览时由 mergePersonalIntoResume 统一注入，故此处不保留简历自身的个人字段。
 
     await prisma.resume.update({
       where: { id: resumeId },

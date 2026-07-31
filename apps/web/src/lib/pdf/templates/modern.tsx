@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import { Bullets, contactLine, range, titlesFor, type TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // modern：参考 Reactive Resume「Onyx」布局思路的原创实现——
 // 左对齐 header + accent 粗横线分隔，分区标题 accent 色大写风格，技能带边框 chips。
@@ -12,8 +13,9 @@ export function ModernTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }:
   ensureFonts();
   const t = titlesFor(lang);
   const b = resume.basics;
+  const th = resolveTheme(resume);
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansSC", fontSize: 9.5, lineHeight: 1.5, color: "#1f1f1f", padding: 42 },
     name: { fontSize: 22, fontWeight: 700, lineHeight: 1.2 },
     label: { fontSize: 11, color: accent, fontWeight: 700, marginTop: 2 },
@@ -34,7 +36,7 @@ export function ModernTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }:
     },
     awardRow: { flexDirection: "row", marginTop: 2 },
     awardMarker: { width: 10, color: accent },
-  });
+  }, th);
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={s.section}>
@@ -45,7 +47,7 @@ export function ModernTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }:
 
   return (
     <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <Text style={s.name}>{b.name}</Text>
         {b.label ? <Text style={s.label}>{b.label}</Text> : null}
         {contactLine(b) ? <Text style={s.contact}>{contactLine(b)}</Text> : null}

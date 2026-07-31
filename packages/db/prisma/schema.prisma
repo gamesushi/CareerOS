@@ -122,6 +122,8 @@ enum AiRunKind {
   job_match
   skill_extract
   translate
+  writing
+  negotiation
 
   @@map("ai_run_kind")
 }
@@ -162,7 +164,7 @@ model User {
   email         String    @unique @db.Citext
   name          String    @db.VarChar(128)
   emailVerified DateTime? @map("email_verified")
-  avatarUrl     String?   @map("avatar_url")
+  image         String?   @map("avatar_url")
   role          UserRole  @default(user)
   locale        String    @default("zh") @db.VarChar(8)
   region        String?   @db.VarChar(64)
@@ -179,6 +181,10 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
+  bannedAt      DateTime? @map("banned_at") @db.Timestamptz() // 管理员封禁：非空即被封，鉴权层即时拒绝
+  tosAcceptedAt DateTime? @map("tos_accepted_at") @db.Timestamptz() // 同意《用户协议》《隐私政策》的时间（留痕证据）
+  tosVersion    String?   @map("tos_version") @db.VarChar(32)       // 同意的条款版本；与当前版本不一致时登录后强制重新确认
+  passwordHash  String?   @map("password_hash") @db.VarChar(255)    // 本地密码登录的 scrypt 哈希；null = 仅 Google/OAuth 登录（无本地密码）
 
   accounts      Account[]
   sessions      Session[]
@@ -200,6 +206,9 @@ model User {
   connectionsTo   Connection[] @relation("ConnTo")
   jobWatches      JobWatch[]
   discoveredJobs  DiscoveredJob[]
+  adminActions    AdminAuditLog[] @relation("AdminActor")
+  applications    Application[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -244,6 +253,21 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+// 密码找回：每次申请生成一次性 token。DB 仅存 SHA-256 哈希，原始 token 只在重置链接里出现（不落库）。
+model PasswordResetToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique // SHA-256(raw token)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
 // ============ 职业画像与实体 ============
 
 model CareerProfile {
@@ -251,6 +275,8 @@ model CareerProfile {
   userId          String   @unique @map("user_id") @db.Uuid
   headline        String?  @db.VarChar(128)
   summary         String?
+  // 简历共享个人信息（与每份简历解耦）：证件照 base64、联系地址、日本履历书专用字段。
+  personal        Json      @default("{}") @map("personal")
   careerTags      String[] @default([]) @map("career_tags")
   careerLevel     String?  @map("career_level") @db.VarChar(32)
   yearsExperience Decimal? @map("years_experience") @db.Decimal(4, 1)
@@ -574,6 +600,7 @@ model Resume {
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   jd      JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
   matches JobMatch[]
+  applications Application[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -590,6 +617,16 @@ enum DiscoveredJobStatus {
   @@map("discovered_job_status")
 }
 
+// 用户录入岗位的审核状态：抓取数据默认 approved（信任自动源），
+// 用户手动录入/链接导入默认 pending，管理员在 /admin/review 审核。
+enum JobReviewStatus {
+  pending
+  approved
+  rejected
+
+  @@map("job_review_status")
+}
+
 model JobWatch {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String    @map("user_id") @db.Uuid
@@ -602,6 +639,8 @@ model JobWatch {
   matchRegions    String[]  @default([]) @map("match_regions") // 地区匹配：预设 id 或自定义文本
   matchLanguages  String[]  @default([]) @map("match_languages") // 语言匹配：zh/en/ja/ko
   matchExperience String[]  @default([]) @map("match_experience") // 经验级别：junior/mid/senior/lead
+  excludeKeywords String[]  @default([]) @map("exclude_keywords") // 硬门槛：title/snippet 命中任一即丢弃（如 外包/派遣/实习）
+  maxAgeDays      Int?      @map("max_age_days") // 硬门槛：陈旧过滤，publishedAt 超过 N 天丢弃（无发布时间的不过滤）
   intervalMinutes Int       @default(60) @map("interval_minutes")
   enabled         Boolean   @default(true)
   lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz()
@@ -637,6 +676,16 @@ model DiscoveredJob {
   experience  Json      @default("[]") // 经验级别数组（JD 文本检测）
   status      DiscoveredJobStatus @default(new)
   jdId        String?             @map("jd_id") @db.Uuid
+  takenDownAt   DateTime? @map("taken_down_at") @db.Timestamptz() // 管理员下架（诈骗/幽灵岗）：非空则不进用户 feed
+  takenDownById String?   @map("taken_down_by_id") @db.Uuid       // 下架操作的管理员 id（审计冗余）
+  matchScore    Float?    @map("match_score")                     // 岗位↔用户档案 fit 分（0-100，embedding），null=未评分
+  matchReasons  Json?     @map("match_reasons")                   // [{ type, label, similarity }] 命中理由
+  // 审核流：抓取数据默认 approved；用户录入（source=user/import）写 pending，
+  // 过审前不进公共统计/排行榜，仅提交者本人 feed 可见（标「审核中」）。
+  reviewStatus   JobReviewStatus @default(approved) @map("review_status")
+  reviewedAt     DateTime?       @map("reviewed_at") @db.Timestamptz()
+  reviewedById   String?         @map("reviewed_by_id") @db.Uuid   // 审核操作的管理员 id（审计冗余）
+  reviewNote     String?         @map("review_note") @db.VarChar(500) // 拒绝理由等备注
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()
 
   watch JobWatch        @relation(fields: [watchId], references: [id], onDelete: Cascade)
@@ -645,6 +694,7 @@ model DiscoveredJob {
 
   @@unique([watchId, source, externalId])
   @@index([userId, status, createdAt(sort: Desc)])
+  @@index([reviewStatus, createdAt(sort: Desc)]) // 审核队列扫描
   @@map("discovered_jobs")
 }
 
@@ -704,4 +754,148 @@ model AiRun {
   @@index([userId, createdAt(sort: Desc)])
   @@index([kind, status])
   @@map("ai_runs")
+}
+
+// ============ 管理后台审计 ============
+
+enum AdminAction {
+  user_role_change
+  user_soft_delete
+  user_restore
+  user_ban
+  job_takedown
+  job_review
+  source_toggle
+  other
+
+  @@map("admin_action")
+}
+
+// 管理操作审计：所有 /api/admin 写操作各落一条，只增不改不删。
+model AdminAuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String      @map("actor_id") @db.Uuid
+  action     AdminAction
+  targetType String      @map("target_type") @db.VarChar(32) // "user" | "discovered_job" | ...
+  targetId   String?     @map("target_id") @db.Uuid
+  before     Json?       // 变更前快照（脱敏）
+  after      Json?       // 变更后快照（脱敏）
+  reason     String?     @db.VarChar(500)
+  ip         String?     @db.VarChar(64)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+
+  actor User @relation("AdminActor", fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@map("admin_audit_logs")
+}
+
+// ============ 登录审计 ============
+// 每次登录尝试（成功/失败）各落一条，用于安全审计、异常登录发现、登录速率限制计数。只增不改不删。
+model LoginLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  email     String?  @db.Citext
+  method    String   @db.VarChar(16) // "google" | "dev" | "password"
+  success   Boolean
+  reason    String?  @db.VarChar(64) // 失败原因：invalid_email | rate_limited | self_deleted | ...
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([email])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("login_logs")
+}
+
+// ============ 申请投递看板（Kanban / 求职 CRM） ============
+
+enum ApplicationStage {
+  considering // 想投
+  applied     // 已投递
+  screening   // 筛选中
+  interview   // 面试中
+  offer       // Offer
+  rejected    // 已结束/被拒
+
+  @@map("application_stage")
+}
+
+// 一条投递追踪：从"想投"到"offer/结束"的全流程。字段自包含（快照 title/company 等），
+// 即使来源发现岗位变动也不丢。events 存阶段流转/备注时间线。
+model Application {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  discoveredJobId String?          @map("discovered_job_id") @db.Uuid // 来源发现岗位（去重用），无关系约束
+  jdId            String?          @map("jd_id") @db.Uuid
+  resumeId        String?          @map("resume_id") @db.Uuid          // 本次投递用的简历
+  title           String           @db.VarChar(200)
+  company         String?          @db.VarChar(128)
+  location        String?          @db.VarChar(128)
+  url             String?
+  salary          String?          @db.VarChar(64)
+  source          String?          @db.VarChar(32)
+  stage           ApplicationStage @default(considering)
+  matchScore      Float?           @map("match_score") // 快照
+  notes           String?          @db.Text
+  nextAction      String?          @map("next_action") @db.VarChar(200)
+  nextActionAt    DateTime?        @map("next_action_at") @db.Timestamptz()
+  position        Int              @default(0) // 列内排序
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume?            @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  events ApplicationEvent[]
+
+  @@index([userId, stage, position])
+  @@index([userId, discoveredJobId])
+  @@map("applications")
+}
+
+// 申请时间线：创建、阶段流转、备注。
+model ApplicationEvent {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  kind          String            @db.VarChar(24) // created | stage_change | note
+  fromStage     ApplicationStage? @map("from_stage")
+  toStage       ApplicationStage? @map("to_stage")
+  note          String?           @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz()
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt(sort: Desc)])
+  @@map("application_events")
+}
+
+// ============ 管理后台 P2：灰度开关 + 成本告警 ============
+
+// Feature Flag：灰度开关。enabled 为前提，rolloutPercent 控制放量比例（按 userId 稳定哈希）。
+model FeatureFlag {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key            String   @unique @db.VarChar(64)
+  description    String?  @db.VarChar(300)
+  enabled        Boolean  @default(false)
+  rolloutPercent Int      @default(100) @map("rollout_percent") // 0-100
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("feature_flags")
+}
+
+// 成本告警配置（单例，固定 id="cost"）：当日 AI 成本超阈值时向 webhook 发一次通知。
+model AlertConfig {
+  id                String   @id @default("cost") @db.VarChar(32)
+  enabled           Boolean  @default(false)
+  dailyThresholdUsd Decimal  @default(0) @map("daily_threshold_usd") @db.Decimal(10, 4)
+  webhookUrl        String?  @map("webhook_url")
+  lastFiredOn       String?  @map("last_fired_on") @db.VarChar(10) // YYYY-MM-DD，当日去重
+  updatedById       String?  @map("updated_by_id") @db.Uuid
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("alert_configs")
 }

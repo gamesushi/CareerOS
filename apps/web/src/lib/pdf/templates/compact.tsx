@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import { Bullets, contactLine, range, titlesFor, type TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // compact：参考 Reactive Resume「Kakuna」布局思路的原创实现——
 // 全居中极简排版，居中分区标题带细底线，紧凑字号，适合一页塞下更多内容。
@@ -12,8 +13,9 @@ export function CompactTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
   ensureFonts();
   const t = titlesFor(lang);
   const b = resume.basics;
+  const th = resolveTheme(resume);
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansSC", fontSize: 9, lineHeight: 1.45, color: "#222", padding: 36 },
     header: { alignItems: "center", marginBottom: 8 },
     name: { fontSize: 18, fontWeight: 700, lineHeight: 1.2 },
@@ -32,7 +34,7 @@ export function CompactTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
     entryMeta: { color: "#777", fontSize: 8 },
     entrySub: { color: "#444", fontSize: 8.5, marginTop: 1 },
     skillLine: { textAlign: "center", fontSize: 9, color: "#333" },
-  });
+  }, th);
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={s.section}>
@@ -45,7 +47,7 @@ export function CompactTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
 
   return (
     <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <View style={s.header}>
           <Text style={s.name}>{b.name}</Text>
           {b.label ? <Text style={s.label}>{b.label}</Text> : null}

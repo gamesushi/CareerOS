@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import {
   WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES, REGIONS, JOB_LANGUAGES, EXPERIENCE_LEVELS,
+  SOURCE_REGIONS, SOURCE_INDUSTRIES,
 } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +23,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink, Play, Plus, Radar, Trash2, Loader2 } from "lucide-react";
+import { ExternalLink, Play, Plus, Radar, Trash2, Loader2, ChevronDown, Upload } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
 type Watch = {
@@ -36,26 +38,43 @@ type Job = {
   id: string; source: string; title: string; company?: string | null; location?: string | null;
   salary?: string | null; url: string; snippet?: string | null; publishedAt?: string | null;
   status: "new" | "viewed" | "imported" | "dismissed"; jdId?: string | null;
+  reviewStatus?: "pending" | "approved" | "rejected";
   categories?: string[] | null;
   roles?: string[] | null; regions?: string[] | null;
   languages?: string[] | null; experience?: string[] | null;
+  matchScore?: number | null;
+  matchReasons?: { type: string; label: string; similarity: number }[] | null;
   createdAt: string; watch: { name: string };
 };
 
 const SOURCE_LABEL = Object.fromEntries(WATCH_SOURCES.map((s) => [s.id, s.label]));
 
+/** 根据地区+业态筛选来源；未选时显示全部。 */
+function filterSources(sourceIds: string[], regionIds: string[], industryIds: string[]) {
+  if (regionIds.length === 0 && industryIds.length === 0) return sourceIds;
+  return sourceIds.filter((id) => {
+    const s = WATCH_SOURCES.find((x) => x.id === id);
+    if (!s) return false;
+    const regionMatch = regionIds.length === 0 || regionIds.includes(s.region);
+    const industryMatch = industryIds.length === 0 || s.industries.some((i) => industryIds.includes(i));
+    return regionMatch && industryMatch;
+  });
+}
+
 // 职种按品类分组（表单分组渲染 / feed 二级筛选）
-const ROLE_GROUPS = ["game", "finance", "tech", "general"].map((cat) => ({
+const ROLE_GROUPS = ["game", "finance", "tech", "ai", "general"].map((cat) => ({
   category: cat,
   roles: JOB_ROLES.filter((r) => r.category === cat),
 }));
 const PRESET_REGION_IDS = new Set<string>(REGIONS.map((r) => r.id));
 
 const EMPTY_FORM = {
-  name: "", keywords: "", sources: ["tencent", "bytedance"] as string[],
+  name: "", keywords: "", sources: [] as string[],
+  sourceRegions: [] as string[], sourceIndustries: [] as string[],
   categories: [] as string[], roles: [] as string[],
   regions: [] as string[], regionInput: "",
   languages: [] as string[], experience: [] as string[],
+  excludeKeywords: "", maxAgeDays: "",
   intervalMinutes: "60",
 };
 const CATEGORY_FILTER_KEY = "careeros.categoryFilter";
@@ -66,20 +85,34 @@ export default function MonitorPage() {
   const t = useT();
   const [watches, setWatches] = useState<Watch[] | null>(null);
   const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [cal, setCal] = useState<{ strong: number; moderate: number; weak: number; unscored: number; scored: number; verdict: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  const [mounted, setMounted] = useState(false);
+
+  // 水合完成后再从 localStorage 读取持久化筛选，避免 SSR/CSR 初值不一致导致 hydration mismatch
+  useEffect(() => {
+    let active = true;
+    requestAnimationFrame(() => {
+      if (!active) return;
+      setMounted(true);
+      const c = localStorage.getItem(CATEGORY_FILTER_KEY);
+      if (c) setCategoryFilter(c);
+      const r = localStorage.getItem(ROLE_FILTER_KEY);
+      if (r) setRoleFilter(r);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [running, setRunning] = useState<string | null>(null);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  // 品类/职种匹配偏好（本地持久化，跨会话保留）
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(CATEGORY_FILTER_KEY) : null;
-    if (saved) setCategoryFilter(saved);
-    const savedRole = typeof window !== "undefined" ? localStorage.getItem(ROLE_FILTER_KEY) : null;
-    if (savedRole) setRoleFilter(savedRole);
-  }, []);
   const changeCategory = (c: string) => {
     setCategoryFilter(c);
     setRoleFilter("all"); // 切换品类时重置职种筛选
@@ -92,10 +125,39 @@ export default function MonitorPage() {
     setRoleFilter(r);
     if (typeof window !== "undefined") localStorage.setItem(ROLE_FILTER_KEY, r);
   };
-  const toggleInList = (key: "sources" | "categories" | "roles" | "regions" | "languages" | "experience", id: string) => {
+  const toggleInList = (key: "sources" | "sourceRegions" | "sourceIndustries" | "categories" | "roles" | "regions" | "languages" | "experience", id: string) => {
     setForm((f) => {
       const list = f[key];
       return { ...f, [key]: list.includes(id) ? list.filter((x) => x !== id) : [...list, id] };
+    });
+  };
+
+  /** 地区/业态变化时，把当前可见来源自动追加到已选列表。 */
+  const syncSourcesWithFilters = (base: typeof EMPTY_FORM, patch: Partial<typeof EMPTY_FORM>) => {
+    const next = { ...base, ...patch };
+    const visible = filterSources(
+      WATCH_SOURCES.map((s) => s.id),
+      next.sourceRegions,
+      next.sourceIndustries,
+    );
+    return { ...next, sources: [...new Set([...next.sources, ...visible])] };
+  };
+
+  const toggleSourceRegion = (id: string) => {
+    setForm((f) => {
+      const nextRegions = f.sourceRegions.includes(id)
+        ? f.sourceRegions.filter((x) => x !== id)
+        : [...f.sourceRegions, id];
+      return syncSourcesWithFilters(f, { sourceRegions: nextRegions });
+    });
+  };
+
+  const toggleSourceIndustry = (id: string) => {
+    setForm((f) => {
+      const nextIndustries = f.sourceIndustries.includes(id)
+        ? f.sourceIndustries.filter((x) => x !== id)
+        : [...f.sourceIndustries, id];
+      return syncSourcesWithFilters(f, { sourceIndustries: nextIndustries });
     });
   };
   const addCustomRegion = () => {
@@ -104,17 +166,38 @@ export default function MonitorPage() {
     if (!form.regions.includes(v)) setForm({ ...form, regions: [...form.regions, v], regionInput: "" });
     else setForm({ ...form, regionInput: "" });
   };
+  const clearSourceFilters = () => {
+    setForm((f) => ({ ...f, sourceRegions: [], sourceIndustries: [] }));
+  };
 
+  type Cal = { strong: number; moderate: number; weak: number; unscored: number; scored: number; verdict: string };
   const load = useCallback(async () => {
-    const [w, j] = await Promise.all([
+    const [w, j, c] = await Promise.all([
       api<{ data: Watch[] }>("/watches"),
       api<{ data: Job[] }>(`/discovered-jobs?status=${statusFilter}`),
+      api<{ data: Cal }>("/watches/calibration", { silent: true }),
     ]);
     if (w) setWatches(w.data);
     if (j) setJobs(j.data);
+    if (c) setCal(c.data);
   }, [statusFilter]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [w, j, c] = await Promise.all([
+        api<{ data: Watch[] }>("/watches"),
+        api<{ data: Job[] }>(`/discovered-jobs?status=${statusFilter}`),
+        api<{ data: Cal }>("/watches/calibration", { silent: true }),
+      ]);
+      if (active) {
+        if (w) setWatches(w.data);
+        if (j) setJobs(j.data);
+        if (c) setCal(c.data);
+      }
+    })();
+    return () => { active = false; };
+  }, [statusFilter]);
 
   async function createWatch() {
     const keywords = form.keywords.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
@@ -134,6 +217,8 @@ export default function MonitorPage() {
         matchRegions: form.regions,
         matchLanguages: form.languages,
         matchExperience: form.experience,
+        excludeKeywords: form.excludeKeywords.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+        maxAgeDays: form.maxAgeDays ? Number(form.maxAgeDays) : null,
         intervalMinutes: Number(form.intervalMinutes),
       }),
     });
@@ -141,6 +226,8 @@ export default function MonitorPage() {
       toast.success(t("monitor.created"));
       setCreateOpen(false);
       setForm(EMPTY_FORM);
+      setRolesOpen(false);
+      setAdvancedOpen(false);
       const created = res as { id: string };
       void api(`/watches/${created.id}/run`, { method: "POST", silent: true });
       setTimeout(() => void load(), 4000);
@@ -169,6 +256,14 @@ export default function MonitorPage() {
     if (res) { toast.success(t("common.deleted")); void load(); }
   }
 
+  async function trackJob(job: Job) {
+    const res = await api<{ deduped?: boolean }>(`/applications`, {
+      method: "POST",
+      body: JSON.stringify({ discoveredJobId: job.id }),
+    });
+    if (res) toast.success(res.deduped ? t("monitor.trackDeduped") : t("monitor.trackAdded"));
+  }
+
   async function importJob(job: Job) {
     const res = await api<{ jdId: string }>(`/discovered-jobs/${job.id}/import`, { method: "POST" });
     if (res) {
@@ -180,6 +275,21 @@ export default function MonitorPage() {
   async function dismissJob(id: string) {
     const res = await api(`/discovered-jobs/${id}`, { method: "PUT", body: JSON.stringify({ status: "dismissed" }) });
     if (res) void load();
+  }
+
+  const [scoring, setScoring] = useState(false);
+  async function scoreJobs() {
+    setScoring(true);
+    const res = await api(`/discovered-jobs/score`, { method: "POST" });
+    if (res) {
+      toast.success(t("monitor.scoreQueued"));
+      setTimeout(() => {
+        void load();
+        setScoring(false);
+      }, 3000);
+    } else {
+      setScoring(false);
+    }
   }
 
   const visibleJobs =
@@ -205,6 +315,10 @@ export default function MonitorPage() {
             {t("monitor.subtitle")}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" asChild>
+          <Link href="/monitor/submit"><Upload className="size-4" /> {t("monitor.submitJob")}</Link>
+        </Button>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="size-4" /> {t("monitor.newWatch")}</Button>
@@ -220,10 +334,39 @@ export default function MonitorPage() {
                 <Label>{t("monitor.keywords")}</Label>
                 <Input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} placeholder={t("monitor.keywordsPlaceholder")} />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label>{t("monitor.source")}</Label>
+                <div className="space-y-1.5 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t("monitor.sourceRegion")}</span>
+                    {SOURCE_REGIONS.map((r) => {
+                      const on = form.sourceRegions.includes(r.id);
+                      return (
+                        <button key={r.id} type="button" onClick={() => toggleSourceRegion(r.id)}>
+                          <Badge variant={on ? "default" : "outline"} className="text-xs">{r.label}</Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t("monitor.sourceIndustry")}</span>
+                    {SOURCE_INDUSTRIES.map((i) => {
+                      const on = form.sourceIndustries.includes(i.id);
+                      return (
+                        <button key={i.id} type="button" onClick={() => toggleSourceIndustry(i.id)}>
+                          <Badge variant={on ? "default" : "outline"} className="text-xs">{i.label}</Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {WATCH_SOURCES.map((s) => {
+                  {filterSources(
+                    WATCH_SOURCES.map((s) => s.id),
+                    form.sourceRegions,
+                    form.sourceIndustries,
+                  ).map((id) => {
+                    const s = WATCH_SOURCES.find((x) => x.id === id)!;
                     const on = form.sources.includes(s.id);
                     return (
                       <button
@@ -241,6 +384,11 @@ export default function MonitorPage() {
                     );
                   })}
                 </div>
+                {(form.sourceRegions.length > 0 || form.sourceIndustries.length > 0) && (
+                  <button type="button" onClick={clearSourceFilters} className="text-xs text-muted-foreground hover:text-foreground">
+                    {t("monitor.clearSourceFilters")}
+                  </button>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>{t("monitor.matchCategories")}</Label>
@@ -257,81 +405,128 @@ export default function MonitorPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>{t("monitor.matchRoles")}</Label>
-                <p className="text-xs text-muted-foreground">{t("monitor.matchRolesHint")}</p>
-                <div className="space-y-2">
-                  {ROLE_GROUPS.map((g) => (
-                    <div key={g.category}>
-                      <p className="mb-1 text-[11px] text-muted-foreground">{t(`category.${g.category}`)}</p>
+                <button
+                  type="button"
+                  onClick={() => setRolesOpen((v) => !v)}
+                  className="flex w-full items-center justify-between"
+                >
+                  <div className="space-y-0.5 text-left">
+                    <Label className="cursor-pointer">{t("monitor.matchRoles")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("monitor.matchRolesHint")}</p>
+                  </div>
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${rolesOpen ? "rotate-180" : ""}`} />
+                </button>
+                {!rolesOpen && form.roles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.roles.map((r) => (
+                      <button key={r} type="button" onClick={() => toggleInList("roles", r)}>
+                        <Badge className="text-xs">{t(`role.${r}`)} ×</Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {rolesOpen && (
+                  <div className="space-y-2 rounded-lg border p-3">
+                    {ROLE_GROUPS.map((g) => (
+                      <div key={g.category}>
+                        <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t(`category.${g.category}`)}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {g.roles.map((r) => {
+                            const on = form.roles.includes(r.id);
+                            return (
+                              <button key={r.id} type="button" onClick={() => toggleInList("roles", r.id)}>
+                                <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-lg border p-2.5 text-left hover:bg-muted/50"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{t("monitor.advancedFilters")}</p>
+                    <p className="text-xs text-muted-foreground">{t("monitor.advancedFiltersHint")}</p>
+                  </div>
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+                </button>
+                {advancedOpen && (
+                  <div className="space-y-4 rounded-lg border p-3">
+                    <div className="space-y-1.5">
+                      <Label>{t("monitor.matchRegions")}</Label>
                       <div className="flex flex-wrap gap-1.5">
-                        {g.roles.map((r) => {
-                          const on = form.roles.includes(r.id);
+                        {REGIONS.map((r) => {
+                          const on = form.regions.includes(r.id);
                           return (
-                            <button key={r.id} type="button" onClick={() => toggleInList("roles", r.id)}>
-                              <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
+                            <button key={r.id} type="button" onClick={() => toggleInList("regions", r.id)}>
+                              <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`region.${r.id}`)}</Badge>
                             </button>
                           );
                         })}
+                        {form.regions.filter((r) => !PRESET_REGION_IDS.has(r)).map((r) => (
+                          <button key={r} type="button" onClick={() => toggleInList("regions", r)}>
+                            <Badge className="text-xs">{r} ×</Badge>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={form.regionInput}
+                          onChange={(e) => setForm({ ...form, regionInput: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomRegion(); } }}
+                          placeholder={t("monitor.regionCustomPlaceholder")}
+                          className="h-8 text-xs"
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addCustomRegion}>{t("common.add")}</Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("monitor.matchRegions")}</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {REGIONS.map((r) => {
-                    const on = form.regions.includes(r.id);
-                    return (
-                      <button key={r.id} type="button" onClick={() => toggleInList("regions", r.id)}>
-                        <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`region.${r.id}`)}</Badge>
-                      </button>
-                    );
-                  })}
-                  {form.regions.filter((r) => !PRESET_REGION_IDS.has(r)).map((r) => (
-                    <button key={r} type="button" onClick={() => toggleInList("regions", r)}>
-                      <Badge className="text-xs">{r} ×</Badge>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={form.regionInput}
-                    onChange={(e) => setForm({ ...form, regionInput: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomRegion(); } }}
-                    placeholder={t("monitor.regionCustomPlaceholder")}
-                    className="h-8 text-xs"
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={addCustomRegion}>{t("common.add")}</Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t("monitor.matchLanguages")}</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {JOB_LANGUAGES.map((l) => {
-                      const on = form.languages.includes(l);
-                      return (
-                        <button key={l} type="button" onClick={() => toggleInList("languages", l)}>
-                          <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`lang.${l}`)}</Badge>
-                        </button>
-                      );
-                    })}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>{t("monitor.matchLanguages")}</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {JOB_LANGUAGES.map((l) => {
+                            const on = form.languages.includes(l);
+                            return (
+                              <button key={l} type="button" onClick={() => toggleInList("languages", l)}>
+                                <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`lang.${l}`)}</Badge>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("monitor.matchExperience")}</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {EXPERIENCE_LEVELS.map((x) => {
+                            const on = form.experience.includes(x);
+                            return (
+                              <button key={x} type="button" onClick={() => toggleInList("experience", x)}>
+                                <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`exp.${x}`)}</Badge>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>{t("monitor.excludeKw")}</Label>
+                        <Input value={form.excludeKeywords} onChange={(e) => setForm({ ...form, excludeKeywords: e.target.value })} placeholder={t("monitor.excludeKwPh")} className="h-8 text-xs" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("monitor.maxAge")}</Label>
+                        <Input type="number" min={1} value={form.maxAgeDays} onChange={(e) => setForm({ ...form, maxAgeDays: e.target.value })} placeholder={t("monitor.maxAgePh")} className="h-8 text-xs" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("monitor.matchExperience")}</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {EXPERIENCE_LEVELS.map((x) => {
-                      const on = form.experience.includes(x);
-                      return (
-                        <button key={x} type="button" onClick={() => toggleInList("experience", x)}>
-                          <Badge variant={on ? "default" : "outline"} className="text-xs">{t(`exp.${x}`)}</Badge>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>{t("monitor.interval")}</Label>
@@ -351,6 +546,7 @@ export default function MonitorPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* 监测任务 */}
@@ -397,36 +593,56 @@ export default function MonitorPage() {
       <Separator />
 
       {/* 品类匹配：用户可选「游戏类」等，自动只显示命中品类的岗位 */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
         <span className="text-xs text-muted-foreground">{t("monitor.categoryFilter")}</span>
         <button type="button" onClick={() => changeCategory("all")}>
-          <Badge variant={categoryFilter === "all" ? "default" : "outline"}>{t("category.all")}</Badge>
+          <Badge variant={(mounted ? categoryFilter : "all") === "all" ? "default" : "outline"}>{t("category.all")}</Badge>
         </button>
         {JOB_CATEGORIES.map((c) => (
           <button key={c.id} type="button" onClick={() => changeCategory(c.id)}>
-            <Badge variant={categoryFilter === c.id ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
+            <Badge variant={(mounted ? categoryFilter : "all") === c.id ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
           </button>
         ))}
       </div>
 
       {/* 职种二级筛选：选中品类后出现该品类的职种 chips */}
       {feedRoles.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" suppressHydrationWarning>
           <span className="text-xs text-muted-foreground">{t("monitor.roleFilter")}</span>
           <button type="button" onClick={() => changeRole("all")}>
-            <Badge variant={roleFilter === "all" ? "default" : "outline"} className="text-xs">{t("role.all")}</Badge>
+            <Badge variant={(mounted ? roleFilter : "all") === "all" ? "default" : "outline"} className="text-xs">{t("role.all")}</Badge>
           </button>
           {feedRoles.map((r) => (
             <button key={r.id} type="button" onClick={() => changeRole(r.id)}>
-              <Badge variant={roleFilter === r.id ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
+              <Badge variant={(mounted ? roleFilter : "all") === r.id ? "default" : "outline"} className="text-xs">{t(`role.${r.id}`)}</Badge>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* 画像校准顾问 */}
+      {cal && cal.scored > 0 && cal.verdict !== "no_data" && (
+        <div
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            cal.verdict === "good"
+              ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+              : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+          }`}
+        >
+          {cal.verdict === "good" && t("monitor.calGood", { strong: cal.strong, moderate: cal.moderate, weak: cal.weak, scored: cal.scored })}
+          {cal.verdict === "too_strict" && t("monitor.calStrict", { scored: cal.scored })}
+          {cal.verdict === "too_broad" && t("monitor.calBroad", { strong: cal.strong, scored: cal.scored })}
+          {cal.unscored > 0 && <span className="text-muted-foreground">{t("monitor.calUnscored", { unscored: cal.unscored })}</span>}
         </div>
       )}
 
       {/* 岗位 feed */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t("monitor.discoveredJobs")}</h2>
+        <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" disabled={scoring} onClick={scoreJobs}>
+          {scoring ? t("monitor.scoring") : t("monitor.scoreBtn")}
+        </Button>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -436,6 +652,7 @@ export default function MonitorPage() {
             <SelectItem value="dismissed">{t("monitor.filter.dismissed")}</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {!visibleJobs ? <Skeleton className="h-32" /> : visibleJobs.length === 0 ? (
@@ -451,8 +668,37 @@ export default function MonitorPage() {
                       <a href={j.url} target="_blank" rel="noreferrer" className="text-sm font-medium hover:underline">
                         {j.title} <ExternalLink className="inline size-3 text-muted-foreground" />
                       </a>
+                      {typeof j.matchScore === "number" && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                            j.matchScore >= 60
+                              ? "bg-emerald-500/15 text-emerald-600"
+                              : j.matchScore >= 30
+                                ? "bg-amber-500/15 text-amber-600"
+                                : "bg-muted text-muted-foreground"
+                          }`}
+                          title="岗位与你职业档案的匹配度"
+                        >
+                          {t("monitor.matchBadge")} {Math.round(j.matchScore)}
+                        </span>
+                      )}
                       {j.status === "new" && <Badge className="px-1.5 py-0 text-[10px]">NEW</Badge>}
                       {j.status === "imported" && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{t("monitor.imported")}</Badge>}
+                      {(j.source === "user" || j.source === "import") && (
+                        <Badge className="bg-sky-500/15 px-1.5 py-0 text-[10px] text-sky-600 hover:bg-sky-500/15" title={t("monitor.userSubmittedHint")}>
+                          {t("monitor.userSubmitted")}
+                        </Badge>
+                      )}
+                      {j.reviewStatus === "pending" && (
+                        <Badge className="bg-amber-500/15 px-1.5 py-0 text-[10px] text-amber-600 hover:bg-amber-500/15" title={t("monitor.reviewPendingHint")}>
+                          {t("monitor.reviewPending")}
+                        </Badge>
+                      )}
+                      {j.reviewStatus === "rejected" && (
+                        <Badge className="bg-destructive/10 px-1.5 py-0 text-[10px] text-destructive hover:bg-destructive/10" title={t("monitor.reviewRejectedHint")}>
+                          {t("monitor.reviewRejected")}
+                        </Badge>
+                      )}
                       {j.categories?.map((c) => (
                         <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{t(`category.${c}`)}</Badge>
                       ))}
@@ -469,8 +715,14 @@ export default function MonitorPage() {
                       {j.publishedAt && ` · ${new Date(j.publishedAt).toLocaleDateString("zh-CN")}`}
                     </p>
                     {j.snippet && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{j.snippet}</p>}
+                    {j.matchReasons && j.matchReasons.length > 0 && (
+                      <p className="mt-1 text-[11px] text-emerald-700/80 dark:text-emerald-500/80">
+                        {t("monitor.hitLabel")}{j.matchReasons.map((r) => r.label).join(" · ")}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => trackJob(j)}>{t("monitor.track")}</Button>
                     {j.jdId ? (
                       <Button size="sm" variant="outline" onClick={() => router.push(`/jobs/${j.jdId}`)}>{t("monitor.seeMatch")}</Button>
                     ) : (

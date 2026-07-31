@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -56,7 +56,14 @@ export function ExperienceTab() {
     if (res) setItems(res.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const res = await api<{ data: Experience[] }>("/experiences");
+      if (active && res) setItems(res.data);
+    })();
+    return () => { active = false; };
+  }, []);
 
   function openCreate() {
     setEditing(null);

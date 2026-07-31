@@ -23,7 +23,11 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
   "skills": [{ "name": string, "category": "language"|"framework"|"tool"|"domain"|"soft"|null, "evidenceHint": string|null }],
   "achievements": [{ "title": string, "metricValue": number|null, "metricUnit": string|null, "metricText": string|null, "context": string|null }],
   "educations": [{ "school": string, "degree": string|null, "major": string|null, "startDate": string|null, "endDate": string|null }]
-}`;
+}
+
+特别注意：
+- 教育经历（educations）的 startDate/endDate 必须严格按规则2抽取：有日到日、只有月到月、只有年到年；"至今/现在/present" 的结束日期输出 null。找不到的字段输出 null，禁止推断。
+`;
 
 const MAX_INPUT_CHARS = 30_000;
 

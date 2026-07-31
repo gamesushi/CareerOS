@@ -71,7 +71,14 @@ export default function SkillsPage() {
     if (res) setSkills(res.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const res = await api<{ data: Skill[] }>("/skills");
+      if (active && res) setSkills(res.data);
+    })();
+    return () => { active = false; };
+  }, []);
 
   async function openDetail(s: Skill) {
     setDetail(s);
@@ -98,7 +105,6 @@ export default function SkillsPage() {
       setEvForm((f) => ({ ...f, sourceId: "" }));
     }
     void loadOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evForm.sourceType]);
 
   async function createSkill() {

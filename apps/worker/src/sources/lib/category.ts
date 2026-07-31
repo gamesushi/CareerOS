@@ -6,10 +6,10 @@
 //   3) 在 i18n 增加 category.<id> 文案。
 // 其它代码（适配器、匹配、UI）无需改动。
 
-export type JobCategory = "game" | "finance" | "tech" | "general";
+export type JobCategory = "game" | "finance" | "tech" | "ai" | "general";
 
 /** 需要匹配的「具体品类」（不含 general 兜底）。 */
-export const JOB_CATEGORY_IDS: Exclude<JobCategory, "general">[] = ["game", "finance", "tech"];
+export const JOB_CATEGORY_IDS: Exclude<JobCategory, "general">[] = ["game", "finance", "tech", "ai"];
 
 const RULES: Record<Exclude<JobCategory, "general">, RegExp> = {
   // 游戏类：覆盖厂商名、产品名、引擎、岗位类型
@@ -21,6 +21,9 @@ const RULES: Record<Exclude<JobCategory, "general">, RegExp> = {
   // 技术类（通用研发）
   tech:
     /engineer|工程师|后端|前端|全栈|算法|data\s?scientist|software|sde|开发|编程|devops|sre|机器学习/i,
+  // AI 类：大模型 / 生成式 AI / LLM / Agent / 具身智能 / CV / NLP / 多模态 / 深度学习 / 强化学习
+  ai:
+    /artificial\s?intelligence|\bai\b|\baigc\b|llm|large\s?language\s?model|slm|small\s?language\s?model|genai|generative\s?ai|gpt|claude|deepseek|qwen|llama|rag|transformer|prompt\s?engineer|prompt\s?工程|agent|智能体|多智能体|multi\s?agent|auto\s?gpt|数字员工|智能助手|大模型|基座模型|基模|预训练|sft|rlhf|对齐|lora|大语言模型|生成式|aigc|文生图|图生文|text\s?to\s?image|image\s?to\s?text|diffusion|stable\s?diffusion|自然语言处理|nlp|计算机视觉|cv(?!\s?写作)|视觉大模型|视觉语言模型|vlm|clip|ocr|图像识别|视频理解|语音识别|speech\s?recognition|asr|tts|语音合成|多模态|multimodal|深度学习|deep\s?learning|强化学习|reinforcement\s?learning|rl\b|具身智能|embodied\s?ai|vla|machine\s?learning|\bml\b|推荐算法|搜索算法|广告算法|排序算法|图神经网络|gnn|联邦学习|迁移学习/i,
 };
 
 /** 文本 → 品类标签数组（无命中返回 ["general"]）。 */
@@ -42,5 +45,6 @@ export const CATEGORY_LABEL_FALLBACK: Record<JobCategory, string> = {
   game: "Game",
   finance: "Finance",
   tech: "Tech",
+  ai: "AI",
   general: "General",
 };

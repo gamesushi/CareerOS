@@ -7,65 +7,182 @@ export const JOB_CATEGORIES = [
   { id: "game", label: "游戏类" },
   { id: "finance", label: "金融类" },
   { id: "tech", label: "技术类" },
+  { id: "ai", label: "AI类" },
 ] as const;
 
+// 一个来源可归属多个业态（industries 数组），筛选时命中任意一个即算匹配。
+// 例如腾讯/字节同时有互联网与游戏业务，选「游戏」也应出现。
 export const WATCH_SOURCES = [
-  { id: "tencent", label: "腾讯招聘", category: "tech" },
-  { id: "bytedance", label: "字节跳动招聘", category: "tech" },
-  { id: "liepin", label: "猎聘" },
-  { id: "boss", label: "BOSS直聘" },
-  { id: "green", label: "Green" },
-  { id: "indeed", label: "Indeed" },
-  { id: "wantedly", label: "Wantedly" },
-  { id: "remoteok", label: "RemoteOK" },
-  { id: "hackernews", label: "Hacker News" },
-  { id: "netease", label: "网易游戏", category: "game" },
-  { id: "mihoyo", label: "米哈游", category: "game" },
-  // 游戏公司（Greenhouse 官方招聘板）
-  { id: "riotgames", label: "Riot Games", category: "game" },
-  { id: "scopely", label: "Scopely", category: "game" },
-  { id: "krafton", label: "Krafton", category: "game" },
-  { id: "nintendo", label: "Nintendo", category: "game" },
-  { id: "epicgames", label: "Epic Games", category: "game" },
-  { id: "taketwo", label: "Take-Two Interactive", category: "game" },
-  { id: "nordeus", label: "Nordeus", category: "game" },
-  { id: "bungie", label: "Bungie", category: "game" },
-  { id: "wooga", label: "Wooga", category: "game" },
-  { id: "remedy", label: "Remedy Entertainment", category: "game" },
-  { id: "bethesda", label: "Bethesda", category: "game" },
-  { id: "housemarque", label: "Housemarque", category: "game" },
-  // 金融：银行 / 数字银行 / 借贷
-  { id: "sofi", label: "SoFi", category: "finance" },
-  { id: "brex", label: "Brex", category: "finance" },
-  { id: "chime", label: "Chime", category: "finance" },
-  { id: "monzo", label: "Monzo", category: "finance" },
-  { id: "n26", label: "N26", category: "finance" },
-  { id: "upgrade", label: "Upgrade", category: "finance" },
-  { id: "affirm", label: "Affirm", category: "finance" },
-  { id: "mercury", label: "Mercury", category: "finance" },
-  { id: "coinbase", label: "Coinbase", category: "finance" },
-  // 金融：保险
-  { id: "oscar", label: "Oscar Health", category: "finance" },
-  { id: "ethos", label: "Ethos", category: "finance" },
-  // 金融：基金 / 资管 / 量化交易
-  { id: "point72", label: "Point72", category: "finance" },
-  { id: "imc", label: "IMC", category: "finance" },
-  { id: "winton", label: "Winton", category: "finance" },
-  { id: "janestreet", label: "Jane Street", category: "finance" },
-  { id: "mangroup", label: "Man Group", category: "finance" },
-  { id: "jumptrading", label: "Jump Trading", category: "finance" },
-  { id: "flowtraders", label: "Flow Traders", category: "finance" },
-  { id: "tide", label: "Tide", category: "finance" },
-  { id: "adyen", label: "Adyen", category: "finance" },
-  { id: "payoneer", label: "Payoneer", category: "finance" },
-  { id: "robinhood", label: "Robinhood", category: "finance" },
-  { id: "schonfeld", label: "Schonfeld", category: "finance" },
-  { id: "exoduspoint", label: "ExodusPoint", category: "finance" },
-  // 金融：中文官网（best-effort，需 headless 浏览器）
-  { id: "pingan", label: "中国平安", category: "finance" },
-  { id: "efund", label: "易方达基金", category: "finance" },
-  { id: "cmb", label: "招商银行", category: "finance" },
+  // 中国互联网 / 大厂（多业态）
+  { id: "tencent", label: "腾讯招聘", region: "china", industries: ["internet", "game", "finance"] },
+  { id: "bytedance", label: "字节跳动招聘", region: "china", industries: ["internet", "game"] },
+  { id: "netease", label: "网易游戏", region: "china", industries: ["game", "internet"] },
+  { id: "mihoyo", label: "米哈游", region: "china", industries: ["game"] },
+  { id: "liepin", label: "猎聘", region: "china", industries: ["general"] },
+  { id: "boss", label: "BOSS直聘", region: "china", industries: ["general"] },
+  // 中国金融
+  { id: "pingan", label: "中国平安", region: "china", industries: ["finance"] },
+  { id: "efund", label: "易方达基金", region: "china", industries: ["finance"] },
+  { id: "cmb", label: "招商银行", region: "china", industries: ["finance"] },
+  // 日本科技 / 游戏
+  { id: "green", label: "Green", region: "japan", industries: ["tech"] },
+  { id: "wantedly", label: "Wantedly", region: "japan", industries: ["tech"] },
+  { id: "nintendo", label: "Nintendo", region: "japan", industries: ["game"] },
+  { id: "bandainamco", label: "万代南梦宫", region: "japan", industries: ["game"] },
+  // 美国游戏
+  { id: "riotgames", label: "Riot Games", region: "usa", industries: ["game"] },
+  { id: "scopely", label: "Scopely", region: "usa", industries: ["game"] },
+  { id: "epicgames", label: "Epic Games", region: "usa", industries: ["game"] },
+  { id: "taketwo", label: "Take-Two Interactive", region: "usa", industries: ["game"] },
+  { id: "bungie", label: "Bungie", region: "usa", industries: ["game"] },
+  { id: "bethesda", label: "Bethesda", region: "usa", industries: ["game"] },
+  // 美国金融：银行 / 数字银行 / 借贷 / 保险 / 券商 / 支付
+  { id: "sofi", label: "SoFi", region: "usa", industries: ["finance"] },
+  { id: "brex", label: "Brex", region: "usa", industries: ["finance"] },
+  { id: "chime", label: "Chime", region: "usa", industries: ["finance"] },
+  { id: "upgrade", label: "Upgrade", region: "usa", industries: ["finance"] },
+  { id: "affirm", label: "Affirm", region: "usa", industries: ["finance"] },
+  { id: "mercury", label: "Mercury", region: "usa", industries: ["finance"] },
+  { id: "coinbase", label: "Coinbase", region: "usa", industries: ["finance"] },
+  { id: "oscar", label: "Oscar Health", region: "usa", industries: ["finance"] },
+  { id: "ethos", label: "Ethos", region: "usa", industries: ["finance"] },
+  { id: "point72", label: "Point72", region: "usa", industries: ["finance"] },
+  { id: "robinhood", label: "Robinhood", region: "usa", industries: ["finance"] },
+  { id: "virtu", label: "Virtu Financial", region: "usa", industries: ["finance"] },
+  { id: "schonfeld", label: "Schonfeld", region: "usa", industries: ["finance"] },
+  { id: "exoduspoint", label: "ExodusPoint", region: "usa", industries: ["finance"] },
+  { id: "payoneer", label: "Payoneer", region: "usa", industries: ["finance"] },
+  // 英国金融
+  { id: "monzo", label: "Monzo", region: "uk", industries: ["finance"] },
+  { id: "tide", label: "Tide", region: "uk", industries: ["finance"] },
+  { id: "winton", label: "Winton", region: "uk", industries: ["finance"] },
+  { id: "mangroup", label: "Man Group", region: "uk", industries: ["finance"] },
+  // 其它国家游戏
+  { id: "krafton", label: "Krafton", region: "other", industries: ["game"] },
+  { id: "nordeus", label: "Nordeus", region: "other", industries: ["game"] },
+  { id: "wooga", label: "Wooga", region: "other", industries: ["game"] },
+  { id: "remedy", label: "Remedy Entertainment", region: "other", industries: ["game"] },
+  { id: "housemarque", label: "Housemarque", region: "other", industries: ["game"] },
+  // 其它国家金融
+  { id: "n26", label: "N26", region: "other", industries: ["finance"] },
+  { id: "adyen", label: "Adyen", region: "other", industries: ["finance"] },
+  { id: "imc", label: "IMC", region: "other", industries: ["finance"] },
+  { id: "janestreet", label: "Jane Street", region: "other", industries: ["finance"] },
+  { id: "jumptrading", label: "Jump Trading", region: "other", industries: ["finance"] },
+  { id: "flowtraders", label: "Flow Traders", region: "other", industries: ["finance"] },
+  // 全球综合 / 科技招聘平台
+  { id: "indeed", label: "Indeed", region: "japan", industries: ["general"] },
+  { id: "remoteok", label: "RemoteOK", region: "usa", industries: ["tech"] },
+  { id: "hackernews", label: "Hacker News", region: "usa", industries: ["tech"] },
+  // 美国科技 / AI / 社交 / 出行 / 电商 / 教育 / 旅游 / 加密（Greenhouse 官方招聘板，实网验证 2026-07-27）
+  { id: "stripe", label: "Stripe", region: "usa", industries: ["tech", "finance"] },
+  { id: "datadog", label: "Datadog", region: "usa", industries: ["tech"] },
+  { id: "figma", label: "Figma", region: "usa", industries: ["tech"] },
+  { id: "cloudflare", label: "Cloudflare", region: "usa", industries: ["tech", "security"] },
+  { id: "twilio", label: "Twilio", region: "usa", industries: ["tech"] },
+  { id: "gitlab", label: "GitLab", region: "usa", industries: ["tech"] },
+  { id: "okta", label: "Okta", region: "usa", industries: ["security", "tech"] },
+  { id: "zscaler", label: "Zscaler", region: "usa", industries: ["security", "tech"] },
+  { id: "mongodb", label: "MongoDB", region: "usa", industries: ["tech"] },
+  { id: "databricks", label: "Databricks", region: "usa", industries: ["ai", "tech"] },
+  { id: "fastly", label: "Fastly", region: "usa", industries: ["tech"] },
+  { id: "anthropic", label: "Anthropic", region: "usa", industries: ["ai"] },
+  { id: "discord", label: "Discord", region: "usa", industries: ["social"] },
+  { id: "pinterest", label: "Pinterest", region: "usa", industries: ["social"] },
+  { id: "reddit", label: "Reddit", region: "usa", industries: ["social"] },
+  { id: "twitch", label: "Twitch", region: "usa", industries: ["social"] },
+  { id: "lyft", label: "Lyft", region: "usa", industries: ["mobility"] },
+  { id: "instacart", label: "Instacart", region: "usa", industries: ["ecommerce"] },
+  { id: "gemini", label: "Gemini", region: "usa", industries: ["crypto"] },
+  { id: "coursera", label: "Coursera", region: "usa", industries: ["edu"] },
+  { id: "duolingo", label: "Duolingo", region: "usa", industries: ["edu"] },
+  { id: "airbnb", label: "Airbnb", region: "usa", industries: ["travel"] },
+  { id: "tripadvisor", label: "Tripadvisor", region: "usa", industries: ["travel"] },
+  // 美国：设计 / 媒体 / 数据库 / 健康 / 气候 / 教育 / 旅游 / 物流 / 数据分析（Greenhouse 官方招聘板，实网验证 2026-07-27）
+  { id: "webflow", label: "Webflow", region: "usa", industries: ["design", "tech"] },
+  { id: "disney", label: "Disney", region: "usa", industries: ["media"] },
+  { id: "cockroachlabs", label: "Cockroach Labs", region: "usa", industries: ["database", "tech"] },
+  { id: "planetscale", label: "PlanetScale", region: "usa", industries: ["database", "tech"] },
+  { id: "clickhouse", label: "ClickHouse", region: "usa", industries: ["database", "tech"] },
+  { id: "peloton", label: "Peloton", region: "usa", industries: ["health"] },
+  { id: "oura", label: "Oura", region: "other", industries: ["health"] },
+  { id: "calm", label: "Calm", region: "usa", industries: ["health"] },
+  { id: "waymo", label: "Waymo", region: "usa", industries: ["mobility", "ai"] },
+  { id: "figureai", label: "Figure", region: "usa", industries: ["ai"] },
+  { id: "watershed", label: "Watershed", region: "usa", industries: ["climate"] },
+  { id: "redwoodmaterials", label: "Redwood Materials", region: "usa", industries: ["climate"] },
+  { id: "udemy", label: "Udemy", region: "usa", industries: ["edu"] },
+  { id: "udacity", label: "Udacity", region: "usa", industries: ["edu"] },
+  { id: "masterclass", label: "MasterClass", region: "usa", industries: ["edu"] },
+  { id: "kayak", label: "Kayak", region: "usa", industries: ["travel"] },
+  { id: "flexport", label: "Flexport", region: "usa", industries: ["logistics", "ecommerce"] },
+  { id: "newrelic", label: "New Relic", region: "usa", industries: ["tech", "analytics"] },
+  { id: "honeycomb", label: "Honeycomb", region: "usa", industries: ["tech", "analytics"] },
+  { id: "sigmacomputing", label: "Sigma Computing", region: "usa", industries: ["analytics", "database"] },
+  { id: "amplitude", label: "Amplitude", region: "usa", industries: ["analytics"] },
+  { id: "mixpanel", label: "Mixpanel", region: "usa", industries: ["analytics"] },
+  { id: "roblox", label: "Roblox", region: "usa", industries: ["game"] },
+  // Lever 招聘板（公开 JSON，无鉴权；实测多数大厂 Lever token 为 404，仅少数可用）
+  { id: "spotify", label: "Spotify", region: "usa", industries: ["media"] },
+  { id: "binance", label: "Binance", region: "other", industries: ["crypto"] },
+  { id: "angellist", label: "AngelList", region: "usa", industries: ["finance"] },
+  { id: "theathletic", label: "The Athletic", region: "usa", industries: ["media"] },
+  { id: "houzz", label: "Houzz", region: "usa", industries: ["design"] },
 ] as const;
+
+export type SourceRegion = "china" | "usa" | "japan" | "uk" | "other";
+export type SourceIndustry =
+  | "internet"
+  | "tech"
+  | "game"
+  | "finance"
+  | "general"
+  | "ai"
+  | "social"
+  | "mobility"
+  | "ecommerce"
+  | "crypto"
+  | "edu"
+  | "travel"
+  | "security"
+  | "design"
+  | "media"
+  | "database"
+  | "health"
+  | "climate"
+  | "logistics"
+  | "analytics";
+
+export const SOURCE_REGIONS: { id: SourceRegion; label: string }[] = [
+  { id: "china", label: "中国" },
+  { id: "usa", label: "美国" },
+  { id: "japan", label: "日本" },
+  { id: "uk", label: "英国" },
+  { id: "other", label: "其它国家" },
+];
+
+export const SOURCE_INDUSTRIES: { id: SourceIndustry; label: string }[] = [
+  { id: "internet", label: "互联网" },
+  { id: "tech", label: "科技" },
+  { id: "game", label: "游戏" },
+  { id: "finance", label: "金融" },
+  { id: "general", label: "综合" },
+  { id: "ai", label: "人工智能" },
+  { id: "social", label: "社交/内容" },
+  { id: "mobility", label: "出行" },
+  { id: "ecommerce", label: "电商/零售" },
+  { id: "crypto", label: "加密货币" },
+  { id: "edu", label: "教育" },
+  { id: "travel", label: "旅游" },
+  { id: "security", label: "安全" },
+  { id: "design", label: "设计/创意" },
+  { id: "media", label: "媒体/娱乐" },
+  { id: "database", label: "数据库" },
+  { id: "health", label: "健康/医疗" },
+  { id: "climate", label: "气候/能源" },
+  { id: "logistics", label: "物流" },
+  { id: "analytics", label: "数据分析" },
+];
 
 export const watchSourceIds = WATCH_SOURCES.map((s) => s.id) as [string, ...string[]];
 
@@ -97,6 +214,11 @@ export const JOB_ROLES = [
   { id: "tech_qa", category: "tech" },
   { id: "tech_devops", category: "tech" },
   { id: "tech_security", category: "tech" },
+  // AI 类
+  { id: "ai_llm", category: "ai" },
+  { id: "ai_algo", category: "ai" },
+  { id: "ai_agent", category: "ai" },
+  { id: "ai_cv_nlp", category: "ai" },
   // 通用（跨行业）
   { id: "gen_product", category: "general" },
   { id: "gen_design", category: "general" },
@@ -137,7 +259,7 @@ export const jobWatchInput = z.object({
   sources: z.array(z.enum(watchSourceIds)).min(1),
   locations: z.array(z.string().max(40)).max(5).default([]),
   // 品类匹配：非空时只保留命中这些品类的岗位（见 sources/lib/category.ts）
-  matchCategories: z.array(z.enum(["game", "finance", "tech"])).max(3).default([]),
+  matchCategories: z.array(z.enum(["game", "finance", "tech", "ai"])).max(4).default([]),
   // 职种匹配：非空时只保留命中职种的岗位（见 sources/lib/taxonomy.ts）
   matchRoles: z.array(z.enum(jobRoleIds)).max(10).default([]),
   // 地区匹配：预设 region id 或自定义文本（对 location 做包含匹配）
@@ -146,6 +268,10 @@ export const jobWatchInput = z.object({
   matchLanguages: z.array(z.enum(JOB_LANGUAGES)).max(4).default([]),
   // 经验级别匹配：未检测出级别的岗位不过滤（视为未知，保留）
   matchExperience: z.array(z.enum(EXPERIENCE_LEVELS)).max(4).default([]),
+  // 硬门槛（确定性丢弃）：title/snippet 命中任一排除词即丢弃（如 外包/派遣/实习/兼职）
+  excludeKeywords: z.array(z.string().min(1).max(40)).max(20).default([]),
+  // 硬门槛：陈旧过滤，publishedAt 超过 N 天丢弃；不设或无发布时间则不过滤
+  maxAgeDays: z.number().int().min(1).max(365).nullable().optional(),
   intervalMinutes: z.number().int().min(30).max(24 * 60).default(60),
   enabled: z.boolean().default(true),
 });

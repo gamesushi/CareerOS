@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, View } from "@react-pdf/renderer";
+import { Image, Text, View } from "@react-pdf/renderer";
 import type { JsonResume } from "@careeros/shared";
 
 // 模板公共约定：每个模板导出 ({ resume, lang, accent }) => <Document>。
@@ -54,3 +54,23 @@ export const has = (resume: JsonResume) => ({
   education: resume.education.length > 0,
   awards: resume.awards.length > 0,
 });
+
+/** 个人照片缩略图：有 photo 时才渲染（data URL 直接喂给 react-pdf Image） */
+export function PhotoThumb({
+  src,
+  size = 44,
+  radius = 4,
+}: {
+  src?: string;
+  size?: number;
+  radius?: number;
+}) {
+  if (!src) return null;
+  return (
+    <Image
+      src={src}
+      fixed
+      style={{ width: size, height: size, borderRadius: radius, objectFit: "cover" }}
+    />
+  );
+}

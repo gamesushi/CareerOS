@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@careeros/db";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProfileHero } from "@/components/profile-hero";
@@ -11,12 +11,27 @@ function fmtMonth(d: Date) {
   return d.toISOString().slice(0, 7);
 }
 
+function dueLabel(d: Date): { text: string; tone: "over" | "today" | "soon" } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const diff = Math.round((day.getTime() - today.getTime()) / 86_400_000);
+  if (diff < 0) return { text: `逾期 ${-diff} 天`, tone: "over" };
+  if (diff === 0) return { text: "今天", tone: "today" };
+  return { text: `${diff} 天后`, tone: "soon" };
+}
+
+const STAGE_CN: Record<string, string> = {
+  considering: "想投", applied: "已投递", screening: "筛选中", interview: "面试中", offer: "Offer", rejected: "已结束",
+};
+
 export default async function DashboardPage() {
   const t = await getT();
-  const session = await auth();
+  const session = await getSession();
   const userId = session!.user.id;
 
-  const [user, expCount, projCount, skillCount, achCount, experiences, projects] =
+  const [user, expCount, projCount, skillCount, achCount, experiences, projects, newMatches, todos] =
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, include: { careerProfile: true } }),
       prisma.careerExperience.count({ where: { userId, deletedAt: null } }),
@@ -34,6 +49,20 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 4,
         select: { id: true, name: true, role: true },
+      }),
+      // 今日新匹配：未下架、已评分、未处理（status=new）的高分发现岗位
+      prisma.discoveredJob.findMany({
+        where: { userId, takenDownAt: null, status: "new", matchScore: { not: null } },
+        orderBy: [{ matchScore: "desc" }, { createdAt: "desc" }],
+        take: 5,
+        select: { id: true, title: true, company: true, url: true, matchScore: true },
+      }),
+      // 下一步待办：有 nextActionAt 的申请，按时间升序（逾期在前）
+      prisma.application.findMany({
+        where: { userId, nextActionAt: { not: null } },
+        orderBy: { nextActionAt: "asc" },
+        take: 6,
+        select: { id: true, title: true, company: true, stage: true, nextAction: true, nextActionAt: true },
       }),
     ]);
 
@@ -88,6 +117,65 @@ export default async function DashboardPage() {
             : null
         }
       />
+
+      {(newMatches.length > 0 || todos.length > 0) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">今日新匹配</CardTitle>
+              <Link href="/monitor" className="text-xs text-primary hover:underline">去监测 →</Link>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {newMatches.length === 0 && <p className="text-sm text-muted-foreground">暂无已评分的新岗位，去监测页点「按匹配度评分」。</p>}
+              {newMatches.map((j) => (
+                <a key={j.id} href={j.url ?? "#"} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-accent/40">
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      (j.matchScore ?? 0) >= 60 ? "bg-emerald-500/15 text-emerald-600" : (j.matchScore ?? 0) >= 30 ? "bg-amber-500/15 text-amber-600" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {Math.round(j.matchScore ?? 0)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium">{j.title}</span>
+                    {j.company && <span className="text-muted-foreground"> · {j.company}</span>}
+                  </span>
+                </a>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">下一步待办</CardTitle>
+              <Link href="/applications" className="text-xs text-primary hover:underline">去看板 →</Link>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {todos.length === 0 && <p className="text-sm text-muted-foreground">暂无待办。在申请详情里设「下一步」即可出现在这里。</p>}
+              {todos.map((a) => {
+                const due = a.nextActionAt ? dueLabel(a.nextActionAt) : null;
+                return (
+                  <Link key={a.id} href={`/applications/${a.id}`} className="flex items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-accent/40">
+                    {due && (
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          due.tone === "over" ? "bg-destructive/10 text-destructive" : due.tone === "today" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {due.text}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-medium">{a.nextAction ?? STAGE_CN[a.stage]}</span>
+                      <span className="text-muted-foreground"> · {a.title}{a.company ? ` @ ${a.company}` : ""}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, href }) => (

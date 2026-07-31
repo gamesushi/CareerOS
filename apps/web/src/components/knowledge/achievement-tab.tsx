@@ -61,7 +61,22 @@ export function AchievementTab() {
     if (projRes) setProjOptions(projRes.data.map((p) => ({ id: p.id, label: p.name })));
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [achRes, expRes, projRes] = await Promise.all([
+        api<{ data: Achievement[] }>("/achievements"),
+        api<{ data: { id: string; company: string; title: string }[] }>("/experiences"),
+        api<{ data: { id: string; name: string }[] }>("/projects"),
+      ]);
+      if (active) {
+        if (achRes) setItems(achRes.data);
+        if (expRes) setExpOptions(expRes.data.map((e) => ({ id: e.id, label: `${e.company} · ${e.title}` })));
+        if (projRes) setProjOptions(projRes.data.map((p) => ({ id: p.id, label: p.name })));
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   function openCreate() {
     setEditing(null);

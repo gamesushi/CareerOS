@@ -1,7 +1,8 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import { Bullets, range, type TemplateProps } from "../common";
+import { Bullets, range, PhotoThumb, type TemplateProps } from "../common";
 import { ensureFonts } from "../fonts";
+import { resolveTheme, themedStyles } from "../theme";
 
 // ats：美式 ATS（申请人追踪系统）优化英文简历。
 // 设计原则：单栏、无照片/无年龄、关键词命中友好、量化成就前置。
@@ -10,10 +11,21 @@ import { ensureFonts } from "../fonts";
 
 const DEFAULT_ACCENT = "#111111";
 
-const H = (label: string) => label; // 分区标题直接由调用方传入全大写英文
+function Section({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text style={{
+        fontSize: 10.5, fontWeight: 700, color: accent, letterSpacing: 1,
+        borderBottomWidth: 1.2, borderBottomColor: accent, paddingBottom: 2, marginBottom: 6,
+      }}>{title}</Text>
+      {children}
+    </View>
+  );
+}
 
-export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: TemplateProps) {
+export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) {
   ensureFonts();
+  const th = resolveTheme(resume);
   const b = resume.basics;
 
   // 联系方式：邮箱 · 手机 · 城市 · LinkedIn/个人站
@@ -24,17 +36,12 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
     ...(Array.isArray(b.profiles) ? b.profiles.map((p) => `${p.network}: ${p.url}`) : []),
   ].filter(Boolean);
 
-  const s = StyleSheet.create({
-    page: { fontFamily: "NotoSansSC", fontSize: 9.5, lineHeight: 1.45, color: "#111111", padding: 44 },
-    name: { fontSize: 19, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" },
+  const s = themedStyles({
+    page: { fontSize: 9.5, lineHeight: 1.45, color: "#111111", padding: 44 },
+    name: { fontSize: 19, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.25, marginBottom: 4 },
     label: { fontSize: 10.5, color: "#444", marginTop: 2 },
     contact: { fontSize: 8.5, color: "#555", marginTop: 4 },
     rule: { borderBottomWidth: 1, borderBottomColor: "#cccccc", marginTop: 8, marginBottom: 4 },
-    section: { marginTop: 12 },
-    sectionTitle: {
-      fontSize: 10.5, fontWeight: 700, color: accent, letterSpacing: 1,
-      borderBottomWidth: 1.2, borderBottomColor: accent, paddingBottom: 2, marginBottom: 6,
-    },
     entry: { marginBottom: 8 },
     entryHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
     entryTitle: { fontWeight: 700, fontSize: 10 },
@@ -44,31 +51,33 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
     skillRow: { flexDirection: "row", flexWrap: "wrap" },
     skillChip: { fontSize: 8.5, color: "#222", marginRight: 6, marginBottom: 3 },
     bullets: { marginTop: 1 },
-  });
-
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>{H(title)}</Text>
-      {children}
-    </View>
-  );
+  }, th);
 
   return (
     <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
-      <Page size="LETTER" style={s.page}>
-        <Text style={s.name}>{b.name}</Text>
-        {b.label ? <Text style={s.label}>{b.label}</Text> : null}
-        {contacts.length > 0 && <Text style={s.contact}>{contacts.join("  ·  ")}</Text>}
+      <Page size={th.paper} style={s.page}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{b.name}</Text>
+            {b.label ? <Text style={s.label}>{b.label}</Text> : null}
+            {contacts.length > 0 && <Text style={s.contact}>{contacts.join("  ·  ")}</Text>}
+          </View>
+          {b.photo ? (
+            <View style={{ marginLeft: 14 }}>
+              <PhotoThumb src={b.photo} size={56} radius={6} />
+            </View>
+          ) : null}
+        </View>
         <View style={s.rule} />
 
         {b.summary ? (
-          <Section title="SUMMARY">
+          <Section accent={accent} title="SUMMARY">
             <Text style={s.summary}>{b.summary}</Text>
           </Section>
         ) : null}
 
         {resume.work.length > 0 && (
-          <Section title="EXPERIENCE">
+          <Section accent={accent} title="EXPERIENCE">
             {resume.work.map((w, i) => (
               <View key={i} style={s.entry} wrap={false}>
                 <View style={s.entryHead}>
@@ -87,7 +96,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
         )}
 
         {resume.projects.length > 0 && (
-          <Section title="PROJECTS">
+          <Section accent={accent} title="PROJECTS">
             {resume.projects.map((p, i) => (
               <View key={i} style={s.entry} wrap={false}>
                 <View style={s.entryHead}>
@@ -109,7 +118,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
         )}
 
         {resume.skills.length > 0 && (
-          <Section title="SKILLS">
+          <Section accent={accent} title="SKILLS">
             <View style={s.skillRow}>
               {resume.skills.map((sk, i) => (
                 <Text key={i} style={s.skillChip}>
@@ -121,7 +130,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
         )}
 
         {resume.awards.length > 0 && (
-          <Section title="AWARDS & HONORS">
+          <Section accent={accent} title="AWARDS & HONORS">
             <Bullets
               items={resume.awards.map((a) =>
                 [a.title, a.issuer, a.date].filter(Boolean).join(", "),
@@ -132,7 +141,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
         )}
 
         {resume.education.length > 0 && (
-          <Section title="EDUCATION">
+          <Section accent={accent} title="EDUCATION">
             {resume.education.map((e, i) => (
               <View key={i} style={s.entry}>
                 <View style={s.entryHead}>
@@ -153,7 +162,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
             | undefined;
           const list = langs?.languages;
           return list && list.length > 0 ? (
-            <Section title="LANGUAGES">
+            <Section accent={accent} title="LANGUAGES">
               <Text style={s.entrySub}>{list.join("  ·  ")}</Text>
             </Section>
           ) : null;

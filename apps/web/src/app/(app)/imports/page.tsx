@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileUp, Loader2 } from "lucide-react";
+import { FileUp, Loader2, RotateCcw, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
 type ImportRow = {
@@ -43,7 +43,14 @@ export default function ImportsPage() {
     if (res) setItems(res.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const res = await api<{ data: ImportRow[] }>("/imports");
+      if (active && res) setItems(res.data);
+    })();
+    return () => { active = false; };
+  }, []);
 
   // 有进行中的导入时轮询刷新
   useEffect(() => {
@@ -66,6 +73,22 @@ export default function ImportsPage() {
     const { importId } = await res.json();
     toast.success(t("imports.parsingStarted"));
     router.push(`/imports/${importId}/review`);
+  }
+
+  async function remove(id: string) {
+    const res = await api(`/imports/${id}`, { method: "DELETE" });
+    if (res) {
+      toast.success(t("common.deleted"));
+      void load();
+    }
+  }
+
+  async function retry(id: string) {
+    const res = await api(`/imports/${id}/retry`, { method: "POST" });
+    if (res) {
+      toast.success(t("imports.parsingStarted"));
+      void load();
+    }
   }
 
   return (
@@ -136,6 +159,24 @@ export default function ImportsPage() {
                 {item.status === "review" && (
                   <Button size="sm" variant="outline">{t("imports.goReview")}</Button>
                 )}
+                {item.status === "failed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => { e.stopPropagation(); void retry(item.id); }}
+                  >
+                    <RotateCcw className="size-4" /> {t("imports.retry")}
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t("common.delete")}
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); void remove(item.id); }}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </CardContent>
             </Card>
           );

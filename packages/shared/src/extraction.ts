@@ -17,7 +17,9 @@ export const extractedExperience = z.object({
   company: z.string().min(1).max(128),
   title: z.string().min(1).max(128),
   startDate: looseDate,
+  startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   endDate: looseDate,
+  endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   location: z.string().max(128).nullable().optional(),
   description: z.string().max(20000).nullable().optional(),
   highlights: z.array(z.string().max(500)).default([]),
@@ -28,7 +30,9 @@ export const extractedProject = z.object({
   name: z.string().min(1).max(160),
   role: z.string().max(128).nullable().optional(),
   startDate: looseDate,
+  startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   endDate: looseDate,
+  endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   description: z.string().max(20000).nullable().optional(),
   outcome: z.string().max(20000).nullable().optional(),
   techStack: z.array(z.string().max(80)).default([]),
@@ -55,7 +59,9 @@ export const extractedEducation = z.object({
   degree: z.string().max(64).nullable().optional(),
   major: z.string().max(128).nullable().optional(),
   startDate: looseDate,
+  startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   endDate: looseDate,
+  endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
 });
 
 export const extractionResult = z.object({
@@ -78,12 +84,18 @@ export const extractionResult = z.object({
 
 export type ExtractionResult = z.infer<typeof extractionResult>;
 
-/** 宽松日期 → YYYY-MM-DD。缺月/缺日补 01；返回 padded 标记供降置信度。 */
-export function normalizeExtractedDate(d: string | null | undefined): { date: string | null; padded: boolean } {
-  if (!d) return { date: null, padded: false };
-  if (/^\d{4}$/.test(d)) return { date: `${d}-01-01`, padded: true };
-  if (/^\d{4}-\d{2}$/.test(d)) return { date: `${d}-01`, padded: true };
-  return { date: d, padded: false };
+export type DatePrecision = "year" | "month" | "day";
+
+/** 宽松日期 → YYYY-MM-DD + 原始精度。缺月/缺日补 01；返回 padded 标记供降置信度。 */
+export function normalizeExtractedDate(d: string | null | undefined): {
+  date: string | null;
+  precision: DatePrecision | null;
+  padded: boolean;
+} {
+  if (!d) return { date: null, precision: null, padded: false };
+  if (/^\d{4}$/.test(d)) return { date: `${d}-01-01`, precision: "year", padded: true };
+  if (/^\d{4}-\d{2}$/.test(d)) return { date: `${d}-01`, precision: "month", padded: true };
+  return { date: d, precision: "day", padded: false };
 }
 
 // ===== 确认页提交（apply）契约：复用实体输入 schema =====

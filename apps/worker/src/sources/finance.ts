@@ -43,6 +43,9 @@ export const adyenSource = makeGreenhouseSource({ id: "adyen", label: "Adyen", b
 export const payoneerSource = makeGreenhouseSource({ id: "payoneer", label: "Payoneer", board: "payoneer", category: "finance" });
 export const robinhoodSource = makeGreenhouseSource({ id: "robinhood", label: "Robinhood", board: "robinhood", category: "finance" });
 
+// ---- 量化 / 做市商（实网验证 2026-07-27：board=virtu 返回 43 个真实岗位）----
+export const virtuSource = makeGreenhouseSource({ id: "virtu", label: "Virtu Financial", board: "virtu", category: "finance" });
+
 // ---- 基金 / 资管 / 量化交易（补充，实网验证 2026-07-25）----
 export const schonfeldSource = makeGreenhouseSource({ id: "schonfeld", label: "Schonfeld", board: "schonfeld", category: "finance" });
 export const exoduspointSource = makeGreenhouseSource({ id: "exoduspoint", label: "ExodusPoint", board: "exoduspoint", category: "finance" });

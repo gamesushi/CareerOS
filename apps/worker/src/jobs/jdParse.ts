@@ -18,7 +18,14 @@ export async function handleJdParseJob(jdId: string): Promise<void> {
     if (jd.fileKey && !content.trim()) {
       const buf = await getObjectBuffer(jd.fileKey);
       const fileName = jd.fileKey.split("/").pop() ?? "jd.pdf";
-      content = await parseDocument(buf, fileName);
+      const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+      // 纯文本 / Markdown 已是文本，无需 docreader 转换
+      const TEXT_EXT = new Set(["txt", "md", "markdown"]);
+      if (TEXT_EXT.has(ext)) {
+        content = buf.toString("utf-8").trim();
+      } else {
+        content = await parseDocument(buf, fileName);
+      }
       await prisma.jobDescription.update({ where: { id: jdId }, data: { rawContent: content } });
     }
 

@@ -1,7 +1,7 @@
 import { prisma, Prisma } from "@careeros/db";
 import { jsonResume } from "@careeros/shared";
 import { renderToFile } from "@react-pdf/renderer";
-import { createElement, type ReactElement } from "react";
+import { createElement } from "react";
 import { AtsTemplate } from "@/lib/pdf/templates/ats";
 
 const USER_EMAIL = "dev@careeros.local";
@@ -248,7 +248,7 @@ async function buildAndRender() {
   });
 
   const out = "/tmp/careeros_ats.pdf";
-  await renderToFile(createElement(AtsTemplate, { resume, lang: "en", accent: "#111111" }) as unknown as ReactElement<any>, out);
+  await renderToFile(createElement(AtsTemplate, { resume, lang: "en", accent: "#111111" }) as unknown as Parameters<typeof renderToFile>[0], out);
   console.log("PDF written:", out);
 }
 

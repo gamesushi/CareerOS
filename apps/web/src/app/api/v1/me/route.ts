@@ -9,7 +9,8 @@ export const GET = handler(async () => {
     include: { careerProfile: true },
   });
   if (!user) throw new ApiError(404, "not_found", "用户不存在");
-  const { weknoraApiKey: _key, ...safe } = user;
+  const { weknoraApiKey, ...safe } = user;
+  void weknoraApiKey;
   return ok(safe);
 });
 
@@ -22,11 +23,11 @@ export const PUT = handler(async (req) => {
     ? { ...(current.privacy as Record<string, boolean>), ...input.privacy }
     : undefined;
 
-  const user = await prisma.user.update({
+  await prisma.user.update({
     where: { id: userId },
     data: {
       name: input.name,
-      avatarUrl: input.avatarUrl,
+      image: input.image,
       locale: input.locale,
       region: input.region,
       mobile: input.mobile,
@@ -38,6 +39,31 @@ export const PUT = handler(async (req) => {
       ...(privacy ? { privacy } : {}),
     },
   });
-  const { weknoraApiKey: _key, ...safe } = user;
+
+  // 职业画像（headline/summary/personal）随同一请求落库，避免前端并发两次写。
+  if (input.headline !== undefined || input.summary !== undefined || input.personal !== undefined) {
+    const personal = (input.personal ?? {}) as Prisma.InputJsonValue;
+    await prisma.careerProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        headline: input.headline ?? null,
+        summary: input.summary ?? null,
+        personal,
+      },
+      update: {
+        ...(input.headline !== undefined ? { headline: input.headline } : {}),
+        ...(input.summary !== undefined ? { summary: input.summary } : {}),
+        ...(input.personal !== undefined ? { personal } : {}),
+      },
+    });
+  }
+
+  const full = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    include: { careerProfile: true },
+  });
+  const { weknoraApiKey, ...safe } = full;
+  void weknoraApiKey;
   return ok(safe);
 });

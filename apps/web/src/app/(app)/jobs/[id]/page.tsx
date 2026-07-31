@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/button";
@@ -50,15 +50,18 @@ function JdDetailInner({ id }: { id: string }) {
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [matchId, setMatchId] = useState<string | null>(searchParams.get("match"));
 
-  const loadJd = useCallback(async () => {
-    const res = await api<JdDetail>(`/jds/${id}`);
-    if (res) {
-      setJd(res);
-      if (!matchId && res.matches[0]) setMatchId(res.matches[0].id);
-    }
-  }, [id, matchId]);
 
-  useEffect(() => { void loadJd(); }, [loadJd]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const res = await api<JdDetail>(`/jds/${id}`);
+      if (active && res) {
+        setJd(res);
+        if (!matchId && res.matches[0]) setMatchId(res.matches[0].id);
+      }
+    })();
+    return () => { active = false; };
+  }, [id, matchId]);
 
   // 匹配结果轮询（computing → succeeded/failed）
   useEffect(() => {

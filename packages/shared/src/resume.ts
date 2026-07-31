@@ -12,6 +12,10 @@ export const resumeBasics = z.object({
   location: z.string().max(128).optional(),
   summary: z.string().max(3000).optional(),
   url: z.string().max(500).optional(),
+  // 个人照片（base64 data URL，前端压缩后写入；rirekisho 等模板渲染照片框）
+  photo: z.string().max(4_000_000).optional(),
+  // 通用联系地址（rirekisho/shokumu 模板使用；日本履历书也可用 x-jis.address）
+  address: z.string().max(300).optional(),
   // 社交/主页链接（对照应聘表单 SNS 区块）：LinkedIn / 知乎 / 个人站 等
   profiles: z
     .array(z.object({ network: z.string().max(64), url: z.string().max(500), username: z.string().max(128).optional() }))
@@ -73,6 +77,11 @@ export const jsonResume = z.object({
   "x-theme": z
     .object({
       accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), // 模板强调色，缺省用模板默认
+      // 版式自定义（标准范围）
+      font: z.enum(["sc", "jp", "latin"]).optional(), // sc=思源黑体(中日) jp=思源黑体JP latin=Helvetica
+      fontScale: z.number().min(0.85).max(1.3).optional(), // 字号缩放倍率
+      paper: z.enum(["a4", "letter"]).optional(), // 纸张尺寸
+      margin: z.number().min(20).max(80).optional(), // 页边距(pt)
     })
     .optional(),
   "x-jis": z

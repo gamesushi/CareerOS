@@ -100,13 +100,24 @@ export const privacySettings = z.object({
   feed_visible: z.boolean(),
 });
 
+export const personalInput = z.object({
+  photo: z.string().max(4_000_000).optional(),
+  address: z.string().max(300).optional(),
+  furigana: z.string().max(64).optional(),
+  birthDate: z.string().max(24).optional(),
+});
+export type PersonalInput = z.infer<typeof personalInput>;
+
 export const meUpdateInput = z.object({
   name: z.string().min(1).max(128).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  image: z.string().url().nullable().optional(),
   locale: langEnum.optional(),
   region: z.string().max(64).nullable().optional(),
   mobile: z.string().max(64).nullable().optional(),
   preferredCity: z.string().max(128).nullable().optional(),
+  headline: z.string().max(128).nullable().optional(),
+  summary: z.string().nullable().optional(),
+  personal: personalInput.optional(),
   workAuthStatus: z.enum(["us_authorized", "requires_sponsorship", "other"]).nullable().optional(),
   snsLinks: z
     .array(z.object({ network: z.string().max(40), url: z.string().max(500) }))

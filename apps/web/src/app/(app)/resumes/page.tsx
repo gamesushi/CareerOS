@@ -51,7 +51,20 @@ export default function ResumesPage() {
     if (jdsRes) setJds(jdsRes.data.filter((j) => j.status === "parsed"));
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [resumesRes, jdsRes] = await Promise.all([
+        api<{ data: ResumeRow[] }>("/resumes"),
+        api<{ data: JdOption[] }>("/jds"),
+      ]);
+      if (active) {
+        if (resumesRes) setItems(resumesRes.data);
+        if (jdsRes) setJds(jdsRes.data.filter((j) => j.status === "parsed"));
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   async function generate() {
     setGenerating(true);

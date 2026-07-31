@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import type { TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // 履歴書：JIS 様式に準拠した表形式。
 // 基本情報欄（ふりがな/氏名/生年月日/住所/連絡先 + 写真枠）→ 学歴・職歴年表 →
@@ -29,13 +30,14 @@ const age = (birth?: string): string => {
 export function RirekishoTemplate({ resume }: TemplateProps) {
   ensureFonts();
   const b = resume.basics;
+  const th = resolveTheme(resume, "jp");
   const jis = resume["x-jis"];
   const today = new Date();
   const dateLine = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日現在`;
   const birth = jis?.birthDate ? splitYM(jis.birthDate) : { y: "", m: "" };
   const birthDay = jis?.birthDate?.split("-")[2];
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansJP", fontSize: 9, lineHeight: 1.4, color: "#1a1a1a", padding: 40 },
     title: { fontSize: 16, fontWeight: 700, letterSpacing: 8, marginBottom: 2 },
     dateLine: { fontSize: 8.5, textAlign: "right", marginBottom: 4 },
@@ -55,7 +57,7 @@ export function RirekishoTemplate({ resume }: TemplateProps) {
     sectionGap: { marginTop: 10 },
     freeBox: { borderWidth: 1, borderColor: B, padding: 6, minHeight: 64 },
     freeTitle: { fontSize: 8, color: "#444", marginBottom: 3 },
-  });
+  }, th);
 
   // 学歴・職歴年表行
   type Row = { y: string; m: string; text: string; center?: boolean; right?: boolean };
@@ -88,7 +90,7 @@ export function RirekishoTemplate({ resume }: TemplateProps) {
 
   return (
     <Document title={`${b.name} - 履歴書`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <Text style={s.title}>履　歴　書</Text>
         <Text style={s.dateLine}>{dateLine}</Text>
 

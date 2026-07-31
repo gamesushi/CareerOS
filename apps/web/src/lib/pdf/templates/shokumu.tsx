@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import type { TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // 職務経歴書：日本転職市場の標準フォーマット。
 // 標題中央 + 日付・氏名右寄せ → 職務要約 → 活かせる経験・知識 → 職務経歴（会社別テーブル）
@@ -18,11 +19,12 @@ const fmtYM = (d?: string) => {
 export function ShokumuTemplate({ resume }: TemplateProps) {
   ensureFonts();
   const b = resume.basics;
+  const th = resolveTheme(resume, "jp");
   const jis = resume["x-jis"];
   const today = new Date();
   const dateLine = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日現在`;
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansJP", fontSize: 9.5, lineHeight: 1.55, color: "#1a1a1a", padding: 46 },
     title: { fontSize: 16, fontWeight: 700, textAlign: "center", letterSpacing: 6, marginBottom: 6 },
     meta: { textAlign: "right", fontSize: 9, color: "#333" },
@@ -43,7 +45,7 @@ export function ShokumuTemplate({ resume }: TemplateProps) {
     tdPeriod: { width: 92, borderRightWidth: 0.8, borderColor: BORDER, padding: 5, fontSize: 8.5 },
     tdBody: { flex: 1, padding: 5 },
     skillLine: { marginTop: 2 },
-  });
+  }, th);
 
   const works = resume.work;
   const projectsByCompany = new Map<string, typeof resume.projects>();
@@ -62,7 +64,7 @@ export function ShokumuTemplate({ resume }: TemplateProps) {
 
   return (
     <Document title={`${b.name} - 職務経歴書`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <Text style={s.title}>職 務 経 歴 書</Text>
         <Text style={s.meta}>{dateLine}</Text>
         <Text style={s.meta}>氏名　{b.name}</Text>

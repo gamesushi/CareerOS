@@ -14,6 +14,12 @@ import {
   Settings,
   LogOut,
   Radar,
+  User,
+  ShieldCheck,
+  KanbanSquare,
+  PenLine,
+  Handshake,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,11 +34,24 @@ const NAV = [
   { href: "/worklogs", key: "nav.worklogs", icon: NotebookPen },
   { href: "/jobs", key: "nav.jobs", icon: Target },
   { href: "/monitor", key: "nav.monitor", icon: Radar },
+  { href: "/applications", key: "nav.applications", icon: KanbanSquare },
+  { href: "/insights", key: "nav.insights", icon: BarChart3 },
   { href: "/resumes", key: "nav.resumes", icon: FileText },
+  { href: "/writing", key: "nav.writing", icon: PenLine },
+  { href: "/negotiation", key: "nav.negotiation", icon: Handshake },
+  { href: "/profile", key: "nav.profile", icon: User },
   { href: "/settings", key: "nav.settings", icon: Settings },
 ] as const;
 
-export function AppSidebar({ userName, userEmail }: { userName: string; userEmail: string }) {
+export function AppSidebar({
+  userName,
+  userEmail,
+  isAdmin = false,
+}: {
+  userName: string;
+  userEmail: string;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const t = useT();
   const displayName = userName || t("app.defaultUser");
@@ -63,6 +82,20 @@ export function AppSidebar({ userName, userEmail }: { userName: string; userEmai
             </Link>
           );
         })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "mt-1 flex items-center gap-2.5 rounded-md border-t px-2.5 py-2 pt-3 text-sm transition-colors",
+              pathname.startsWith("/admin")
+                ? "font-medium text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <ShieldCheck className="size-4" />
+            <span className="flex-1">管理后台</span>
+          </Link>
+        )}
       </nav>
       <div className="border-t p-3 space-y-2">
         <LocaleSwitcher className="w-full" />

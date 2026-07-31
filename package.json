@@ -8,10 +8,16 @@
     "db:migrate": "pnpm --filter @careeros/db migrate:dev",
     "db:generate": "pnpm --filter @careeros/db generate",
     "db:seed": "pnpm --filter @careeros/db seed",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:db": "vitest run --config vitest.db.config.ts"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.13.1"
+  "packageManager": "pnpm@11.13.1",
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
 }

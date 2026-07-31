@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import { range, titlesFor, type TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // sidebar：参考 Reactive Resume「Azurill」布局思路的原创实现——
 // 居中 header + 左侧栏（联系/技能/教育/成果）+ 右主栏（综述/经历/项目），
@@ -13,8 +14,9 @@ export function SidebarTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
   ensureFonts();
   const t = titlesFor(lang);
   const b = resume.basics;
+  const th = resolveTheme(resume);
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansSC", fontSize: 9.5, lineHeight: 1.5, color: "#1f1f1f", padding: 38 },
     header: { alignItems: "center", marginBottom: 14 },
     name: { fontSize: 21, fontWeight: 700, lineHeight: 1.2 },
@@ -43,7 +45,7 @@ export function SidebarTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
     entryMeta: { color: "#777", fontSize: 8.5 },
     entrySub: { color: "#444", fontSize: 9, marginTop: 1 },
     bullet: { flexDirection: "row", marginTop: 2 },
-  });
+  }, th);
 
   const levelPct = (level?: string) => {
     const n = Number(level);
@@ -84,7 +86,7 @@ export function SidebarTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
 
   return (
     <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <View style={s.header}>
           <Text style={s.name}>{b.name}</Text>
           {b.label ? <Text style={s.label}>{b.label}</Text> : null}

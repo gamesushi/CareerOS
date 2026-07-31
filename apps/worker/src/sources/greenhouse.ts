@@ -88,6 +88,10 @@ export const kraftonSource = makeGreenhouseSource({
 export const nintendoSource = makeGreenhouseSource({
   id: "nintendo", label: "Nintendo", board: "nintendo", category: "game",
 });
+// 万代南梦宫（日本游戏，Greenhouse board=bandainamco，实网验证 2026-07-27 返回 5 个岗位）
+export const bandainamcoSource = makeGreenhouseSource({
+  id: "bandainamco", label: "万代南梦宫", board: "bandainamco", category: "game",
+});
 export const epicgamesSource = makeGreenhouseSource({
   id: "epicgames", label: "Epic Games", board: "epicgames", category: "game",
 });

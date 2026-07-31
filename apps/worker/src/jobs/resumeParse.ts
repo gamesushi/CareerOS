@@ -20,10 +20,19 @@ export async function handleResumeParseJob(importId: string): Promise<void> {
   if (imp.status === "applied") return; // 幂等：已入库的不重跑
 
   try {
-    // 1. docreader 解析
+    // 1. 文档解析
     await prisma.resumeImport.update({ where: { id: importId }, data: { status: "parsing", error: null } });
     const file = await getObjectBuffer(imp.fileKey);
-    const markdown = await parseDocument(file, imp.fileName);
+    const ext = imp.fileName.split(".").pop()?.toLowerCase() ?? "";
+    // 纯文本 / Markdown 已是文本，无需 docreader 转换（docreader 不支持 txt，md 亦无需转换）
+    const TEXT_EXT = new Set(["txt", "md", "markdown"]);
+    let markdown: string;
+    if (TEXT_EXT.has(ext)) {
+      markdown = file.toString("utf-8").trim();
+      if (!markdown) throw new Error("文件内容为空（txt/md 解码后无文本）");
+    } else {
+      markdown = await parseDocument(file, imp.fileName);
+    }
     await prisma.resumeImport.update({
       where: { id: importId },
       data: { rawText: markdown, status: "extracting" },
@@ -84,7 +93,9 @@ function postProcess(result: ExtractionResult): ExtractionResult {
       return {
         ...e,
         startDate: start.date,
+        startDatePrecision: start.precision,
         endDate: end.date,
+        endDatePrecision: end.precision,
         confidence: start.padded || end.padded ? downgrade(e.confidence) : e.confidence,
       };
     }),
@@ -94,15 +105,23 @@ function postProcess(result: ExtractionResult): ExtractionResult {
       return {
         ...p,
         startDate: start.date,
+        startDatePrecision: start.precision,
         endDate: end.date,
+        endDatePrecision: end.precision,
         confidence: start.padded || end.padded ? downgrade(p.confidence) : p.confidence,
       };
     }),
-    educations: result.educations.map((e) => ({
-      ...e,
-      startDate: normalizeExtractedDate(e.startDate).date,
-      endDate: normalizeExtractedDate(e.endDate).date,
-    })),
+    educations: result.educations.map((e) => {
+      const start = normalizeExtractedDate(e.startDate);
+      const end = normalizeExtractedDate(e.endDate);
+      return {
+        ...e,
+        startDate: start.date,
+        startDatePrecision: start.precision,
+        endDate: end.date,
+        endDatePrecision: end.precision,
+      };
+    }),
   };
 }
 

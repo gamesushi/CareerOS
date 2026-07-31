@@ -40,6 +40,14 @@ function resolveProvider(): ProviderConfig | { name: "mock" } {
   return { name: "mock" };
 }
 
+// 单次调用超时（毫秒）。deepseek-v4-pro 处理长文档 JSON 抽取可能超过 2 分钟，默认放宽到 5 分钟，可用 AI_TIMEOUT_MS 覆盖。
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 300_000;
+
+function isTimeoutError(err: unknown): boolean {
+  const e = err as { name?: string; cause?: { name?: string } };
+  return e?.name === "TimeoutError" || e?.name === "AbortError" || e?.cause?.name === "TimeoutError";
+}
+
 export async function chat(opts: ChatOptions): Promise<ChatResult> {
   const provider = resolveProvider();
   if (provider.name === "mock") return mockChat(opts);
@@ -47,20 +55,31 @@ export async function chat(opts: ChatOptions): Promise<ChatResult> {
   const { baseUrl, apiKey, model, name } = provider as ProviderConfig;
   if (!apiKey) throw new Error(`AI 提供商 ${name} 未配置 API Key`);
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: opts.system },
-        { role: "user", content: opts.user },
-      ],
-      temperature: opts.temperature ?? 0.1,
-      ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-    }),
-    signal: AbortSignal.timeout(110_000),
-  });
+  const doFetch = () =>
+    fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        temperature: opts.temperature ?? 0.1,
+        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+      }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+    });
+
+  let res: Response;
+  try {
+    res = await doFetch();
+  } catch (err) {
+    if (!isTimeoutError(err)) throw err;
+    // 超时自动重试一次（网关/模型偶发慢响应）
+    console.warn(`[ai] ${name}/${model} 调用超时（${AI_TIMEOUT_MS}ms），自动重试一次…`);
+    res = await doFetch();
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");

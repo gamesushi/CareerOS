@@ -8,6 +8,7 @@ export type RoleId =
   | "fin_quant_research" | "fin_quant_trading" | "fin_risk" | "fin_research" | "fin_ibd" | "fin_asset"
   | "tech_backend" | "tech_frontend" | "tech_mobile" | "tech_ai" | "tech_data" | "tech_qa"
   | "tech_devops" | "tech_security"
+  | "ai_llm" | "ai_algo" | "ai_agent" | "ai_cv_nlp"
   | "gen_product" | "gen_design" | "gen_ops" | "gen_marketing" | "gen_sales";
 
 export type RegionId =
@@ -52,8 +53,9 @@ const ROLE_RULES: Record<RoleId, RegExp> = {
     /前端|frontend|front.?end|web\s?developer|react|vue|angular|typescript(?=.*(前端|frontend|web))/i,
   tech_mobile:
     /移动端|客户端(?!.*游戏)|ios|android|flutter|react\s?native|mobile\s?(developer|engineer)|swift|kotlin/i,
+  // 技术类通用算法/AI：兜底非 LLM/Agent/CV-NLP 的算法岗位；细分方向由 AI 类职种覆盖
   tech_ai:
-    /算法|机器学习|深度学习|大模型|machine\s?learning|deep\s?learning|\bml\b|\bai\b|\bllm\b|\bnlp\b|computer\s?vision|\bcv\b(?!\s?写作)|data\s?scientist|推荐系统|搜索算法/i,
+    /data\s?scientist|推荐系统|搜索算法|广告算法|排序算法|召回算法|风控算法|图算法|知识图谱|数据挖掘|预测模型|时间序列|machine\s?learning|\bml\b|深度学习|deep\s?learning|算法工程|算法专家|算法研究员|算法开发|算法岗|算法科学家/i,
   tech_data:
     /数据工程|数据开发|数据仓库|数仓|data\s?(engineer|platform|infra)|etl|spark|flink|hadoop|大数据/i,
   tech_qa:
@@ -62,6 +64,15 @@ const ROLE_RULES: Record<RoleId, RegExp> = {
     /运维|devops|\bsre\b|site\s?reliability|平台工程|platform\s?engineer|infra(structure)?\s?engineer|kubernetes|k8s|云原生|cloud\s?engineer/i,
   tech_security:
     /安全(工程师|研究|专家|开发)|渗透测试|security\s?(engineer|analyst|research)|appsec|infosec|penetration|红队|蓝队|漏洞/i,
+  // AI 类（按方向细分；一个岗位可同时命中多个 AI 职种）
+  ai_llm:
+    /大模型|大语言模型|llm|large\s?language\s?model|slm|small\s?language\s?model|基座模型|基模|foundation\s?model|rag|transformer|bert|gpt|claude|deepseek|qwen|llama|gemini|prompt\s?engineer|prompt\s?工程|提示词工程|提示工程|预训练|pre-?train|sft|supervised\s?fine-?tuning|rlhf|人类反馈|对齐|alignment|lora|全参数微调|peft|指令微调|instruction\s?tuning|模型蒸馏|model\s?distillation|post-?train|多轮对话|对话系统|chatbot|对话大模型|生成式|generative\s?ai|aigc|llmops/i,
+  ai_algo:
+    /算法工程师|算法专家|机器学习|machine\s?learning|\bml\b|深度学习|deep\s?learning|强化学习|reinforcement\s?learning|\brl\b|推荐算法|搜索算法|广告算法|排序算法|召回算法|风控算法|营销算法|定价算法|调度算法|图算法|图神经网络|\bgnn\b|知识图谱|联邦学习|迁移学习|元学习|半监督|无监督|自监督|表征学习|度量学习|数据挖掘|预测模型|时间序列|计算机视觉(?!.*多模态)|nlp(?!.*多模态)|自然语言处理(?!.*多模态)/i,
+  ai_agent:
+    /智能体|agent|multi\s?agent|多智能体|auto\s?gpt|autogpt|智能助手|数字员工|ai\s?worker|agentic|re-act|react\s?agent|工具调用|function\s?calling|具身智能|embodied\s?ai|embodied\s?intelligence|vla|vision\s?language\s?action|机器人大脑|robot\s?learning|认知架构|cognitive\s?architecture|规划与执行|plan\s?and\s?execute|swarm/i,
+  ai_cv_nlp:
+    /计算机视觉|\bcv\b(?!\s?写作)|视觉大模型|视觉语言模型|\bvlm\b|clip|ocr|图像识别|目标检测|图像分割|图像生成|文生图|text\s?to\s?image|图生文|image\s?to\s?text|diffusion|stable\s?diffusion|midjourney|视频理解|视频生成|多模态|multimodal|multimodal\s?llm|自然语言处理|\bnlp\b|文本生成|文本理解|命名实体识别|ner|情感分析|机器翻译|问答系统|语音识别|speech\s?recognition|\basr\b|tts|text\s?to\s?speech|语音合成|声纹识别|speaker\s?recognition|语音大模型/i,
   // 通用
   gen_product:
     /产品经理|产品负责人|product\s?(manager|owner|lead)|\bpm\b(?!.*(project|program))|产品策划(?!.*游戏)/i,

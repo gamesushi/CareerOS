@@ -40,7 +40,14 @@ export function EducationTab() {
     if (res) setItems(res.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const res = await api<{ data: Education[] }>("/educations");
+      if (active && res) setItems(res.data);
+    })();
+    return () => { active = false; };
+  }, []);
 
   function openCreate() {
     setEditing(null);

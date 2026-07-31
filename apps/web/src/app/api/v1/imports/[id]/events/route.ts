@@ -1,5 +1,5 @@
 import { prisma } from "@careeros/db";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 // SSE：每秒推送导入状态，终态（review/applied/failed）后关闭。
 // 前端 TaskProgress 组件消费（docs/design/03 §0）。
@@ -8,7 +8,7 @@ const TERMINAL = new Set(["review", "applied", "failed"]);
 const MAX_DURATION_MS = 5 * 60 * 1000;
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) return new Response("unauthorized", { status: 401 });
   const userId = session.user.id;
   const { id } = await params;

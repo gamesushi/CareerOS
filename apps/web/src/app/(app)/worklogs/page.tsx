@@ -54,7 +54,20 @@ export default function WorkLogsPage() {
     if (projRes) setProjects(projRes.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [logsRes, projRes] = await Promise.all([
+        api<{ data: WorkLog[] }>("/worklogs"),
+        api<{ data: ProjectOption[] }>("/projects"),
+      ]);
+      if (active) {
+        if (logsRes) setItems(logsRes.data);
+        if (projRes) setProjects(projRes.data);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   // 有日志缺摘要时轮询（summarize 异步完成后自动出现）
   useEffect(() => {

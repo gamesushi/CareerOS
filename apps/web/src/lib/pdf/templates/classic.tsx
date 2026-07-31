@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { ensureFonts } from "../fonts";
 import { Bullets, contactLine, range, titlesFor, type TemplateProps } from "../common";
+import { resolveTheme, themedStyles } from "../theme";
 
 // classic：单栏经典排版，黑白为主，accent 仅用于分区标题下划线。
 
@@ -11,8 +12,9 @@ export function ClassicTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
   ensureFonts();
   const t = titlesFor(lang);
   const b = resume.basics;
+  const th = resolveTheme(resume);
 
-  const s = StyleSheet.create({
+  const s = themedStyles({
     page: { fontFamily: "NotoSansSC", fontSize: 9.5, lineHeight: 1.5, color: "#1a1a1a", padding: 42 },
     name: { fontSize: 20, fontWeight: 700, lineHeight: 1.2, marginBottom: 4 },
     label: { fontSize: 10.5, color: "#555" },
@@ -33,7 +35,7 @@ export function ClassicTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
       fontSize: 8.5, backgroundColor: "#f0f0f0", borderRadius: 3,
       paddingHorizontal: 6, paddingVertical: 2, marginRight: 4, marginBottom: 4,
     },
-  });
+  }, th);
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={s.section}>
@@ -44,7 +46,7 @@ export function ClassicTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
 
   return (
     <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
-      <Page size="A4" style={s.page}>
+      <Page size={th.paper} style={s.page}>
         <Text style={s.name}>{b.name}</Text>
         {b.label ? <Text style={s.label}>{b.label}</Text> : null}
         {contactLine(b) ? <Text style={s.contact}>{contactLine(b)}</Text> : null}
