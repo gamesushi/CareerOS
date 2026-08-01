@@ -583,24 +583,27 @@ model JobMatch {
 }
 
 model Resume {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String       @map("user_id") @db.Uuid
-  title       String       @db.VarChar(160)
-  resumeType  ResumeType   @map("resume_type")
-  version     Int          @default(1)
-  templateId  String       @default("openresume-classic") @map("template_id") @db.VarChar(64)
-  resumeJson  Json         @map("resume_json")
-  jdId        String?      @map("jd_id") @db.Uuid
-  status      ResumeStatus @default(draft)
-  pdfFileKey  String?      @map("pdf_file_key")
-  generatedAt DateTime     @default(now()) @map("generated_at") @db.Timestamptz()
-  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
-  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz()
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  title          String       @db.VarChar(160)
+  resumeType     ResumeType   @map("resume_type")
+  version        Int          @default(1)
+  templateId     String       @default("openresume-classic") @map("template_id") @db.VarChar(64)
+  resumeJson     Json         @map("resume_json")
+  jdId           String?      @map("jd_id") @db.Uuid
+  sourceResumeId String?      @map("source_resume_id") @db.Uuid
+  status         ResumeStatus @default(draft)
+  pdfFileKey     String?      @map("pdf_file_key")
+  generatedAt    DateTime     @default(now()) @map("generated_at") @db.Timestamptz()
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz()
 
-  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jd      JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
-  matches JobMatch[]
-  applications Application[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jd             JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
+  sourceResume   Resume?         @relation("ResumeDerivation", fields: [sourceResumeId], references: [id], onDelete: SetNull)
+  derivedResumes Resume[]        @relation("ResumeDerivation")
+  matches        JobMatch[]
+  applications   Application[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")

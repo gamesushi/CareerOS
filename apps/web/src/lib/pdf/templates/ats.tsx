@@ -25,7 +25,7 @@ function Section({ title, accent, children }: { title: string; accent: string; c
 
 export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) {
   ensureFonts();
-  const th = resolveTheme(resume);
+  const th = resolveTheme(resume, "latin");
   const b = resume.basics;
 
   // 联系方式：邮箱 · 手机 · 城市 · LinkedIn/个人站

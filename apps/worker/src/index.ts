@@ -1,10 +1,12 @@
 import { Worker, Queue } from "bullmq";
+import { type ResumeType } from "@careeros/db";
 import { handleResumeParseJob } from "./jobs/resumeParse";
 import { handleJdParseJob } from "./jobs/jdParse";
 import { handleJobMatchJob } from "./jobs/jobMatch";
 import { handleWorklogSummarizeJob } from "./jobs/worklogSummarize";
 import { handleProfileGenerateJob } from "./jobs/profileGenerate";
 import { handleResumeGenerateJob } from "./jobs/resumeGenerate";
+import { handleResumeDeriveJob } from "./jobs/resumeDerive";
 import { handleWatchPollJob } from "./jobs/watchPoll";
 import { handleCostAlertJob } from "./jobs/costAlertCheck";
 import { handleScoreDiscoveredJob } from "./jobs/scoreDiscovered";
@@ -23,7 +25,7 @@ const connection = {
 export const AI_QUEUE = "ai";
 export const WATCH_QUEUE = "watch";
 
-type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered";
+type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "resume_derive" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered";
 
 const worker = new Worker(
   AI_QUEUE,
@@ -41,6 +43,8 @@ const worker = new Worker(
         return handleProfileGenerateJob(job.data.userId as string);
       case "resume_generate":
         return handleResumeGenerateJob(job.data.resumeId as string);
+      case "resume_derive":
+        return handleResumeDeriveJob(job.data.resumeId as string, job.data.sourceResumeId as string, job.data.targetType as ResumeType);
       case "score_discovered":
         return handleScoreDiscoveredJob(job.data.userId as string);
       default:

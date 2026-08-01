@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    # 迁移可用性检查需要带 pgvector 的 Postgres（init 迁移 CREATE EXTENSION vector）
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: careeros_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/careeros_ci?schema=careeros"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @careeros/db generate
+
+      - name: Typecheck (all packages)
+        run: pnpm -r typecheck
+
+      - name: Lint (web)
+        run: pnpm --filter web lint
+
+      - name: Unit / contract tests (vitest)
+        run: pnpm test
+
+      # 迁移可用性 + 历史一致性：全部迁移能在全新库上干净应用，且历史与文件一致。
+      # 这能挡住「破坏性迁移」和「用了 db push 导致迁移缺失」类问题。
+      - name: Migrations apply cleanly on fresh DB
+        run: |
+          pnpm --filter @careeros/db exec prisma migrate deploy
+          pnpm --filter @careeros/db exec prisma migrate status
+
+      # DB 集成测试：真实 Postgres 上验证行级隔离等。独立测试库，globalSetup 自建+迁移+删库。
+      - name: DB integration tests (row-level isolation)
+        env:
+          TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/careeros_test?schema=careeros"
+        run: pnpm test:db

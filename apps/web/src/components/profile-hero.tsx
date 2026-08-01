@@ -28,9 +28,9 @@ const LEVEL_KEY: Record<string, string> = {
 };
 
 export function ProfileHero({
-  name, jobStatus, profile, hasData,
+  name, jobStatus, profile, hasData, photo,
 }: {
-  name: string; jobStatus: string; profile: ProfileData | null; hasData: boolean;
+  name: string; jobStatus: string; profile: ProfileData | null; hasData: boolean; photo?: string | null;
 }) {
   const t = useT();
   const router = useRouter();
@@ -62,9 +62,17 @@ export function ProfileHero({
     <Card>
       <CardContent className="space-y-3 py-5">
         <div className="flex items-center gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
-            {name.slice(0, 1).toUpperCase()}
-          </div>
+          {photo ? (
+            <img
+              src={photo}
+              alt={name}
+              className="size-14 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
+              {name.slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold">{name}</h1>

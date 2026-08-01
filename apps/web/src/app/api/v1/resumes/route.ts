@@ -14,6 +14,7 @@ export const GET = handler(async () => {
       templateId: true,
       status: true,
       jdId: true,
+      sourceResumeId: true,
       generatedAt: true,
       updatedAt: true,
       jd: { select: { company: true, title: true } },

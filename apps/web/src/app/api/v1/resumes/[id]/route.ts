@@ -14,21 +14,38 @@ export const GET = handler(async (_req, { params }) => {
   const { id } = await params;
   const resume = await findOwned(userId, id);
 
-  // 生成状态：resumeJson 为空时查最近一次 resume_generate run
-  const empty = !resume.resumeJson || Object.keys(resume.resumeJson as object).length === 0;
-  let state: "ready" | "generating" | "failed" = empty ? "generating" : "ready";
+  // 多语言版本家族：查找由该简历衍生、或同源派生的其它语言简历
+  const rootId = resume.sourceResumeId ?? resume.id;
+  const familyResumes = await prisma.resume.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      OR: [
+        { id: rootId },
+        { sourceResumeId: rootId },
+      ],
+    },
+    select: { id: true, title: true, resumeType: true },
+    orderBy: { generatedAt: "asc" },
+  });
+
+  // 生成 / 翻译状态：以最近一次 aiRun（resume_generate / translate）为准。
+  // 任务在跑时显示「生成中」；失败显示「生成失败」+ 错误；空 resumeJson 且无 run 视为生成中（兜底）。
+  const run = await prisma.aiRun.findFirst({
+    where: { userId, kind: { in: ["resume_generate", "translate"] }, inputRef: { path: ["resumeId"], equals: id } },
+    orderBy: { createdAt: "desc" },
+  });
+  let state: "ready" | "generating" | "failed" = "ready";
   let error: string | null = null;
-  if (empty) {
-    const run = await prisma.aiRun.findFirst({
-      where: { userId, kind: "resume_generate", inputRef: { path: ["resumeId"], equals: id } },
-      orderBy: { createdAt: "desc" },
-    });
-    if (run?.status === "failed") {
-      state = "failed";
-      error = run.error;
-    }
+  if (run && (run.status === "running" || run.status === "queued")) {
+    state = "generating";
+  } else if (run?.status === "failed") {
+    state = "failed";
+    error = run.error;
+  } else if (!resume.resumeJson || Object.keys(resume.resumeJson as object).length === 0) {
+    state = "generating";
   }
-  return ok({ ...resume, state, error });
+  return ok({ ...resume, state, error, familyResumes });
 });
 
 const updateInput = z.object({

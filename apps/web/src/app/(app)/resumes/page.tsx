@@ -22,9 +22,10 @@ import { useT } from "@/lib/i18n/provider";
 type ResumeRow = {
   id: string;
   title: string;
-  resumeType: "zh" | "en" | "ja_shokumu";
+  resumeType: string;
   version: number;
   status: string;
+  sourceResumeId?: string | null;
   generatedAt: string;
   jd?: { company?: string | null; title?: string | null } | null;
 };
@@ -93,17 +94,18 @@ export default function ResumesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{t("resumes.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("resumes.subtitle")}
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="size-4" /> {t("resumes.generate")}</Button>
-          </DialogTrigger>
+        <div className="flex shrink-0 items-center gap-2">
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="size-4" /> {t("resumes.generate")}</Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader><DialogTitle>{t("resumes.generate")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
@@ -153,6 +155,7 @@ export default function ResumesPage() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
 
       {!items && <Skeleton className="h-40" />}
       {items?.length === 0 && (
@@ -175,9 +178,12 @@ export default function ResumesPage() {
                 <p className="text-xs text-muted-foreground">
                   v{r.version} · {new Date(r.generatedAt).toLocaleString("zh-CN")}
                 </p>
-                <div className="mt-1.5 flex gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <Badge variant="secondary" className="font-normal">{t(`resumes.type.${r.resumeType}`)}</Badge>
                   <Badge variant="outline" className="font-normal">{r.status === "final" ? t("resumes.final") : t("resumes.draft")}</Badge>
+                  {r.sourceResumeId && (
+                    <Badge variant="outline" className="border-primary/40 text-primary font-normal text-[10px]">派生版本</Badge>
+                  )}
                 </div>
               </div>
               <Button

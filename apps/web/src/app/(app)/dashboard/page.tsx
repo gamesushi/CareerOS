@@ -68,6 +68,10 @@ export default async function DashboardPage() {
 
   const isEmpty = expCount + projCount + skillCount + achCount === 0;
 
+  // 用户证件照（base64 dataURL，存于 careerProfile.personal.photo），用于总览头像。
+  const photo =
+    (user?.careerProfile?.personal as unknown as { photo?: string } | undefined)?.photo ?? null;
+
   if (isEmpty) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
@@ -104,6 +108,7 @@ export default async function DashboardPage() {
         name={user?.name ?? t("app.defaultUser")}
         jobStatus={user?.jobStatus ?? "passive"}
         hasData={expCount + projCount > 0}
+        photo={photo}
         profile={
           user?.careerProfile
             ? {

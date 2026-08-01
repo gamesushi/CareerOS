@@ -52,6 +52,12 @@ const JA_EXTRA: Record<string, string> = {
 const JIS_SHAPE = `,
   "x-jis": { "shokumuYoyaku"?, "ikaseruKeiken"?:[], "jikoPR"?, "shiboudouki"?, "menkyoShikaku"?:[{"date"?,"name"}] }`;
 
+// 英文简历追加：把工作许可状态注入到 basics.summary（外国人投美几乎必填）
+const EN_EXTRA = `7. 若事实包包含「工作许可」信息（us_authorized / requires_sponsorship / other），在 basics.summary 末尾追加一句英文：
+   - us_authorized → "Authorized to work in the United States; no visa sponsorship required."
+   - requires_sponsorship → "Requires visa sponsorship to work in the United States."
+   - other → 用一句英文简要说明实际情况（如 "Work authorization status: other."）。无该信息则不要添加。`;
+
 export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
   const resume = await prisma.resume.findUnique({ where: { id: resumeId } });
   if (!resume) throw new Error(`简历记录不存在: ${resumeId}`);
@@ -137,6 +143,14 @@ async function buildFactPack(userId: string, jdId: string | null) {
   }
 
   const fmtM = (d: Date | null) => (d ? d.toISOString().slice(0, 7) : "");
+  const workAuthText =
+    user.workAuthStatus === "us_authorized"
+      ? "有美国工作许可（公民/绿卡/H1B 等），无需签证支持"
+      : user.workAuthStatus === "requires_sponsorship"
+        ? "需要签证支持才能在美国工作"
+        : user.workAuthStatus === "other"
+          ? "工作许可状态：其他"
+          : "";
   const langText = Array.isArray(user.languages)
     ? (user.languages as { name: string; proficiency?: string | null }[])
         .map((l) => (l.proficiency ? `${l.name}(${l.proficiency})` : l.name))
@@ -146,7 +160,7 @@ async function buildFactPack(userId: string, jdId: string | null) {
     ? (user.snsLinks as { network: string; url: string }[]).map((s) => `${s.network}: ${s.url}`).join("、")
     : "";
   const digestParts = [
-    `## 基本信息\n姓名：${user.name}｜邮箱：${user.email}｜手机：${user.mobile ?? ""}｜地区：${user.region ?? ""}｜意向城市：${user.preferredCity ?? ""}`,
+    `## 基本信息\n姓名：${user.name}｜邮箱：${user.email}｜手机：${user.mobile ?? ""}｜地区：${user.region ?? ""}｜意向城市：${user.preferredCity ?? ""}${workAuthText ? `｜工作许可：${workAuthText}` : ""}`,
     profile?.headline ? `职业定位：${profile.headline}\n综述：${profile.summary ?? ""}` : "",
     langText ? `语言：${langText}` : "",
     snsText ? `社交链接：${snsText}` : "",
@@ -187,7 +201,7 @@ async function generateWithLlm(factPack: FactPack, lang: string, resumeType: str
   let lastError = "";
   let totals = { tokensIn: 0, tokensOut: 0, model: "" };
   const system = SYSTEM_PROMPT.replace("{LANG}", lang)
-    .replace("{EXTRA}", JA_EXTRA[resumeType] ? `${JA_EXTRA[resumeType]}\n` : "")
+    .replace("{EXTRA}", JA_EXTRA[resumeType] ? `${JA_EXTRA[resumeType]}\n` : (resumeType === "en" ? `${EN_EXTRA}\n` : ""))
     .replace("{JIS_SHAPE}", JA_EXTRA[resumeType] ? JIS_SHAPE : "");
   for (let attempt = 0; attempt < 2; attempt++) {
     const user =

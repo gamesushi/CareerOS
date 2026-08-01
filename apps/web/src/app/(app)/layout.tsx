@@ -16,7 +16,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const u = session.user.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { role: true, bannedAt: true, deletedAt: true, tosVersion: true, emailVerified: true },
+        select: {
+          role: true,
+          bannedAt: true,
+          deletedAt: true,
+          tosVersion: true,
+          emailVerified: true,
+          careerProfile: { select: { personal: true } },
+        },
       })
     : null;
 
@@ -46,12 +53,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // 角色以 DB 为准（修复 JWT role 滞后），即时同步侧边栏与管理入口。
   const isAdmin = u?.role === "admin";
 
+  // 用户证件照（base64 dataURL），用于侧栏头像，有即显示、无则回退首字母。
+  const userPhoto =
+    (u?.careerProfile?.personal as unknown as { photo?: string } | undefined)?.photo ?? null;
+
   return (
     <div data-app-shell className="flex min-h-screen">
       <AppSidebar
         userName={session.user.name ?? ""}
         userEmail={session.user.email ?? ""}
         isAdmin={isAdmin}
+        userPhoto={userPhoto}
       />
       <main className="min-w-0 flex-1 bg-muted/20 px-8 py-6">{children}</main>
       {!tosOk && <TosGate isUpdate={tosIsUpdate} />}

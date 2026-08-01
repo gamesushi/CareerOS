@@ -15,9 +15,19 @@ import { Separator } from "@/components/ui/separator";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { TEMPLATE_META, resolveTemplateMeta } from "@/lib/pdf/template-meta";
-import { Loader2, Download, CircleAlert, TriangleAlert } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { TEMPLATE_META, resolveTemplateMeta, filterTemplatesForType } from "@/lib/pdf/template-meta";
+import { Loader2, Download, Globe, CircleAlert, TriangleAlert, Plus } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
+import { DeriveResumeDialog } from "@/components/resumes/derive-dialog";
+
+type FamilyResumeItem = {
+  id: string;
+  title: string;
+  resumeType: string;
+};
 
 type ResumeDetail = {
   id: string;
@@ -28,6 +38,9 @@ type ResumeDetail = {
   resumeJson: JsonResume | Record<string, never>;
   state: "ready" | "generating" | "failed";
   error?: string | null;
+  jdId?: string | null;
+  sourceResumeId?: string | null;
+  familyResumes?: FamilyResumeItem[];
 };
 
 export default function ResumeEditorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +56,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   const [previewKey, setPreviewKey] = useState(0);
   const [fmt, setFmt] = useState<"pdf" | "docx" | "doc" | "md">("pdf");
   const [exporting, setExporting] = useState(false);
+  const [deriveOpen, setDeriveOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const load = useCallback(async () => {
@@ -81,6 +95,13 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
     const timer = setInterval(load, 2000);
     return () => clearInterval(timer);
   }, [detail?.state, load]);
+
+  const LANG_SHORT_LABEL: Record<string, string> = {
+    zh: "🇨🇳 中文",
+    en: "🇺🇸 English",
+    ja_shokumu: "🇯🇵 職務経歴書",
+    ja_rirekisho: "🇯🇵 履歴書",
+  };
 
   async function save(markFinal = false) {
     if (!doc) return;
@@ -203,6 +224,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
 
   if (!doc) return null;
   const warnings = doc["x-warnings"] ?? [];
+  const familyList = detail.familyResumes ?? [{ id: detail.id, title: detail.title, resumeType: detail.resumeType }];
 
   return (
     <div className="mx-auto flex h-[calc(100vh-3rem)] max-w-6xl flex-col gap-3">
@@ -215,11 +237,11 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
             setPreviewKey((k) => k + 1);
           }}
         >
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {TEMPLATE_META.map((tm) => (
+            {filterTemplatesForType(detail.resumeType).map((tm) => (
               <SelectItem key={tm.id} value={tm.id}>
-                {tm.name} · {tm.description.split("，")[0]}
+                {tm.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -233,6 +255,37 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           onBlur={() => setPreviewKey((k) => k + 1)}
         />
         <span className="text-xs text-muted-foreground">{detail.status === "final" ? t("resumes.final") : t("resumes.draft")}</span>
+
+        {/* 多语言 Tab 链 */}
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 text-xs">
+          {familyList.map((f) => {
+            const isCurrent = f.id === detail.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => !isCurrent && router.push(`/resumes/${f.id}`)}
+                className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all ${
+                  isCurrent
+                    ? "bg-background font-medium text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                }`}
+              >
+                <span>{LANG_SHORT_LABEL[f.resumeType] ?? f.resumeType}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setDeriveOpen(true)}
+            className="flex items-center gap-0.5 rounded-md px-2 py-1 text-primary hover:bg-primary/10 transition-colors font-medium"
+            title={t("resumes.deriveLanguage")}
+          >
+            <Plus className="size-3" />
+            <span>新语言</span>
+          </button>
+        </div>
+
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => router.push("/resumes")}>{t("common.back")}</Button>
           <Button variant="outline" onClick={() => save(false)} disabled={saving}>
@@ -253,6 +306,12 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           </Button>
         </div>
       </div>
+
+      <DeriveResumeDialog
+        open={deriveOpen}
+        onOpenChange={setDeriveOpen}
+        sourceResume={detail}
+      />
 
       {warnings.length > 0 && (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
