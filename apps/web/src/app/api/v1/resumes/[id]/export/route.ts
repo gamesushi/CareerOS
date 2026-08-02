@@ -1,9 +1,8 @@
-import { createElement } from "react";
 import { prisma } from "@careeros/db";
 import { jsonResume, type JsonResume } from "@careeros/shared";
 import { requireUser, ApiError } from "@/lib/api";
-import { resolveTemplate } from "@/lib/pdf/registry";
 import { mergePersonalIntoResume } from "@/lib/merge-personal";
+import { renderResumePdf, pdfResponse, ResumeRenderError } from "@/lib/pdf/render";
 
 // PDF 导出：react-pdf 服务端渲染，直接流式返回。
 // ?inline=1 时浏览器内嵌显示（编辑器预览 iframe 复用同一渲染器，所见即所得）。
@@ -41,12 +40,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     owner?.careerProfile ?? null,
   );
   const url = new URL(req.url);
-  const template = resolveTemplate(url.searchParams.get("template") ?? resume.templateId);
   const accentParam = url.searchParams.get("accent");
-  const accent =
-    (accentParam && /^#[0-9a-fA-F]{6}$/.test(accentParam) ? accentParam : null) ??
-    merged["x-theme"]?.accent ??
-    template.defaultAccent;
+  // 注：模板与强调色的回退链在 renderResumePdf 内统一处理，这里不再重复计算。
 
   // 导出格式：pdf（默认）/ docx / doc / md
   const FORMATS = ["pdf", "docx", "doc", "md"] as const;
@@ -98,33 +93,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  const { renderToBuffer } = await import("@react-pdf/renderer");
-  type DocElement = Parameters<typeof renderToBuffer>[0];
+  // PDF 渲染与雇主查看投递简历共用同一份实现（lib/pdf/render.ts），避免两边漂移。
   let buffer: Buffer;
   try {
-    buffer = await renderToBuffer(
-      createElement(template.component, {
-        resume: merged,
-        lang: resume.resumeType,
-        accent,
-      }) as unknown as DocElement,
-    );
+    buffer = await renderResumePdf(resume, {
+      templateId: url.searchParams.get("template") ?? resume.templateId,
+      accent: accentParam,
+    });
   } catch (e) {
-    console.error("[export] PDF render failed:", e);
-    const message = e instanceof Error ? e.message : "PDF 渲染失败";
+    const message = e instanceof ResumeRenderError ? e.message : "PDF 渲染失败";
     return new Response(JSON.stringify({ error: { code: "RENDER_FAILED", message } }), {
       status: 500,
       headers: { "Content-Type": "application/json; charset=utf-8" },
     });
   }
-
-  const inline = url.searchParams.get("inline") === "1";
-  const fileName = `${baseName}.pdf`;
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${fileName}`,
-      "Cache-Control": "no-store",
-    },
-  });
+  return pdfResponse(buffer, resume.title, url.searchParams.get("inline") === "1");
 }

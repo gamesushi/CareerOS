@@ -15,6 +15,7 @@ import {
 import { ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 import { extractFullJd } from "@/lib/jd";
+import { ApplyDialog } from "./apply-dialog";
 
 type ActiveJob = {
   id: string;
@@ -99,6 +100,8 @@ export default function ActiveJobsPage() {
   const router = useRouter();
   const t = useT();
   const [jobs, setJobs] = useState<ActiveJob[] | null>(null);
+  /** jobPostingId → 我的投递状态，用于把「投递」按钮换成状态徽标。 */
+  const [myApplications, setMyApplications] = useState<Record<string, string>>({});
 
   // 服务端过滤（走 query 参数）
   const [closed, setClosed] = useState("all"); // all | active | closed
@@ -152,15 +155,21 @@ export default function ActiveJobsPage() {
     if (source !== "all" && source !== POSTED_SOURCE) params.set("source", source);
     const qs = params.toString();
 
-    const [external, posted] = await Promise.all([
+    const [external, posted, mine] = await Promise.all([
       wantExternal
         ? api<{ data: ActiveJob[] }>(`/discovered-jobs${qs ? `?${qs}` : ""}`)
         : Promise.resolve({ data: [] as ActiveJob[] }),
       wantPosted
         ? api<{ data: PostedJob[] }>("/job-postings/feed", { silent: true })
         : Promise.resolve({ data: [] as PostedJob[] }),
+      api<{ data: { jobPostingId: string; status: string }[] }>("/job-applications/mine", {
+        silent: true,
+      }),
     ]);
     if (!external && !posted) return;
+    if (mine) {
+      setMyApplications(Object.fromEntries(mine.data.map((a) => [a.jobPostingId, a.status])));
+    }
 
     const rows = [
       ...(external?.data ?? []).map((j) => ({ ...j, origin: "external" as const })),
@@ -368,11 +377,25 @@ export default function ActiveJobsPage() {
                         它只提供外链申请（站内投递留待后续）。 */}
                     <div className="flex shrink-0 gap-1.5">
                       {j.origin === "posted" ? (
-                        j.url && (
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={j.url} target="_blank" rel="noreferrer">{t("jobs.applyExternal")}</a>
-                          </Button>
-                        )
+                        <>
+                          {j.url && (
+                            <Button size="sm" variant="outline" asChild>
+                              <a href={j.url} target="_blank" rel="noreferrer">{t("jobs.applyExternal")}</a>
+                            </Button>
+                          )}
+                          {myApplications[j.id] ? (
+                            <Badge variant="secondary" className="self-center whitespace-nowrap">
+                              {t(`applyStatus.${myApplications[j.id]}`)}
+                            </Badge>
+                          ) : (
+                            <ApplyDialog
+                              jobPostingId={j.id}
+                              jobTitle={j.title}
+                              company={j.company}
+                              onApplied={load}
+                            />
+                          )}
+                        </>
                       ) : (
                         <>
                           <Button size="sm" variant="outline" onClick={() => trackJob(j)}>{t("monitor.track")}</Button>

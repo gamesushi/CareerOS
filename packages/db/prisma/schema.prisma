@@ -139,7 +139,7 @@ enum AiRunStatus {
 
 // 工作授权状态（应聘表单合规字段，如字节/美企岗）
 enum WorkAuthStatus {
-  us_authorized      // 可在美国无限制工作
+  us_authorized // 可在美国无限制工作
   requires_sponsorship // 需要签证赞助/转移
   other
 
@@ -148,11 +148,11 @@ enum WorkAuthStatus {
 
 // 语言熟练度
 enum LanguageProficiency {
-  native            // 母语
-  fluent            // 流利
-  professional      // 职业级
-  conversational    // 日常交流
-  basic             // 基础
+  native // 母语
+  fluent // 流利
+  professional // 职业级
+  conversational // 日常交流
+  basic // 基础
 
   @@map("language_proficiency")
 }
@@ -160,56 +160,57 @@ enum LanguageProficiency {
 // ============ 用户与认证（Auth.js Prisma Adapter 标准模型 + 业务字段） ============
 
 model User {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email         String    @unique @db.Citext
-  name          String    @db.VarChar(128)
-  emailVerified DateTime? @map("email_verified")
-  image         String?   @map("avatar_url")
-  role          UserRole  @default(user)
-  locale        String    @default("zh") @db.VarChar(8)
-  region        String?   @db.VarChar(64)
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String          @unique @db.Citext
+  name           String          @db.VarChar(128)
+  emailVerified  DateTime?       @map("email_verified")
+  image          String?         @map("avatar_url")
+  role           UserRole        @default(user)
+  locale         String          @default("zh") @db.VarChar(8)
+  region         String?         @db.VarChar(64)
   // 应聘表单补充字段（对照字节等美企申请）
-  mobile         String?   @db.VarChar(64)            // 手机
-  preferredCity  String?   @map("preferred_city") @db.VarChar(128) // 意向工作城市
+  mobile         String?         @db.VarChar(64) // 手机
+  preferredCity  String?         @map("preferred_city") @db.VarChar(128) // 意向工作城市
   workAuthStatus WorkAuthStatus? @map("work_auth_status")
-  snsLinks       Json      @map("sns_links") @default("[]") // [{ network, url, username }]
-  languages      Json      @default("[]")              // [{ name, proficiency }]
-  jobStatus     JobStatus @default(passive) @map("job_status")
-  privacy       Json      @default("{\"profile_public\": false, \"resume_searchable\": false, \"recruiter_contact\": false, \"feed_visible\": false}")
-  weknoraKbId   String?   @map("weknora_kb_id") @db.VarChar(64)
-  weknoraApiKey String?   @map("weknora_api_key")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
-  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
-  bannedAt      DateTime? @map("banned_at") @db.Timestamptz() // 管理员封禁：非空即被封，鉴权层即时拒绝
-  tosAcceptedAt DateTime? @map("tos_accepted_at") @db.Timestamptz() // 同意《用户协议》《隐私政策》的时间（留痕证据）
-  tosVersion    String?   @map("tos_version") @db.VarChar(32)       // 同意的条款版本；与当前版本不一致时登录后强制重新确认
-  passwordHash  String?   @map("password_hash") @db.VarChar(255)    // 本地密码登录的 scrypt 哈希；null = 仅 Google/OAuth 登录（无本地密码）
+  snsLinks       Json            @default("[]") @map("sns_links") // [{ network, url, username }]
+  languages      Json            @default("[]") // [{ name, proficiency }]
+  jobStatus      JobStatus       @default(passive) @map("job_status")
+  privacy        Json            @default("{\"profile_public\": false, \"resume_searchable\": false, \"recruiter_contact\": false, \"feed_visible\": false}")
+  weknoraKbId    String?         @map("weknora_kb_id") @db.VarChar(64)
+  weknoraApiKey  String?         @map("weknora_api_key")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz()
+  bannedAt       DateTime?       @map("banned_at") @db.Timestamptz() // 管理员封禁：非空即被封，鉴权层即时拒绝
+  tosAcceptedAt  DateTime?       @map("tos_accepted_at") @db.Timestamptz() // 同意《用户协议》《隐私政策》的时间（留痕证据）
+  tosVersion     String?         @map("tos_version") @db.VarChar(32) // 同意的条款版本；与当前版本不一致时登录后强制重新确认
+  passwordHash   String?         @map("password_hash") @db.VarChar(255) // 本地密码登录的 scrypt 哈希；null = 仅 Google/OAuth 登录（无本地密码）
 
-  accounts      Account[]
-  sessions      Session[]
-  careerProfile CareerProfile?
-  experiences   CareerExperience[]
-  projects      Project[]
-  skills        Skill[]
-  achievements  Achievement[]
-  educations    Education[]
-  honors        Honor[]
-  workLogs      WorkLog[]
-  resumeImports ResumeImport[]
-  jds           JobDescription[]
-  jobMatches    JobMatch[]
-  resumes       Resume[]
-  embeddings    Embedding[]
-  aiRuns        AiRun[]
-  connectionsFrom Connection[] @relation("ConnFrom")
-  connectionsTo   Connection[] @relation("ConnTo")
-  jobWatches      JobWatch[]
-  discoveredJobs  DiscoveredJob[]
-  jobPostings     JobPosting[]    @relation("PostedJobs")
-  orgMemberships  OrganizationMember[]
-  adminActions    AdminAuditLog[] @relation("AdminActor")
-  applications    Application[]
+  accounts            Account[]
+  sessions            Session[]
+  careerProfile       CareerProfile?
+  experiences         CareerExperience[]
+  projects            Project[]
+  skills              Skill[]
+  achievements        Achievement[]
+  educations          Education[]
+  honors              Honor[]
+  workLogs            WorkLog[]
+  resumeImports       ResumeImport[]
+  jds                 JobDescription[]
+  jobMatches          JobMatch[]
+  resumes             Resume[]
+  embeddings          Embedding[]
+  aiRuns              AiRun[]
+  connectionsFrom     Connection[]         @relation("ConnFrom")
+  connectionsTo       Connection[]         @relation("ConnTo")
+  jobWatches          JobWatch[]
+  discoveredJobs      DiscoveredJob[]
+  jobPostings         JobPosting[]         @relation("PostedJobs")
+  orgMemberships      OrganizationMember[]
+  jobApplications     JobApplication[]     @relation("CandidateApplications")
+  adminActions        AdminAuditLog[]      @relation("AdminActor")
+  applications        Application[]
   passwordResetTokens PasswordResetToken[]
 
   @@map("users")
@@ -257,12 +258,12 @@ model VerificationToken {
 
 // 密码找回：每次申请生成一次性 token。DB 仅存 SHA-256 哈希，原始 token 只在重置链接里出现（不落库）。
 model PasswordResetToken {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  token     String   @unique // SHA-256(raw token)
-  expiresAt DateTime @map("expires_at")
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @unique // SHA-256(raw token)
+  expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -278,7 +279,7 @@ model CareerProfile {
   headline        String?  @db.VarChar(128)
   summary         String?
   // 简历共享个人信息（与每份简历解耦）：证件照 base64、联系地址、日本履历书专用字段。
-  personal        Json      @default("{}") @map("personal")
+  personal        Json     @default("{}") @map("personal")
   careerTags      String[] @default([]) @map("career_tags")
   careerLevel     String?  @map("career_level") @db.VarChar(32)
   yearsExperience Decimal? @map("years_experience") @db.Decimal(4, 1)
@@ -312,8 +313,8 @@ model CareerExperience {
   updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz()
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  import       ResumeImport?  @relation(fields: [importId], references: [id], onDelete: SetNull)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  import       ResumeImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
   projects     Project[]
   achievements Achievement[]
 
@@ -439,15 +440,15 @@ model Education {
 
 // 荣誉奖项（对照应聘表单 Honor and Awards 区块）
 model Honor {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  title       String   @db.VarChar(200)
-  issuer      String?  @db.VarChar(160) // 颁发机构
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  title       String    @db.VarChar(200)
+  issuer      String?   @db.VarChar(160) // 颁发机构
   date        DateTime? @map("date") @db.Date
   description String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -600,12 +601,13 @@ model Resume {
   updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz()
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jd             JobDescription? @relation(fields: [jdId], references: [id], onDelete: SetNull)
-  sourceResume   Resume?         @relation("ResumeDerivation", fields: [sourceResumeId], references: [id], onDelete: SetNull)
-  derivedResumes Resume[]        @relation("ResumeDerivation")
-  matches        JobMatch[]
-  applications   Application[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jd              JobDescription?  @relation(fields: [jdId], references: [id], onDelete: SetNull)
+  sourceResume    Resume?          @relation("ResumeDerivation", fields: [sourceResumeId], references: [id], onDelete: SetNull)
+  derivedResumes  Resume[]         @relation("ResumeDerivation")
+  matches         JobMatch[]
+  applications    Application[]
+  jobApplications JobApplication[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -662,38 +664,38 @@ model JobWatch {
 }
 
 model DiscoveredJob {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  watchId     String              @map("watch_id") @db.Uuid
-  userId      String              @map("user_id") @db.Uuid
-  source      String              @db.VarChar(32)
-  externalId  String              @map("external_id") @db.VarChar(128)
-  title       String              @db.VarChar(200)
-  company     String?             @db.VarChar(128)
-  location    String?             @db.VarChar(128)
-  salary      String?             @db.VarChar(64)
-  url         String
-  snippet     String?             // 职责摘要（列表接口给多少存多少）
-  publishedAt DateTime?           @map("published_at") @db.Timestamptz()
-  raw         Json?
-  categories  Json      @default("[]") @map("categories") // 品类标签数组（游戏/金融/技术…）
-  roles       Json      @default("[]") // 职种标签数组（派生自 sources/lib/taxonomy.ts）
-  regions     Json      @default("[]") // 地区标签数组（location 归一化）
-  languages   Json      @default("[]") // 语言标签数组（JD 文本检测）
-  experience  Json      @default("[]") // 经验级别数组（JD 文本检测）
-  status      DiscoveredJobStatus @default(new)
-  jdId        String?             @map("jd_id") @db.Uuid
-  takenDownAt   DateTime? @map("taken_down_at") @db.Timestamptz() // 管理员下架（诈骗/幽灵岗）：非空则不进用户 feed
-  takenDownById String?   @map("taken_down_by_id") @db.Uuid       // 下架操作的管理员 id（审计冗余）
-  matchScore    Float?    @map("match_score")                     // 岗位↔用户档案 fit 分（0-100，embedding），null=未评分
-  matchReasons  Json?     @map("match_reasons")                   // [{ type, label, similarity }] 命中理由
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchId       String              @map("watch_id") @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  source        String              @db.VarChar(32)
+  externalId    String              @map("external_id") @db.VarChar(128)
+  title         String              @db.VarChar(200)
+  company       String?             @db.VarChar(128)
+  location      String?             @db.VarChar(128)
+  salary        String?             @db.VarChar(64)
+  url           String
+  snippet       String? // 职责摘要（列表接口给多少存多少）
+  publishedAt   DateTime?           @map("published_at") @db.Timestamptz()
+  raw           Json?
+  categories    Json                @default("[]") @map("categories") // 品类标签数组（游戏/金融/技术…）
+  roles         Json                @default("[]") // 职种标签数组（派生自 sources/lib/taxonomy.ts）
+  regions       Json                @default("[]") // 地区标签数组（location 归一化）
+  languages     Json                @default("[]") // 语言标签数组（JD 文本检测）
+  experience    Json                @default("[]") // 经验级别数组（JD 文本检测）
+  status        DiscoveredJobStatus @default(new)
+  jdId          String?             @map("jd_id") @db.Uuid
+  takenDownAt   DateTime?           @map("taken_down_at") @db.Timestamptz() // 管理员下架（诈骗/幽灵岗）：非空则不进用户 feed
+  takenDownById String?             @map("taken_down_by_id") @db.Uuid // 下架操作的管理员 id（审计冗余）
+  matchScore    Float?              @map("match_score") // 岗位↔用户档案 fit 分（0-100，embedding），null=未评分
+  matchReasons  Json?               @map("match_reasons") // [{ type, label, similarity }] 命中理由
   // 审核流：抓取数据默认 approved；用户录入（source=user/import）写 pending，
   // 过审前不进公共统计/排行榜，仅提交者本人 feed 可见（标「审核中」）。
-  reviewStatus   JobReviewStatus @default(approved) @map("review_status")
-  reviewedAt     DateTime?       @map("reviewed_at") @db.Timestamptz()
-  reviewedById   String?         @map("reviewed_by_id") @db.Uuid   // 审核操作的管理员 id（审计冗余）
-  reviewNote     String?         @map("review_note") @db.VarChar(500) // 拒绝理由等备注
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()
-  closedAt    DateTime?           @map("closed_at") @db.Timestamptz() // 停招时间：该次运行未在抓取结果中出现则标记；超 14 天由 worker 清理
+  reviewStatus  JobReviewStatus     @default(approved) @map("review_status")
+  reviewedAt    DateTime?           @map("reviewed_at") @db.Timestamptz()
+  reviewedById  String?             @map("reviewed_by_id") @db.Uuid // 审核操作的管理员 id（审计冗余）
+  reviewNote    String?             @map("review_note") @db.VarChar(500) // 拒绝理由等备注
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz()
+  closedAt      DateTime?           @map("closed_at") @db.Timestamptz() // 停招时间：该次运行未在抓取结果中出现则标记；超 14 天由 worker 清理
 
   watch JobWatch        @relation(fields: [watchId], references: [id], onDelete: Cascade)
   user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -710,10 +712,10 @@ model DiscoveredJob {
 // JobPosting 是「全局公共」的雇主发布岗，任何候选人都能看到同一批。两者语义不同，故分表。
 
 enum OrgType {
-  individual_hr    // HR 个人
-  startup          // 创业公司
+  individual_hr // HR 个人
+  startup // 创业公司
   non_company_team // 创业团队（未注册主体）
-  enterprise       // 预留：大型企业，首期表单不可选（多有自有 ATS，需求弱）
+  enterprise // 预留：大型企业，首期表单不可选（多有自有 ATS，需求弱）
 
   @@map("org_type")
 }
@@ -726,9 +728,22 @@ enum JobPostingStatus {
   @@map("job_posting_status")
 }
 
+// 站内投递状态。刻意不复用 ApplicationStage——那张表是候选人自己的看板
+// （considering「想投」在雇主视角下没有意义），两者归属方与可见范围都不同。
+enum JobApplicationStatus {
+  submitted // 已投递
+  screening // 筛选中
+  interview // 面试中
+  offer // 已发 offer
+  rejected // 不合适
+  withdrawn // 候选人撤回（终态）
+
+  @@map("job_application_status")
+}
+
 enum OrgMemberRole {
-  owner     // 建组织的人，唯一能删组织
-  admin     // 可改资料、可管成员
+  owner // 建组织的人，唯一能删组织
+  admin // 可改资料、可管成员
   recruiter // 只能发岗 / 管自己的岗
 
   @@map("org_member_role")
@@ -756,6 +771,33 @@ model Organization {
   postings JobPosting[]
 
   @@map("organizations")
+}
+
+// 站内投递：候选人 → 站内发布岗。与 Application（候选人自己的外部岗看板）是两件事，
+// 见 docs/b-end-phase3-apply.md §2。投递意味着候选人主动把这一份简历交给该雇主，
+// 雇主的可见范围也就到此为止——其他简历、职业知识库等一概不可见。
+model JobApplication {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobPostingId String               @map("job_posting_id") @db.Uuid
+  candidateId  String               @map("candidate_id") @db.Uuid
+  resumeId     String?              @map("resume_id") @db.Uuid // 投递时选的那份简历
+  coverLetter  String?              @map("cover_letter")
+  status       JobApplicationStatus @default(submitted)
+  employerNote String?              @map("employer_note") @db.VarChar(1000) // 雇主备注，候选人不可见
+  statusAt     DateTime?            @map("status_at") @db.Timestamptz() // 最近一次状态变更
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  candidate  User       @relation("CandidateApplications", fields: [candidateId], references: [id], onDelete: Cascade)
+  // SetNull：候选人事后删简历，投递记录仍在（雇主看到「简历已被删除」），
+  // 比连带删掉整条投递合理
+  resume     Resume?    @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  @@unique([jobPostingId, candidateId]) // 一个岗位每人只能投一次
+  @@index([jobPostingId, status, createdAt(sort: Desc)])
+  @@index([candidateId, createdAt(sort: Desc)])
+  @@map("job_applications")
 }
 
 model OrganizationMember {
@@ -797,9 +839,10 @@ model JobPosting {
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   closedAt       DateTime?        @map("closed_at") @db.Timestamptz() // 发布者主动下架时间
 
-  postedBy User          @relation("PostedJobs", fields: [postedByUserId], references: [id], onDelete: Cascade)
+  postedBy     User             @relation("PostedJobs", fields: [postedByUserId], references: [id], onDelete: Cascade)
+  applications JobApplication[]
   // SetNull 而非 Cascade：删组织不该连带删岗位，历史岗退化为「个人发布」
-  org      Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  org          Organization?    @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
   @@index([status, reviewStatus, createdAt(sort: Desc)]) // 候选端公共流扫描
   @@index([postedByUserId, createdAt(sort: Desc)]) // 「我的发布」
@@ -887,8 +930,8 @@ model AdminAuditLog {
   action     AdminAction
   targetType String      @map("target_type") @db.VarChar(32) // "user" | "discovered_job" | ...
   targetId   String?     @map("target_id") @db.Uuid
-  before     Json?       // 变更前快照（脱敏）
-  after      Json?       // 变更后快照（脱敏）
+  before     Json? // 变更前快照（脱敏）
+  after      Json? // 变更后快照（脱敏）
   reason     String?     @db.VarChar(500)
   ip         String?     @db.VarChar(64)
   createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz()
@@ -923,11 +966,11 @@ model LoginLog {
 
 enum ApplicationStage {
   considering // 想投
-  applied     // 已投递
-  screening   // 筛选中
-  interview   // 面试中
-  offer       // Offer
-  rejected    // 已结束/被拒
+  applied // 已投递
+  screening // 筛选中
+  interview // 面试中
+  offer // Offer
+  rejected // 已结束/被拒
 
   @@map("application_stage")
 }
@@ -939,7 +982,7 @@ model Application {
   userId          String           @map("user_id") @db.Uuid
   discoveredJobId String?          @map("discovered_job_id") @db.Uuid // 来源发现岗位（去重用），无关系约束
   jdId            String?          @map("jd_id") @db.Uuid
-  resumeId        String?          @map("resume_id") @db.Uuid          // 本次投递用的简历
+  resumeId        String?          @map("resume_id") @db.Uuid // 本次投递用的简历
   title           String           @db.VarChar(200)
   company         String?          @db.VarChar(128)
   location        String?          @db.VarChar(128)

@@ -52,6 +52,8 @@ export async function listMyPostings(userId: string) {
       takenDownAt: true,
       closedAt: true,
       updatedAt: true,
+      // 收件箱入口的角标：撤回的不计入，免得雇主看到一个点进去是空的数字
+      _count: { select: { applications: { where: { status: { not: "withdrawn" } } } } },
     },
   });
 }

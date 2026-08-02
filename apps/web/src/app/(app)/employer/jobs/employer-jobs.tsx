@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Loader2, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Inbox, Loader2, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
 type MyOrg = { id: string; slug: string; name: string; orgType: string };
@@ -34,6 +35,7 @@ type Posting = {
   reviewNote?: string | null;
   takenDownAt?: string | null;
   createdAt: string;
+  _count?: { applications: number };
 };
 
 const EMPTY = {
@@ -330,6 +332,12 @@ export function EmployerJobs() {
               )}
 
               <div className="flex items-center gap-1.5">
+                <Button size="sm" variant="secondary" asChild>
+                  <Link href={`/employer/jobs/${p.id}/applications`}>
+                    <Inbox className="size-3.5" />
+                    {t("employer.applications", { n: p._count?.applications ?? 0 })}
+                  </Link>
+                </Button>
                 {p.status !== "open" && (
                   <Button size="sm" variant="outline" onClick={() => changeStatus(p, "open")}>
                     {p.status === "draft" ? t("employer.publish") : t("employer.reopen")}

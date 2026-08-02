@@ -5,4 +5,5 @@ export * from "./jd";
 export * from "./watch";
 export * from "./job-posting";
 export * from "./organization";
+export * from "./job-application";
 export * from "./resume";
