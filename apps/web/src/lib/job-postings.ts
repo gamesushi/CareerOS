@@ -24,6 +24,8 @@ const FEED_SELECT = {
   url: true,
   categories: true,
   createdAt: true,
+  // 有组织的岗，候选端把公司名渲染成指向 /c/<slug> 公司主页的链接
+  org: { select: { slug: true, name: true, verified: true } },
 } satisfies Prisma.JobPostingSelect;
 
 /** 候选端公共流。首期全量返回（上限 200），前端做二级筛选——与 /discovered-jobs 的做法一致。 */

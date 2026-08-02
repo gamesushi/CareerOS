@@ -2,10 +2,11 @@
 // 门禁走 requireRole（查 DB），而非 session.user.role —— 用户刚在设置页切成招聘者、
 // 尚未重新登录时，JWT 里的 role 还是旧值。
 
-import { prisma, type Prisma } from "@careeros/db";
+import { prisma, type Prisma, type OrgType } from "@careeros/db";
 import { jobPostingCreateInput, EMPLOYER_ROLES } from "@careeros/shared";
-import { handler, ok, parseBody, requireRole } from "@/lib/api";
+import { handler, ok, parseBody, requireRole, ApiError } from "@/lib/api";
 import { listMyPostings } from "@/lib/job-postings";
+import { requireOrgMember } from "@/lib/organizations";
 
 const NEED_EMPLOYER = "需要招聘者权限，请在「账号设置」中开启发岗";
 
@@ -18,11 +19,24 @@ export const POST = handler(async (req) => {
   const { userId } = await requireRole(EMPLOYER_ROLES, NEED_EMPLOYER);
   const input = await parseBody(req, jobPostingCreateInput);
 
+  // 以组织名义发布：校验成员身份，并用组织的 name/orgType 覆盖表单值——
+  // 否则同一组织的不同岗会写出不同的公司名，公司主页就散了。
+  let org: { id: string; name: string; orgType: OrgType } | null = null;
+  if (input.orgId) {
+    await requireOrgMember(input.orgId, userId);
+    org = await prisma.organization.findUnique({
+      where: { id: input.orgId },
+      select: { id: true, name: true, orgType: true },
+    });
+    if (!org) throw new ApiError(404, "org_not_found", "组织不存在");
+  }
+
   const created = await prisma.jobPosting.create({
     data: {
       postedByUserId: userId,
-      orgType: input.orgType,
-      company: input.company,
+      orgId: org?.id ?? null,
+      orgType: org?.orgType ?? input.orgType,
+      company: org?.name ?? input.company,
       title: input.title,
       location: input.location || null,
       salary: input.salary || null,

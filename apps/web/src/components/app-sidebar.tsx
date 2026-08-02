@@ -22,6 +22,7 @@ import {
   BarChart3,
   ListChecks,
   Building2,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,12 @@ const NAV_GROUPS: readonly NavGroup[] = [
 const PERSONAL_ITEMS: readonly NavItem[] = [
   { href: "/profile", key: "nav.profile", icon: User },
   { href: "/settings", key: "nav.settings", icon: Settings },
+];
+
+// 招聘者专属入口，仅 isRecruiter 时渲染
+const EMPLOYER_ITEMS: readonly NavItem[] = [
+  { href: "/employer/jobs", key: "nav.employerJobs", icon: Building2 },
+  { href: "/employer/company", key: "nav.employerCompany", icon: Store },
 ];
 
 const TOP_ITEMS: readonly NavItem[] = [
@@ -166,18 +173,21 @@ export function AppSidebar({
               {t("nav.group.employer")}
             </p>
             <div className="space-y-0.5">
-              <Link
-                href="/employer/jobs"
-                className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                  isNavActive("/employer/jobs", pathname)
-                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
-                )}
-              >
-                <Building2 className="size-4" />
-                <span className="flex-1 truncate">{t("nav.employerJobs")}</span>
-              </Link>
+              {EMPLOYER_ITEMS.map(({ href, key, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                    isNavActive(href, pathname)
+                      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  <span className="flex-1 truncate">{t(key)}</span>
+                </Link>
+              ))}
             </div>
           </div>
         )}

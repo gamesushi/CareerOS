@@ -4,4 +4,5 @@ export * from "./extraction";
 export * from "./jd";
 export * from "./watch";
 export * from "./job-posting";
+export * from "./organization";
 export * from "./resume";

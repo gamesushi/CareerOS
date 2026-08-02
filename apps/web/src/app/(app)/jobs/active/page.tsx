@@ -40,6 +40,8 @@ type ActiveJob = {
    */
   origin: "external" | "posted";
   orgType?: string | null;
+  /** posted 岗若挂了组织，公司名渲染成指向 /c/<slug> 公开主页的链接。 */
+  orgSlug?: string | null;
 };
 
 /** 企业发布岗（/job-postings/feed 返回形状）。 */
@@ -54,6 +56,7 @@ type PostedJob = {
   url?: string | null;
   categories?: string[] | null;
   createdAt: string;
+  org?: { slug: string; name: string; verified: boolean } | null;
 };
 
 /** 企业发布岗 → 列表行。posted 岗没有 matchScore / jdId / raw，对应能力在卡片上自然隐藏。 */
@@ -63,6 +66,7 @@ function postedToRow(p: PostedJob): ActiveJob {
     source: POSTED_SOURCE,
     origin: "posted",
     orgType: p.orgType,
+    orgSlug: p.org?.slug ?? null,
     title: p.title,
     company: p.company,
     location: p.location,
@@ -334,7 +338,22 @@ export default function ActiveJobsPage() {
                         ))}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {[j.company, j.location, j.salary].filter(Boolean).join(" · ")}
+                        {j.orgSlug ? (
+                          <>
+                            <a
+                              href={`/c/${j.orgSlug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:text-foreground hover:underline"
+                            >
+                              {j.company}
+                            </a>
+                            {[j.location, j.salary].filter(Boolean).length > 0 && " · "}
+                            {[j.location, j.salary].filter(Boolean).join(" · ")}
+                          </>
+                        ) : (
+                          [j.company, j.location, j.salary].filter(Boolean).join(" · ")
+                        )}
                         {` · ${
                           j.origin === "posted"
                             ? t(`orgType.${j.orgType}`)

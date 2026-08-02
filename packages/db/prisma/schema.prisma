@@ -207,6 +207,7 @@ model User {
   jobWatches      JobWatch[]
   discoveredJobs  DiscoveredJob[]
   jobPostings     JobPosting[]    @relation("PostedJobs")
+  orgMemberships  OrganizationMember[]
   adminActions    AdminAuditLog[] @relation("AdminActor")
   applications    Application[]
   passwordResetTokens PasswordResetToken[]
@@ -725,6 +726,53 @@ enum JobPostingStatus {
   @@map("job_posting_status")
 }
 
+enum OrgMemberRole {
+  owner     // 建组织的人，唯一能删组织
+  admin     // 可改资料、可管成员
+  recruiter // 只能发岗 / 管自己的岗
+
+  @@map("org_member_role")
+}
+
+// 组织实体（Phase 2）。Phase 1 的岗位只挂在个人名下、company 是自由填写的字符串，
+// 同一家公司的两个岗之间没有任何关联；有了 Organization 才能做公司主页与岗位归属。
+// 注意：orgId 保持可空——个人 HR 不建组织也要能继续发岗（不破坏 Phase 1 行为）。
+model Organization {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique @db.VarChar(64) // 公开主页 /c/<slug>
+  name        String   @db.VarChar(160)
+  orgType     OrgType  @map("org_type") // 与 JobPosting.orgType 同一词表
+  logoUrl     String?  @map("logo_url")
+  website     String?  @db.VarChar(255)
+  description String? // 公司介绍，公开主页展示
+  industry    String?  @db.VarChar(64)
+  size        String?  @db.VarChar(32) // 1-10 / 11-50 / 51-200 / 200+
+  location    String?  @db.VarChar(128)
+  verified    Boolean  @default(false) // 预留：企业实名认证，首期不强制
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  members  OrganizationMember[]
+  postings JobPosting[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId     String        @map("org_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  role      OrgMemberRole @default(recruiter)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
 model JobPosting {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   postedByUserId String           @map("posted_by_user_id") @db.Uuid
@@ -749,10 +797,13 @@ model JobPosting {
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
   closedAt       DateTime?        @map("closed_at") @db.Timestamptz() // 发布者主动下架时间
 
-  postedBy User @relation("PostedJobs", fields: [postedByUserId], references: [id], onDelete: Cascade)
+  postedBy User          @relation("PostedJobs", fields: [postedByUserId], references: [id], onDelete: Cascade)
+  // SetNull 而非 Cascade：删组织不该连带删岗位，历史岗退化为「个人发布」
+  org      Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
   @@index([status, reviewStatus, createdAt(sort: Desc)]) // 候选端公共流扫描
   @@index([postedByUserId, createdAt(sort: Desc)]) // 「我的发布」
+  @@index([orgId, status, reviewStatus]) // 公司主页岗位列表
   @@map("job_postings")
 }
 

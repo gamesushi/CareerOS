@@ -17,6 +17,8 @@ export const orgTypeIds = ORG_TYPES.map((o) => o.id) as unknown as [string, ...s
 export const EMPLOYER_ROLES = ["recruiter", "enterprise", "admin"] as const;
 
 export const jobPostingCreateInput = z.object({
+  /** 以组织名义发布时传组织 id；服务端会校验成员身份，并用组织名覆盖 company。 */
+  orgId: z.string().uuid().optional(),
   orgType: z.enum(["individual_hr", "startup", "non_company_team"]),
   company: z.string().trim().min(2, "公司/团队名至少 2 个字符").max(128),
   title: z.string().trim().min(2, "职位名称至少 2 个字符").max(200),

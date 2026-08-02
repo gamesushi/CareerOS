@@ -16,10 +16,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
+type MyOrg = { id: string; slug: string; name: string; orgType: string };
+
 type Posting = {
   id: string;
   orgType: string;
   company: string;
+  org?: { slug: string; name: string } | null;
   title: string;
   location?: string | null;
   salary?: string | null;
@@ -34,6 +37,8 @@ type Posting = {
 };
 
 const EMPTY = {
+  /** "" = 以个人名义发布；否则是某个组织的 id。 */
+  orgId: "",
   orgType: "startup" as (typeof ORG_TYPES)[number]["id"],
   company: "",
   title: "",
@@ -49,10 +54,15 @@ export function EmployerJobs() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<Posting[] | null>(null);
+  const [orgs, setOrgs] = useState<MyOrg[]>([]);
 
   const load = useCallback(async () => {
-    const res = await api<{ data: Posting[] }>("/job-postings");
-    if (res) setItems(res.data);
+    const [postings, myOrgs] = await Promise.all([
+      api<{ data: Posting[] }>("/job-postings"),
+      api<{ data: MyOrg[] }>("/organizations", { silent: true }),
+    ]);
+    if (postings) setItems(postings.data);
+    if (myOrgs) setOrgs(myOrgs.data);
   }, []);
 
   useEffect(() => {
@@ -77,6 +87,8 @@ export function EmployerJobs() {
     const res = await api<{ id: string }>("/job-postings", {
       method: "POST",
       body: JSON.stringify({
+        // 传了 orgId 时服务端会用组织名/类型覆盖下面两项，这里照常带上兜底
+        orgId: form.orgId || undefined,
         orgType: form.orgType,
         company: form.company.trim(),
         title: form.title.trim(),
@@ -124,26 +136,66 @@ export function EmployerJobs() {
 
       <Card>
         <CardContent className="space-y-3 py-4">
-          <div className="space-y-1.5">
-            <Label>{t("employer.field.orgType")}</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {ORG_TYPES.map((o) => {
-                const on = form.orgType === o.id;
-                return (
+          {/* 有组织时先选「以谁的名义发布」；选了组织就锁定公司名与主体类型，
+              避免同一组织的不同岗写出不同公司名，把公司主页拆散。 */}
+          {orgs.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>{t("employer.field.postAs")}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, orgId: "" }))}
+                  className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                    !form.orgId ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                  }`}
+                >
+                  {t("employer.postAsSelf")}
+                </button>
+                {orgs.map((o) => (
                   <button
                     key={o.id}
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, orgType: o.id }))}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        orgId: o.id,
+                        company: o.name,
+                        orgType: o.orgType as (typeof ORG_TYPES)[number]["id"],
+                      }))
+                    }
                     className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
-                      on ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                      form.orgId === o.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
                     }`}
                   >
-                    {t(`orgType.${o.id}`)}
+                    {o.name}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {!form.orgId && (
+            <div className="space-y-1.5">
+              <Label>{t("employer.field.orgType")}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {ORG_TYPES.map((o) => {
+                  const on = form.orgType === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, orgType: o.id }))}
+                      className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                        on ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                      }`}
+                    >
+                      {t(`orgType.${o.id}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -152,7 +204,11 @@ export function EmployerJobs() {
                 placeholder={t("employer.companyPlaceholder")}
                 value={form.company}
                 onChange={set("company")}
+                disabled={!!form.orgId}
               />
+              {form.orgId && (
+                <p className="text-xs text-muted-foreground">{t("employer.companyLocked")}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t("employer.field.title")} *</Label>
@@ -240,7 +296,18 @@ export function EmployerJobs() {
             <CardContent className="space-y-2 py-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{p.title}</span>
-                <span className="text-sm text-muted-foreground">{p.company}</span>
+                {p.org ? (
+                  <a
+                    href={`/c/${p.org.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    {p.company}
+                  </a>
+                ) : (
+                  <span className="text-sm text-muted-foreground">{p.company}</span>
+                )}
                 {p.location && <span className="text-xs text-muted-foreground">{p.location}</span>}
                 {p.salary && <span className="text-xs text-muted-foreground">{p.salary}</span>}
                 <StatusBadges posting={p} t={t} />

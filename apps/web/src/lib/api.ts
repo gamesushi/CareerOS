@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@careeros/db";
+import { ApiError } from "@/lib/errors";
 import { getSession } from "@/lib/auth";
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-    public details?: unknown,
-  ) {
-    super(message);
-  }
-}
+// ApiError 定义在 lib/errors.ts（不依赖 next-auth），此处再导出保持既有 import 路径不变。
+export { ApiError } from "@/lib/errors";
 
 /** 取当前登录用户 id，未登录抛 401。所有业务查询必须带上返回的 userId 做行级隔离。 */
 export async function requireUser(): Promise<{ userId: string; role: string }> {
