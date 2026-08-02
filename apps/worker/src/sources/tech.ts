@@ -1,4 +1,5 @@
 import { makeGreenhouseSource } from "./greenhouse";
+import { makeAshbySource } from "./ashby";
 
 // 美国科技 / AI / 社交 / 出行 / 电商 / 教育 / 旅游 / 加密行业来源。
 // 全部为 Greenhouse（greenhouse.io）官方招聘板，公开 JSON 接口、无需鉴权。
@@ -54,3 +55,25 @@ export const sigmacomputingSource = makeGreenhouseSource({ id: "sigmacomputing",
 export const amplitudeSource = makeGreenhouseSource({ id: "amplitude", label: "Amplitude", board: "amplitude", category: "tech" });
 export const mixpanelSource = makeGreenhouseSource({ id: "mixpanel", label: "Mixpanel", board: "mixpanel", category: "tech" });
 export const robloxSource = makeGreenhouseSource({ id: "roblox", label: "Roblox", board: "roblox", category: "game" });
+
+// ===== Ashby 招聘板来源（AI / 大模型 / 游戏厂，实网验证 2026-08-01 返回真实岗位）=====
+// Ashby 是 AI 初创公司主流 ATS；一行 makeAshbySource 接入。
+export const openaiSource = makeAshbySource({ id: "openai", label: "OpenAI", org: "openai", category: "ai" });
+export const cohereSource = makeAshbySource({ id: "cohere", label: "Cohere", org: "cohere", category: "ai" });
+export const perplexitySource = makeAshbySource({ id: "perplexity", label: "Perplexity", org: "perplexity", category: "ai" });
+export const elevenlabsSource = makeAshbySource({ id: "elevenlabs", label: "ElevenLabs", org: "elevenlabs", category: "ai" });
+export const characterSource = makeAshbySource({ id: "character", label: "Character.AI", org: "character", category: "ai" });
+export const replitSource = makeAshbySource({ id: "replit", label: "Replit", org: "replit", category: "ai" });
+export const runwaySource = makeAshbySource({ id: "runway", label: "Runway", org: "runway", category: "ai" });
+export const mercorSource = makeAshbySource({ id: "mercor", label: "Mercor", org: "mercor", category: "ai" });
+export const fireworksSource = makeAshbySource({ id: "fireworks", label: "Fireworks AI", org: "fireworks", category: "ai" });
+export const lambdaSource = makeAshbySource({ id: "lambda", label: "Lambda Labs", org: "lambda", category: "ai" });
+export const cursorSource = makeAshbySource({ id: "cursor", label: "Cursor", org: "cursor", category: "ai" });
+// 游戏厂（Ashby）
+export const supercellSource = makeAshbySource({ id: "supercell", label: "Supercell", org: "supercell", category: "game" });
+export const ghostSource = makeAshbySource({ id: "ghost", label: "Ghost Story Games", org: "ghost", category: "game" });
+
+// Greenhouse 的 AI 板（实网验证 2026-08-01）
+export const xaiSource = makeGreenhouseSource({ id: "xai", label: "xAI", board: "xai", category: "ai" });
+export const stabilityaiSource = makeGreenhouseSource({ id: "stabilityai", label: "Stability AI", board: "stabilityai", category: "ai" });
+export const thinkingmachinesSource = makeGreenhouseSource({ id: "thinkingmachines", label: "Thinking Machines", board: "thinkingmachines", category: "ai" });

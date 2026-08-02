@@ -19,8 +19,14 @@ export const SECTION_TITLES: Record<string, Record<string, string>> = {
 
 export const titlesFor = (lang?: string) => SECTION_TITLES[lang ?? "zh"] ?? SECTION_TITLES.zh;
 
-export const range = (start?: string, end?: string, presentLabel = "至今") =>
-  start || end ? `${start ?? ""} ~ ${end || presentLabel}` : "";
+export const range = (start?: string, end?: string, presentLabel?: string, lang?: string) => {
+  if (!start && !end) return "";
+  let p = presentLabel;
+  if (!p || p === "至今") {
+    p = lang === "en" ? "Present" : lang?.startsWith("ja") ? "現在" : "至今";
+  }
+  return `${start ?? ""} ~ ${end || p}`;
+};
 
 export const contactLine = (b: JsonResume["basics"]) =>
   [b.email, b.phone, b.location, b.url].filter(Boolean).join("  ·  ");

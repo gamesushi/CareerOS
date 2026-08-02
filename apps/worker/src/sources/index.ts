@@ -1,4 +1,5 @@
 import type { JobSource } from "./types";
+import { HARVESTED } from "./harvested";
 import { tencentSource } from "./tencent";
 import { bytedanceSource } from "./bytedance";
 import { liepinSource } from "./liepin";
@@ -42,11 +43,15 @@ import {
   redwoodmaterialsSource, udemySource, udacitySource, masterclassSource, kayakSource,
   flexportSource, newrelicSource, honeycombSource, sigmacomputingSource, amplitudeSource,
   mixpanelSource, robloxSource,
+  openaiSource, cohereSource, perplexitySource, elevenlabsSource, characterSource, replitSource,
+  runwaySource, mercorSource, fireworksSource, lambdaSource, cursorSource,
+  supercellSource, ghostSource, xaiSource, stabilityaiSource, thinkingmachinesSource,
 } from "./tech";
 import { spotifySource, binanceSource, angellistSource, theAthleticSource, houzzSource } from "./lever";
 
 // 新增来源：实现 JobSource 后在此注册。
 export const SOURCES: Record<string, JobSource> = {
+  ...HARVESTED,
   [tencentSource.id]: tencentSource,
   [bytedanceSource.id]: bytedanceSource,
   [liepinSource.id]: liepinSource,
@@ -149,6 +154,24 @@ export const SOURCES: Record<string, JobSource> = {
   [amplitudeSource.id]: amplitudeSource,
   [mixpanelSource.id]: mixpanelSource,
   [robloxSource.id]: robloxSource,
+  // Ashby 招聘板（AI / 大模型 / 游戏厂，实网验证 2026-08-01）
+  [openaiSource.id]: openaiSource,
+  [cohereSource.id]: cohereSource,
+  [perplexitySource.id]: perplexitySource,
+  [elevenlabsSource.id]: elevenlabsSource,
+  [characterSource.id]: characterSource,
+  [replitSource.id]: replitSource,
+  [runwaySource.id]: runwaySource,
+  [mercorSource.id]: mercorSource,
+  [fireworksSource.id]: fireworksSource,
+  [lambdaSource.id]: lambdaSource,
+  [cursorSource.id]: cursorSource,
+  [supercellSource.id]: supercellSource,
+  [ghostSource.id]: ghostSource,
+  // Greenhouse 的 AI 板（实网验证 2026-08-01）
+  [xaiSource.id]: xaiSource,
+  [stabilityaiSource.id]: stabilityaiSource,
+  [thinkingmachinesSource.id]: thinkingmachinesSource,
   // Lever 招聘板（公开 JSON，无鉴权）
   [spotifySource.id]: spotifySource,
   [binanceSource.id]: binanceSource,

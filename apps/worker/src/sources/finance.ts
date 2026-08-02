@@ -70,96 +70,119 @@ function parseCnDate(s?: string): Date | undefined {
 
 // 中国平安 — 保险 / 综合金融
 // 接口：talent.pingan.com/zztj-recruit-talent-webserver/rctt/candidate/position/getPositionList
+// 整板抓取型：忽略关键词，search 与 fetchAll 复用同一逻辑（一次轮询内按来源缓存）。
+const pinganFetchAll = async (): Promise<SourceJob[]> => {
+  const data = await withApiCapture<SourceJob[] | null>(
+    "https://talent.pingan.com/recruit/social.html",
+    (u) => /getPositionList/.test(u),
+    (json: any) => {
+      const list: any[] = json?.data?.list ?? json?.data ?? [];
+      return list.map((p) => {
+        const id = p.positionId || p.atsPositionId || p.id;
+        const title = p.positionShowName || p.positionName || "(untitled)";
+        const text = `${title} ${p.businessUnitName ?? ""} ${p.addressName ?? ""}`;
+        const url = `https://talent.pingan.com/recruit/socialPosition.html?positionId=${encodeURIComponent(id)}`;
+        return {
+          externalId: `pingan-${id}`,
+          title,
+          company: p.businessUnitName,
+          location: p.addressName,
+          url,
+          snippet: `${p.duty ?? ""} ${p.qualification ?? ""}`.slice(0, 500).trim(),
+          publishedAt: parseCnDate(p.updateDate ?? p.uDate),
+          categories: deriveCategories(text, "finance"),
+          raw: p,
+        } as SourceJob;
+      });
+    },
+  );
+  return data ?? [];
+};
 export const pinganSource: JobSource = {
   id: "pingan",
   label: "中国平安",
   category: "finance",
-  async search(): Promise<SourceJob[]> {
-    const data = await withApiCapture<SourceJob[] | null>(
-      "https://talent.pingan.com/recruit/social.html",
-      (u) => /getPositionList/.test(u),
-      (json: any) => {
-        const list: any[] = json?.data?.list ?? json?.data ?? [];
-        return list.slice(0, 30).map((p) => {
-          const id = p.positionId || p.atsPositionId || p.id;
-          const title = p.positionShowName || p.positionName || "(untitled)";
-          const text = `${title} ${p.businessUnitName ?? ""} ${p.addressName ?? ""}`;
-          const url = `https://talent.pingan.com/recruit/socialPosition.html?positionId=${encodeURIComponent(id)}`;
-          return {
-            externalId: `pingan-${id}`,
-            title,
-            company: p.businessUnitName,
-            location: p.addressName,
-            url,
-            snippet: `${p.duty ?? ""} ${p.qualification ?? ""}`.slice(0, 500).trim(),
-            publishedAt: parseCnDate(p.updateDate ?? p.uDate),
-            categories: deriveCategories(text, "finance"),
-            raw: p,
-          } as SourceJob;
-        });
-      },
-    );
-    return data ?? [];
-  },
+  fetchAll: pinganFetchAll,
+  search: pinganFetchAll,
 };
 
 // 易方达基金 — 基金（best-effort：无公开招聘接口）
+// 整板抓取型：search 与 fetchAll 相同（返回空），一次轮询内按来源缓存避免重复探测。
+const efundFetchAll = async (): Promise<SourceJob[]> => {
+  // 经探测：官网(efunds.com.cn)为品牌站，/recruitment、/zhaopin、/social 等子路径均 404，
+  // 首页无招聘入口链接，疑似走内网或第三方 ATS（无公开端点）。纯 Web 无法抓取，维持 best-effort。
+  // 若后续获得其 ATS 接口或招聘子域，可在此接入 withApiCapture。
+  return [];
+};
 export const efundSource: JobSource = {
   id: "efund",
   label: "易方达基金",
   category: "finance",
-  async search(): Promise<SourceJob[]> {
-    // 经探测：官网(efunds.com.cn)为品牌站，/recruitment、/zhaopin、/social 等子路径均 404，
-    // 首页无招聘入口链接，疑似走内网或第三方 ATS（无公开端点）。纯 Web 无法抓取，维持 best-effort。
-    // 若后续获得其 ATS 接口或招聘子域，可在此接入 withApiCapture。
-    return [];
-  },
+  fetchAll: efundFetchAll,
+  search: efundFetchAll,
 };
 
 // 招商银行 — 银行
 // 接口：career.cmbchina.com/api/socialRecruitmentWebsite/job/getList （POST）
 // 返回结构：{ returnCode, body: { total, data: [ { jobDisplay, branchCodeName, location, publishGID, ... } ] } }
-export const cmbSource: JobSource = {
-  id: "cmb",
-  label: "招商银行",
-  category: "finance",
-  async search(): Promise<SourceJob[]> {
-    return withBrowser(async ({ page, goto }) => {
-      // 先加载页面建立上下文/cookie，再以前端相同方式 POST 该接口（pageSize 放大到 50）
-      await goto("https://career.cmbchina.com/social/home");
+// 整板抓取型：忽略关键词，search 与 fetchAll 复用同一逻辑（一次轮询内按来源缓存，避免多关键词反复启无头浏览器）。
+const cmbFetchAll = async (): Promise<SourceJob[]> => {
+  return withBrowser(async ({ page, goto }) => {
+    // 先加载页面建立上下文/cookie，再以前端相同方式 POST 该接口并翻页（pageSize=50，到末页即停）。
+    await goto("https://career.cmbchina.com/social/home");
+    const all: any[] = [];
+    const seen = new Set<string>();
+    for (let pageIndex = 1; pageIndex <= 50; pageIndex++) {
       const json = (await page
-        .evaluate(async () => {
+        .evaluate(async (pi) => {
           const r = await fetch(
             "https://career.cmbchina.com/api/socialRecruitmentWebsite/job/getList",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ jobTypeIdList: [], orgIdList: [], pageIndex: 1, pageSize: 50 }),
+              body: JSON.stringify({ jobTypeIdList: [], orgIdList: [], pageIndex: pi, pageSize: 50 }),
             },
           );
           return r.json();
-        })
+        }, pageIndex)
         .catch(() => null)) as any;
-      if (!json) return [];
+      if (!json) break;
       const wrapper = json?.body ?? json;
       const list: any[] = wrapper?.data ?? wrapper?.list ?? [];
-      return list.slice(0, 40).map((p) => {
-        const title = p.jobDisplay || p.name || p.title || "(untitled)";
-        const text = `${title} ${p.branchCodeName ?? ""} ${p.location ?? ""}`;
-        const id = p.publishGID || p.id || title;
-        const url = p.jobUrl || p.url || p.detailUrl || "https://career.cmbchina.com/social/home";
-        return {
-          externalId: `cmb-${id}`,
-          title,
-          company: p.branchCodeName || "招商银行",
-          location: p.locationName ?? p.location,
-          salary: p.salary ?? p.salaryRange,
-          url: url.startsWith("http") ? url : `https://career.cmbchina.com${url}`,
-          snippet: typeof p.description === "string" ? p.description.slice(0, 500) : undefined,
-          categories: deriveCategories(text, "finance"),
-          raw: p,
-        } as SourceJob;
-      });
+      if (list.length === 0) break;
+      let added = 0;
+      for (const p of list) {
+        const id = String(p.publishGID || p.id || "");
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        all.push(p);
+        added++;
+      }
+      if (list.length < 50 || added === 0) break;
+    }
+    return all.map((p) => {
+      const title = p.jobDisplay || p.name || p.title || "(untitled)";
+      const text = `${title} ${p.branchCodeName ?? ""} ${p.location ?? ""}`;
+      const id = p.publishGID || p.id || title;
+      const url = p.jobUrl || p.url || p.detailUrl || "https://career.cmbchina.com/social/home";
+      return {
+        externalId: `cmb-${id}`,
+        title,
+        company: p.branchCodeName || "招商银行",
+        location: p.locationName ?? p.location,
+        salary: p.salary ?? p.salaryRange,
+        url: url.startsWith("http") ? url : `https://career.cmbchina.com${url}`,
+        snippet: typeof p.description === "string" ? p.description.slice(0, 500) : undefined,
+        categories: deriveCategories(text, "finance"),
+        raw: p,
+      } as SourceJob;
     });
-  },
+  });
+};
+export const cmbSource: JobSource = {
+  id: "cmb",
+  label: "招商银行",
+  category: "finance",
+  fetchAll: cmbFetchAll,
+  search: cmbFetchAll,
 };

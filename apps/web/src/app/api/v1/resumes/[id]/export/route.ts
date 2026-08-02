@@ -35,7 +35,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
   const rawJson = jsonResume.safeParse(resume.resumeJson);
   if (!rawJson.success) return new Response("简历内容尚未生成或格式无效", { status: 409 });
-  const merged = mergePersonalIntoResume(rawJson.data, owner ?? {}, owner?.careerProfile ?? null);
+  const merged = mergePersonalIntoResume(
+    { ...rawJson.data, templateId: resume.templateId, resumeType: resume.resumeType },
+    owner ?? {},
+    owner?.careerProfile ?? null,
+  );
   const url = new URL(req.url);
   const template = resolveTemplate(url.searchParams.get("template") ?? resume.templateId);
   const accentParam = url.searchParams.get("accent");

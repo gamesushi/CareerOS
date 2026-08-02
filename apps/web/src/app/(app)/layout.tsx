@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@careeros/db";
+import { EMPLOYER_ROLES } from "@careeros/shared";
 import { getSession } from "@/lib/auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TosGate } from "@/components/tos-gate";
@@ -52,6 +53,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // 角色以 DB 为准（修复 JWT role 滞后），即时同步侧边栏与管理入口。
   const isAdmin = u?.role === "admin";
+  // 招聘者入口同理：用户在设置页自助开启发岗后，无需重新登录即可看到「发布岗位」。
+  const isRecruiter = !!u && EMPLOYER_ROLES.includes(u.role as (typeof EMPLOYER_ROLES)[number]);
 
   // 用户证件照（base64 dataURL），用于侧栏头像，有即显示、无则回退首字母。
   const userPhoto =
@@ -63,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userName={session.user.name ?? ""}
         userEmail={session.user.email ?? ""}
         isAdmin={isAdmin}
+        isRecruiter={isRecruiter}
         userPhoto={userPhoto}
       />
       <main className="min-w-0 flex-1 bg-muted/20 px-8 py-6">{children}</main>

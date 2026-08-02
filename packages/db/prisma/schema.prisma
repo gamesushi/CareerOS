@@ -206,6 +206,7 @@ model User {
   connectionsTo   Connection[] @relation("ConnTo")
   jobWatches      JobWatch[]
   discoveredJobs  DiscoveredJob[]
+  jobPostings     JobPosting[]    @relation("PostedJobs")
   adminActions    AdminAuditLog[] @relation("AdminActor")
   applications    Application[]
   passwordResetTokens PasswordResetToken[]
@@ -648,6 +649,7 @@ model JobWatch {
   enabled         Boolean   @default(true)
   lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz()
   lastError       String?   @map("last_error")
+  lastResult      String?   @map("last_result") // 最近一次抓取结果 JSON：{scanned,created,updated,closed,deleted,found}
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -690,6 +692,7 @@ model DiscoveredJob {
   reviewedById   String?         @map("reviewed_by_id") @db.Uuid   // 审核操作的管理员 id（审计冗余）
   reviewNote     String?         @map("review_note") @db.VarChar(500) // 拒绝理由等备注
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz()
+  closedAt    DateTime?           @map("closed_at") @db.Timestamptz() // 停招时间：该次运行未在抓取结果中出现则标记；超 14 天由 worker 清理
 
   watch JobWatch        @relation(fields: [watchId], references: [id], onDelete: Cascade)
   user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -699,6 +702,58 @@ model DiscoveredJob {
   @@index([userId, status, createdAt(sort: Desc)])
   @@index([reviewStatus, createdAt(sort: Desc)]) // 审核队列扫描
   @@map("discovered_jobs")
+}
+
+// ============ B 端雇主发岗（posting-only） ============
+// 与 DiscoveredJob 的关键区别：DiscoveredJob 是「每用户私有」的抓取 feed（按 userId 行级隔离），
+// JobPosting 是「全局公共」的雇主发布岗，任何候选人都能看到同一批。两者语义不同，故分表。
+
+enum OrgType {
+  individual_hr    // HR 个人
+  startup          // 创业公司
+  non_company_team // 创业团队（未注册主体）
+  enterprise       // 预留：大型企业，首期表单不可选（多有自有 ATS，需求弱）
+
+  @@map("org_type")
+}
+
+enum JobPostingStatus {
+  draft
+  open
+  closed
+
+  @@map("job_posting_status")
+}
+
+model JobPosting {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postedByUserId String           @map("posted_by_user_id") @db.Uuid
+  orgId          String?          @map("org_id") @db.Uuid // 预留：将来接 Organization/Company，历史岗不用迁移
+  orgType        OrgType          @map("org_type")
+  company        String           @db.VarChar(128) // 展示用公司 / 团队名
+  title          String           @db.VarChar(200)
+  location       String?          @db.VarChar(128)
+  salary         String?          @db.VarChar(64)
+  description    String // 完整 JD 文本
+  url            String? // 外链申请地址；首期无站内投递
+  categories     Json             @default("[]") // 品类标签数组，与 DiscoveredJob.categories 同构（game/finance/tech/ai）
+  status         JobPostingStatus @default(draft)
+  // 治理：复用 DiscoveredJob 同款审核流与下架能力，避免 B 端成为绕过审核的入口
+  reviewStatus   JobReviewStatus  @default(pending) @map("review_status")
+  reviewedAt     DateTime?        @map("reviewed_at") @db.Timestamptz()
+  reviewedById   String?          @map("reviewed_by_id") @db.Uuid // 审核管理员 id（审计冗余）
+  reviewNote     String?          @map("review_note") @db.VarChar(500)
+  takenDownAt    DateTime?        @map("taken_down_at") @db.Timestamptz() // 管理员下架：非空则不进候选端
+  takenDownById  String?          @map("taken_down_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz() // 发布者主动下架时间
+
+  postedBy User @relation("PostedJobs", fields: [postedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([status, reviewStatus, createdAt(sort: Desc)]) // 候选端公共流扫描
+  @@index([postedByUserId, createdAt(sort: Desc)]) // 「我的发布」
+  @@map("job_postings")
 }
 
 // ============ 社交（预留） / 向量 / 审计 ============

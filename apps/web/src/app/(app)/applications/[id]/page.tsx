@@ -8,6 +8,7 @@ import { api, fmtDate } from "@/lib/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/lib/i18n/provider";
+import { extractFullJd } from "@/lib/jd";
 
 type Event = { id: string; kind: string; fromStage?: string | null; toStage?: string | null; note?: string | null; createdAt: string };
 type Detail = {
@@ -15,6 +16,7 @@ type Detail = {
   url?: string | null; stage: string; matchScore?: number | null; notes?: string | null;
   nextAction?: string | null; nextActionAt?: string | null; source?: string | null;
   resume?: { id: string; title: string } | null; events: Event[];
+  discoveredJob?: { snippet: string | null; raw: unknown; source: string } | null;
 };
 
 const STAGES = ["considering", "applied", "screening", "interview", "offer", "rejected"] as const;
@@ -101,6 +103,20 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           {d.url && <> · <a href={d.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{t("apps.origLink")} <ExternalLink className="inline size-3" /></a></>}
         </p>
       </header>
+
+      {d.discoveredJob && (
+        <section className="rounded-lg border bg-card p-4">
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t("apps.jobDescription")}</h2>
+          {(() => {
+            const jd = extractFullJd(d.discoveredJob.raw, d.discoveredJob.snippet);
+            return jd ? (
+              <div className="max-h-[360px] overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-foreground">{jd}</div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("apps.noJobDescription")}</p>
+            );
+          })()}
+        </section>
+      )}
 
       <section className="rounded-lg border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2 text-sm">

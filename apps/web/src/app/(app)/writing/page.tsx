@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Copy, Sparkles } from "lucide-react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/button";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
 
 const DOC_TYPES = [
   { key: "cover_letter", label: "writing.type.cover" },
@@ -23,10 +23,18 @@ const TONES = [
   { key: "concise", label: "writing.tone.concise" },
 ] as const;
 
+// 把 UI locale 归并到生成类支持的文档语言（zh/en/ja）。
+function docLangFor(locale: string): "zh" | "en" | "ja" {
+  if (locale.startsWith("ja")) return "ja";
+  if (locale.startsWith("en")) return "en";
+  return "zh";
+}
+
 export default function WritingStudioPage() {
   const t = useT();
+  const locale = useLocale();
   const [docType, setDocType] = useState<string>("cover_letter");
-  const [language, setLanguage] = useState<string>("zh");
+  const [language, setLanguage] = useState<string>(() => docLangFor(locale));
   const [tone, setTone] = useState<string>("formal");
   const [context, setContext] = useState("");
   const [points, setPoints] = useState("");

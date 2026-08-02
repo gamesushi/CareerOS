@@ -17,7 +17,7 @@ export const liepinSource: JobSource = {
       (u) => /pc-search-job(?=\?|$)/.test(u),
       (json: any) => {
         const list: any[] = json?.data?.data?.jobCardList ?? [];
-        return list.slice(0, 20).map((card) => {
+        return list.map((card) => {
           const job = card.job ?? {};
           const comp = card.comp ?? {};
           const text = `${job.title ?? ""} ${comp.compName ?? ""} ${job.dq ?? ""} ${job.salary ?? ""}`;

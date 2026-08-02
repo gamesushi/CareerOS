@@ -45,42 +45,49 @@ function toArr(x: string[] | string | undefined): string[] {
 }
 
 export function makeLeverSource(opts: LeverOptions): JobSource {
+  // 整板抓取：Lever 公开接口一次性返回该司全部开放岗位（无服务端分页/关键词过滤）。
+  // 2000 仅作安全上限（任何公司的真实在招数都远小于此），实现"抓取全量"。
+  const fetchAll = async (): Promise<SourceJob[]> => {
+    const url = `https://api.lever.co/v0/postings/${encodeURIComponent(opts.company)}?mode=json`;
+    const data = await fetchJson<LeverPosting[]>(url);
+    const all: LeverPosting[] = Array.isArray(data) ? data : [];
+    const LIMIT = 2000;
+    return all.slice(0, LIMIT).map((j) => {
+      const locParts = toArr(j.categories?.location);
+      const teamParts = toArr(j.categories?.team);
+      const loc = locParts.length
+        ? locParts.join(", ")
+        : typeof j.country === "string"
+          ? j.country
+          : undefined;
+      const title = j.text ?? "(untitled)";
+      const text = `${title} ${loc ?? ""} ${teamParts.join(" ")}`;
+      return {
+        externalId: `${opts.id}-${j.id}`,
+        title,
+        company: j.company ?? opts.label,
+        location: loc,
+        url:
+          j.hostedUrl ??
+          j.applyUrl ??
+          `https://jobs.lever.co/${opts.company}/${j.id}`,
+        snippet: stripHtml(j.descriptionPlain).slice(0, 500),
+        publishedAt: j.createdAt ? new Date(j.createdAt) : undefined,
+        categories: deriveCategories(text, opts.category),
+        raw: j,
+      };
+    });
+  };
+
   return {
     id: opts.id,
     label: opts.label,
     category: opts.category,
+    fetchAll,
     async search(keyword: string): Promise<SourceJob[]> {
-      const url = `https://api.lever.co/v0/postings/${encodeURIComponent(opts.company)}?mode=json`;
-      const data = await fetchJson<LeverPosting[]>(url);
-      const all: LeverPosting[] = Array.isArray(data) ? data : [];
+      const all = await fetchAll();
       const kw = keyword.trim().toLowerCase();
-      const matched = kw ? all.filter((j) => (j.text ?? "").toLowerCase().includes(kw)) : all;
-
-      return matched.slice(0, 20).map((j) => {
-        const locParts = toArr(j.categories?.location);
-        const teamParts = toArr(j.categories?.team);
-        const loc = locParts.length
-          ? locParts.join(", ")
-          : typeof j.country === "string"
-            ? j.country
-            : undefined;
-        const title = j.text ?? "(untitled)";
-        const text = `${title} ${loc ?? ""} ${teamParts.join(" ")}`;
-        return {
-          externalId: `${opts.id}-${j.id}`,
-          title,
-          company: j.company ?? opts.label,
-          location: loc,
-          url:
-            j.hostedUrl ??
-            j.applyUrl ??
-            `https://jobs.lever.co/${opts.company}/${j.id}`,
-          snippet: stripHtml(j.descriptionPlain).slice(0, 500),
-          publishedAt: j.createdAt ? new Date(j.createdAt) : undefined,
-          categories: deriveCategories(text, opts.category),
-          raw: j,
-        };
-      });
+      return kw ? all.filter((j) => (j.title ?? "").toLowerCase().includes(kw)) : all;
     },
   };
 }

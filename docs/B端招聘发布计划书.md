@@ -1,5 +1,14 @@
 # B 端招聘发布模块 · 实施计划书
 
+> ⚠️ **本文档是长期演进方向，不是当前实现。第一步已按 [`b-end-plan.md`](./b-end-plan.md)（posting-only）落地。**
+>
+> - 已落地的表是 **`JobPosting`**（单表、无组织实体、`orgId` 预留可空外键位），**不是**本文的 `Company` + `JobPost` 四件套。
+>   本文的 `JobPost` 与已落地的 `JobPosting` 是同一件事的两代设计——**演进方式是给 `JobPosting` 挂 `orgId`，不要新建 `JobPost` 表**。
+> - 本文 §5.2 说的「候选端 `/jobs` 聚合」也不成立：`DiscoveredJob` 是每用户私有 feed，没有公共岗位流，
+>   实际做法是 `/jobs/active` 双源客户端合流（见 `b-end-plan.md` §7）。
+> - 本文仍然有效的部分：公司主页（`Company`/`CompanyMember`）、站内投递（`JobApplication`）、多招聘官协作、AI 辅助写 JD ——
+>   这些是 posting-only 之后的第二步，等有真实发布量再做。
+>
 > 目标：让企业（公司/招聘方）在本网站注册公司主页、发布招聘岗位、并管理候选人投递。
 > 本文档为**计划书（Plan）**，仅规划方案，不落地代码。确认后再分阶段实施。
 

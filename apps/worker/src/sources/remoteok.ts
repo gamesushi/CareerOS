@@ -40,7 +40,8 @@ export const remoteokSource: JobSource = {
 
     return list
       .filter((j) => j && j.id && j.position)
-      .slice(0, 20)
+      // RemoteOK /api 一次性返回匹配标签的全部岗位；2000 作安全上限实现"抓取全量"。
+      .slice(0, 2000)
       .map((j) => ({
         externalId: `remoteok-${j.id}`,
         title: j.position!,

@@ -11,9 +11,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel,
 } from "@/components/ui/select";
-import { filterTemplatesForType, TYPE_DEFAULT_TEMPLATE } from "@/lib/pdf/template-meta";
+import { TYPE_DEFAULT_TEMPLATE, getTemplatesGroupedByLang } from "@/lib/pdf/template-meta";
 import { Loader2, Globe, Sparkles, FileText } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
@@ -115,15 +115,15 @@ export function DeriveResumeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Globe className="size-5 text-primary" />
             {t("resumes.deriveLanguage")}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
           {/* 1. 目标语言 */}
           <div className="space-y-1.5">
             <Label>目标语言与格式</Label>
@@ -189,17 +189,22 @@ export function DeriveResumeDialog({
             <Select value={templateId} onValueChange={setTemplateId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {filterTemplatesForType(targetType).map((tm) => (
-                  <SelectItem key={tm.id} value={tm.id}>
-                    {tm.name} — {tm.description}
-                  </SelectItem>
+                {getTemplatesGroupedByLang().map((grp) => (
+                  <SelectGroup key={grp.group}>
+                    <SelectLabel className="text-xs font-semibold text-muted-foreground">{grp.label}</SelectLabel>
+                    {grp.items.map((tm) => (
+                      <SelectItem key={tm.id} value={tm.id}>
+                        {tm.name} — {tm.description}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? <Loader2 className="size-4 animate-spin mr-1" /> : null}

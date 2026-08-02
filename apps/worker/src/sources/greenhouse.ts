@@ -30,38 +30,45 @@ type GhJob = {
 };
 
 export function makeGreenhouseSource(opts: GreenhouseOptions): JobSource {
+  // 整板抓取：Greenhouse 公开接口一次性返回该 board 全部在招岗位（无服务端分页/关键词过滤）。
+  // 2000 仅作安全上限（任何公司的真实在招数都远小于此），实现"抓取全量"。
+  const fetchAll = async (): Promise<SourceJob[]> => {
+    const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(
+      opts.board,
+    )}/jobs?content=false`;
+    const data = await fetchJson<{ jobs?: GhJob[] }>(url);
+    const all = data.jobs ?? [];
+    const LIMIT = 2000;
+    return all.slice(0, LIMIT).map((j) => {
+      const loc = typeof j.location === "string" ? j.location : j.location?.name;
+      const text = `${j.title ?? ""} ${j.company ?? ""} ${loc ?? ""}`;
+      return {
+        externalId: `${opts.id}-${j.id}`,
+        title: j.title ?? "(untitled)",
+        company: j.company ?? opts.label,
+        location: loc,
+        url:
+          j.absolute_url ??
+          j.url ??
+          `https://boards-api.greenhouse.io/v1/boards/${opts.board}/jobs/${j.id}`,
+        snippet: stripHtml(j.content).slice(0, 500),
+        publishedAt: j.updated_at ? new Date(j.updated_at) : undefined,
+        categories: deriveCategories(text, opts.category),
+        raw: j,
+      };
+    });
+  };
+
   return {
     id: opts.id,
     label: opts.label,
     category: opts.category,
+    fetchAll,
     async search(keyword: string): Promise<SourceJob[]> {
-      const url = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(
-        opts.board,
-      )}/jobs?content=false`;
-      const data = await fetchJson<{ jobs?: GhJob[] }>(url);
-      const all = data.jobs ?? [];
+      const all = await fetchAll();
       const kw = keyword.trim().toLowerCase();
       // Greenhouse 公共接口不支持按关键词服务端过滤，客户端按标题包含过滤
-      const matched = kw ? all.filter((j) => (j.title ?? "").toLowerCase().includes(kw)) : all;
-
-      return matched.slice(0, 20).map((j) => {
-        const loc = typeof j.location === "string" ? j.location : j.location?.name;
-        const text = `${j.title ?? ""} ${j.company ?? ""} ${loc ?? ""}`;
-        return {
-          externalId: `${opts.id}-${j.id}`,
-          title: j.title ?? "(untitled)",
-          company: j.company ?? opts.label,
-          location: loc,
-          url:
-            j.absolute_url ??
-            j.url ??
-            `https://boards-api.greenhouse.io/v1/boards/${opts.board}/jobs/${j.id}`,
-          snippet: stripHtml(j.content).slice(0, 500),
-          publishedAt: j.updated_at ? new Date(j.updated_at) : undefined,
-          categories: deriveCategories(text, opts.category),
-          raw: j,
-        };
-      });
+      return kw ? all.filter((j) => (j.title ?? "").toLowerCase().includes(kw)) : all;
     },
   };
 }

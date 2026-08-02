@@ -46,7 +46,7 @@ const num = (v: unknown): number | undefined => (typeof v === "number" ? v : und
 
 // 把主题应用到一组样式：所有 fontSize 乘以 fontScale，page 的字体族/页边距按主题覆盖。
 // 同时兼容驼峰(fontSize)与连字符(font-size)键名。
-export function themedStyles<T extends Record<string, Record<string, unknown>>>(raw: T, th: ResolvedTheme): T {
+export function themedStyles<T extends Record<string, Record<string, unknown>>>(raw: T, th: ResolvedTheme): Record<keyof T, any> {
   const out: Record<string, Record<string, unknown>> = {};
   for (const [key, style] of Object.entries(raw)) {
     const ns: Record<string, unknown> = { ...style };
@@ -57,10 +57,10 @@ export function themedStyles<T extends Record<string, Record<string, unknown>>>(
       else ns["font-size"] = scaled;
     }
     if (key === "page") {
-      ns.fontfamily = th.font;
+      ns.fontFamily = th.font;
       ns.padding = th.pagePadding;
     }
     out[key] = ns;
   }
-  return StyleSheet.create(out as never) as unknown as T;
+  return StyleSheet.create(out as never) as unknown as Record<keyof T, any>;
 }

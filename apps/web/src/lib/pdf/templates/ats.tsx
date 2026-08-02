@@ -23,9 +23,9 @@ function Section({ title, accent, children }: { title: string; accent: string; c
   );
 }
 
-export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) {
+export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: TemplateProps) {
   ensureFonts();
-  const th = resolveTheme(resume, "latin");
+  const th = resolveTheme(resume, "sc");
   const b = resume.basics;
 
   // 联系方式：邮箱 · 手机 · 城市 · LinkedIn/个人站
@@ -38,17 +38,17 @@ export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) 
 
   const s = themedStyles({
     page: { fontSize: 9.5, lineHeight: 1.45, color: "#111111", padding: 44 },
-    name: { fontSize: 19, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.25, marginBottom: 4 },
+    name: { fontSize: 19, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, lineHeight: 1.25, marginBottom: 4 },
     label: { fontSize: 10.5, color: "#444", marginTop: 2 },
     contact: { fontSize: 8.5, color: "#555", marginTop: 4 },
     rule: { borderBottomWidth: 1, borderBottomColor: "#cccccc", marginTop: 8, marginBottom: 4 },
     entry: { marginBottom: 8 },
-    entryHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+    entryHead: { flexDirection: "row" as const, justifyContent: "space-between" as const, alignItems: "flex-end" as const },
     entryTitle: { fontWeight: 700, fontSize: 10 },
     entryMeta: { color: "#555", fontSize: 8.5, marginLeft: 8 },
     entrySub: { color: "#333", fontSize: 9, marginTop: 1 },
     summary: { color: "#222" },
-    skillRow: { flexDirection: "row", flexWrap: "wrap" },
+    skillRow: { flexDirection: "row" as const, flexWrap: "wrap" as const },
     skillChip: { fontSize: 8.5, color: "#222", marginRight: 6, marginBottom: 3 },
     bullets: { marginTop: 1 },
   }, th);
@@ -82,7 +82,7 @@ export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) 
               <View key={i} style={s.entry} wrap={false}>
                 <View style={s.entryHead}>
                   <Text style={s.entryTitle}>{w.position}{w.name ? `, ${w.name}` : ""}</Text>
-                  <Text style={s.entryMeta}>{range(w.startDate, w.endDate)}{w.location ? ` | ${w.location}` : ""}</Text>
+                  <Text style={s.entryMeta}>{range(w.startDate, w.endDate, undefined, lang)}{w.location ? ` | ${w.location}` : ""}</Text>
                 </View>
                 {w.summary ? <Text style={s.entrySub}>{w.summary}</Text> : null}
                 {w.highlights.length > 0 && (
@@ -101,7 +101,7 @@ export function AtsTemplate({ resume, accent = DEFAULT_ACCENT }: TemplateProps) 
               <View key={i} style={s.entry} wrap={false}>
                 <View style={s.entryHead}>
                   <Text style={s.entryTitle}>{p.name}{p.roles.length ? ` (${p.roles.join(", ")})` : ""}</Text>
-                  <Text style={s.entryMeta}>{range(p.startDate, p.endDate)}</Text>
+                  <Text style={s.entryMeta}>{range(p.startDate, p.endDate, undefined, lang)}</Text>
                 </View>
                 {p.description ? <Text style={s.entrySub}>{p.description}</Text> : null}
                 {p.highlights.length > 0 && (

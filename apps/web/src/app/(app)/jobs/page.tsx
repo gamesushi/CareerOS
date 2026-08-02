@@ -37,13 +37,8 @@ export default function JobsPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    void (async () => {
-      const res = await api<{ data: JdRow[] }>("/jds");
-      if (active && res) setItems(res.data);
-    })();
-    return () => { active = false; };
-  }, []);
+    void load();
+  }, [load]);
 
   useEffect(() => {
     if (!items?.some((i) => i.status === "pending" || i.status === "parsing")) return;

@@ -32,6 +32,7 @@ type Watch = {
   matchLanguages?: string[]; matchExperience?: string[];
   intervalMinutes: number; enabled: boolean; lastRunAt?: string | null; lastError?: string | null;
   newJobCount: number;
+  lastResult?: string | null;
 };
 
 type Job = {
@@ -576,6 +577,18 @@ export default function MonitorPage() {
                     {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
                     {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
                   </p>
+                  {w.lastResult && (() => {
+                    try {
+                      const r = JSON.parse(w.lastResult);
+                      return (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t("monitor.lastResult", { created: r.created, updated: r.updated, closed: r.closed, deleted: r.deleted })}
+                        </p>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
                 </div>
                 <Button variant="ghost" size="icon" className="size-8" title={t("monitor.runNow")} disabled={running === w.id} onClick={() => runNow(w.id)}>
                   {running === w.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}

@@ -29,22 +29,38 @@ export const tencentSource: JobSource = {
   id: "tencent",
   label: "腾讯招聘",
   async search(keyword: string): Promise<SourceJob[]> {
-    const url = new URL("https://careers.tencent.com/tencentcareer/api/post/Query");
-    url.searchParams.set("timestamp", String(Date.now()));
-    url.searchParams.set("keyword", keyword);
-    url.searchParams.set("pageIndex", "1");
-    url.searchParams.set("pageSize", "20");
-    url.searchParams.set("language", "zh-cn");
+    const all: TencentPost[] = [];
+    const seen = new Set<string>();
+    const PAGE = 50;
+    // 腾讯接口支持 pageIndex 翻页；循环到不足一页即停。
+    // 防御：按 PostId 去重，若某页无新增则停（防接口忽略分页参数导致无限累积）。
+    for (let pageIndex = 1; pageIndex <= 50; pageIndex++) {
+      const url = new URL("https://careers.tencent.com/tencentcareer/api/post/Query");
+      url.searchParams.set("timestamp", String(Date.now()));
+      url.searchParams.set("keyword", keyword);
+      url.searchParams.set("pageIndex", String(pageIndex));
+      url.searchParams.set("pageSize", String(PAGE));
+      url.searchParams.set("language", "zh-cn");
 
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, Referer: "https://careers.tencent.com/" },
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) throw new Error(`tencent HTTP ${res.status}`);
-    const body = (await res.json()) as { Code: number; Data?: { Posts?: TencentPost[] } };
-    if (body.Code !== 200) throw new Error(`tencent API Code ${body.Code}`);
+      const res = await fetch(url, {
+        headers: { "User-Agent": UA, Referer: "https://careers.tencent.com/" },
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`tencent HTTP ${res.status}`);
+      const body = (await res.json()) as { Code: number; Data?: { Posts?: TencentPost[] } };
+      if (body.Code !== 200) throw new Error(`tencent API Code ${body.Code}`);
+      const posts = body.Data?.Posts ?? [];
+      let added = 0;
+      for (const p of posts) {
+        if (seen.has(p.PostId)) continue;
+        seen.add(p.PostId);
+        all.push(p);
+        added++;
+      }
+      if (posts.length < PAGE || added === 0) break;
+    }
 
-    return (body.Data?.Posts ?? []).map((p) => ({
+    return all.map((p) => ({
       externalId: p.PostId,
       title: p.RecruitPostName,
       company: "腾讯",

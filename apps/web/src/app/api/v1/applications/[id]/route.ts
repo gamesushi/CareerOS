@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "@careeros/db";
+import { prisma, Prisma } from "@careeros/db";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 
 const STAGES = ["considering", "applied", "screening", "interview", "offer", "rejected"] as const;
@@ -14,14 +14,25 @@ export const GET = handler(async (_req, ctx) => {
   const { userId } = await requireUser();
   const { id } = await ctx.params;
   await owned(userId, id);
-  const data = await prisma.application.findUnique({
+  const app = await prisma.application.findUnique({
     where: { id },
     include: {
       resume: { select: { id: true, title: true } },
       events: { orderBy: { createdAt: "desc" } },
     },
   });
-  return ok({ data });
+  if (!app) throw new ApiError(404, "not_found", "申请不存在");
+
+  // 如果来自发现岗位，把完整 JD（snippet/raw）一起返回，供详情页展示
+  let discoveredJob: { snippet: string | null; raw: Prisma.JsonValue | null; source: string } | null = null;
+  if (app.discoveredJobId) {
+    discoveredJob = await prisma.discoveredJob.findFirst({
+      where: { id: app.discoveredJobId, userId },
+      select: { snippet: true, raw: true, source: true },
+    });
+  }
+
+  return ok({ data: { ...app, discoveredJob } });
 });
 
 const patchInput = z.object({

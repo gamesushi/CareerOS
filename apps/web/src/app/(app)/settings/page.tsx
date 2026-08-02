@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@careeros/db";
 import { AccountDanger } from "./account-danger";
 import { AccountExport } from "./account-export";
+import { EmployerRole } from "./employer-role";
 
 export const metadata = { title: "账号设置 · CareerOS" };
 
@@ -12,11 +13,15 @@ export default async function SettingsPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const recent = await prisma.loginLog.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
+  const [recent, me] = await Promise.all([
+    prisma.loginLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    // 角色查 DB：session 里的 role 是登录快照，切换后不重登会显示过期状态
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-10">
@@ -51,6 +56,8 @@ export default async function SettingsPage() {
           </ul>
         )}
       </section>
+
+      <EmployerRole role={me?.role ?? "user"} />
 
       <AccountExport />
 

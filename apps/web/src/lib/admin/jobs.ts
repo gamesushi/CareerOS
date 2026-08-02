@@ -94,6 +94,80 @@ export async function reviewUserJob(
   return before;
 }
 
+// ============ B 端雇主发布岗审核队列 ============
+// 与用户录入岗位（DiscoveredJob）同一治理口径，只是落在 job_postings 表。
+// 未过审的发布不进候选端公共流（见 lib/job-postings.ts 的 PUBLIC_POSTING_WHERE）。
+
+/** 发布审核队列：只看已提交发布（status != draft）的岗，草稿不占审核工时。 */
+export async function listPostingReviewQueue(p: { filter?: ReviewFilter; page?: number; pageSize?: number }) {
+  const page = Math.max(1, p.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, p.pageSize ?? 20));
+  const filter = p.filter ?? "pending";
+  const where: Prisma.JobPostingWhereInput = { status: { not: "draft" } };
+  if (filter !== "all") where.reviewStatus = filter;
+
+  const [rows, total, pendingCount] = await Promise.all([
+    prisma.jobPosting.findMany({
+      where,
+      orderBy: { createdAt: "asc" }, // 先提交的先审
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true, orgType: true, company: true, title: true, location: true,
+        salary: true, url: true, description: true, status: true,
+        reviewStatus: true, reviewNote: true, reviewedAt: true,
+        takenDownAt: true, createdAt: true,
+        postedBy: { select: { email: true, name: true } },
+      },
+    }),
+    prisma.jobPosting.count({ where }),
+    prisma.jobPosting.count({ where: { status: { not: "draft" }, reviewStatus: "pending" } }),
+  ]);
+  return { rows, total, page, pageSize, pendingCount };
+}
+
+/** 审核雇主发布岗：approve / reject。返回审核前快照（供审计），未命中返回 null。 */
+export async function reviewJobPosting(
+  id: string,
+  decision: "approved" | "rejected",
+  actorId: string,
+  note?: string,
+) {
+  const before = await prisma.jobPosting.findUnique({
+    where: { id },
+    select: { id: true, title: true, company: true, status: true, reviewStatus: true, postedByUserId: true },
+  });
+  if (!before) return null;
+  if (before.status === "draft") return null; // 草稿不该出现在队列里，兜底拒绝误操作
+  await prisma.jobPosting.update({
+    where: { id },
+    data: {
+      reviewStatus: decision,
+      reviewedAt: new Date(),
+      reviewedById: actorId,
+      reviewNote: note?.slice(0, 500) ?? null,
+    },
+  });
+  return before;
+}
+
+/** 发布岗下架/恢复（诈骗、幽灵岗）。与 DiscoveredJob 的 takedown 同义，但只影响单条。 */
+export async function takedownPosting(id: string, restore: boolean, actorId: string) {
+  const before = await prisma.jobPosting.findUnique({
+    where: { id },
+    select: { id: true, title: true, company: true, takenDownAt: true },
+  });
+  if (!before) return null;
+  await prisma.jobPosting.update({
+    where: { id },
+    data: {
+      takenDownAt: restore ? null : new Date(),
+      takenDownById: restore ? null : actorId,
+    },
+  });
+  return before;
+}
+
 /** 抓取源健康：按 source 聚合岗位数 + 已下架数。 */
 export async function listSourceHealth() {
   const [totals, takendown] = await Promise.all([

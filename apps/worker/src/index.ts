@@ -67,8 +67,11 @@ const watchWorker = new Worker(
 );
 
 watchWorker.on("completed", (job, result) => {
-  const r = result as { scanned: number; found: number };
-  if (r.scanned > 0) console.log(`[watch] ${job.name}#${job.id} scanned=${r.scanned} found=${r.found}`);
+  const r = result as { scanned: number; found: number; created: number; updated: number; closed: number; deleted: number };
+  if (r.scanned > 0)
+    console.log(
+      `[watch] ${job.name}#${job.id} scanned=${r.scanned} found=${r.found} created=${r.created} updated=${r.updated} closed=${r.closed} deleted=${r.deleted}`,
+    );
 });
 watchWorker.on("failed", (job, err) => console.error(`[watch] failed ${job?.name}#${job?.id}: ${err.message}`));
 

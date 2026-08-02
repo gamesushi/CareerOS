@@ -23,7 +23,12 @@ export interface JobSource {
   label: string;
   /** 该来源的品类亲和（如游戏厂默认 "game"），用于来源级品类匹配 */
   category?: JobCategory;
-  /** 搜一个关键词，返回第一页结果（适配器内部自行处理分页大小） */
+  /** 整板抓取型适配器：一次性返回该来源全部在招岗位（忽略关键词）。
+   *  实现此方法的来源在一次轮询内按 sourceId 缓存，避免同一板块被多关键词重复抓取。
+   *  未实现时，watchPoll 退化为逐关键词调用 search(keyword)。 */
+  fetchAll?(): Promise<SourceJob[]>;
+  /** 搜一个关键词，返回第一页结果（适配器内部自行处理分页大小）。
+   *  仅用于未实现 fetchAll 的来源（如按关键词真查询的站点）。 */
   search(keyword: string): Promise<SourceJob[]>;
 }
 

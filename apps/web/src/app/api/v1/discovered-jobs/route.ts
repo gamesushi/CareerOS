@@ -6,6 +6,8 @@ export const GET = handler(async (req) => {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
   const watchId = url.searchParams.get("watch_id");
+  const closed = url.searchParams.get("closed"); // all | active | closed
+  const source = url.searchParams.get("source"); // 来源 id 或空
 
   const data = await prisma.discoveredJob.findMany({
     where: {
@@ -13,10 +15,16 @@ export const GET = handler(async (req) => {
       takenDownAt: null, // 管理员下架（诈骗/幽灵岗）的岗位不进用户 feed
       ...(status && status !== "all" ? { status: status as DiscoveredJobStatus } : { status: { not: "dismissed" } }),
       ...(watchId ? { watchId } : {}),
+      ...(source ? { source } : {}),
+      ...(closed === "active" ? { closedAt: null } : closed === "closed" ? { closedAt: { not: null } } : {}),
     },
-    // 已评分优先按 fit 分降序，未评分（null）排后，再按时间兜底
-    orderBy: [{ matchScore: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-    take: 200,
+    // 在招（closedAt 为空）优先，停招靠后；同组内已评分优先、其次按抓取时间兜底
+    orderBy: [
+      { closedAt: { sort: "asc", nulls: "first" } },
+      { matchScore: { sort: "desc", nulls: "last" } },
+      { createdAt: "desc" },
+    ],
+    take: 500,
     include: { watch: { select: { name: true } } },
   });
   return ok({ data });

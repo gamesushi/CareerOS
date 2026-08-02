@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@careeros/db";
 import { chat } from "../ai/provider";
 import { startRun, finishRun } from "../ai/audit";
+import { localeToLanguage } from "../ai/language";
 
 // 职业画像生成：从全部实体摘要出 headline/summary/tags/level/years/industry。
 // 实体变更会把 is_stale 置 true，用户在 Dashboard 点"重新生成"触发本任务。
@@ -19,9 +20,11 @@ const outputSchema = z.object({
 
 const SYSTEM_PROMPT = `你是职业画像分析师。基于用户职业数据库的完整摘要，生成客观的职业画像。
 
+重要：用户主语言为 {LANG}。所有输出字段（headline / summary / careerTags / industryTags）必须使用 {LANG} 撰写；若职业数据库中的原文为其他语言，请翻译为 {LANG}。
+
 规则：
-1. headline：一句话职业定位（如"海外游戏发行专家"），基于最突出、最近的经历，不夸大。
-2. summary：3-5 句职业综述，突出行业积累、核心能力与量化成果，保留数据原文语言。
+1. headline：一句话职业定位（如"资深后端工程师"），基于最突出、最近的经历，不夸大。
+2. summary：3-5 句职业综述，突出行业积累、核心能力与量化成果。
 3. careerTags：3-8 个职业标签。careerLevel：junior/mid/senior/staff/exec。
 4. yearsExperience：从最早工作经历起算的年数（数字，可带一位小数）。
 5. industryTags：所处行业标签。
@@ -29,7 +32,8 @@ const SYSTEM_PROMPT = `你是职业画像分析师。基于用户职业数据库
 输出 JSON：{ "headline": string, "summary": string, "careerTags": string[], "careerLevel": string, "yearsExperience": number, "industryTags": string[] }`;
 
 export async function handleProfileGenerateJob(userId: string): Promise<void> {
-  const [experiences, projects, skills, achievements, logCount] = await Promise.all([
+  const [userRec, experiences, projects, skills, achievements, logCount] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { locale: true } }),
     prisma.careerExperience.findMany({ where: { userId, deletedAt: null }, orderBy: { startDate: "asc" } }),
     prisma.project.findMany({ where: { userId, deletedAt: null } }),
     prisma.skill.findMany({ where: { userId }, orderBy: { level: "desc" } }),
@@ -39,6 +43,7 @@ export async function handleProfileGenerateJob(userId: string): Promise<void> {
   if (experiences.length === 0 && projects.length === 0) {
     throw new Error("职业数据不足（无经历与项目），先补充数据再生成画像");
   }
+  const lang = localeToLanguage(userRec?.locale);
 
   const digest = [
     "## 工作经历",
@@ -59,7 +64,7 @@ export async function handleProfileGenerateJob(userId: string): Promise<void> {
   const t0 = Date.now();
 
   try {
-    const res = await chat({ system: SYSTEM_PROMPT, user: digest.slice(0, 15_000), json: true });
+    const res = await chat({ system: SYSTEM_PROMPT.replace("{LANG}", lang.label), user: digest.slice(0, 15_000), json: true });
     const parsed = outputSchema.safeParse(JSON.parse(res.content));
     if (!parsed.success) throw new Error(`画像输出校验失败: ${parsed.error.message.slice(0, 200)}`);
     const out = parsed.data;

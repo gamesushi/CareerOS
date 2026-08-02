@@ -38,39 +38,62 @@ export const bytedanceSource: JobSource = {
     const cookies = await getCookies();
     const csrf = cookies.match(/atsx-csrf-token=([^;]+)/)?.[1];
 
-    const res = await fetch(
-      "https://jobs.bytedance.com/api/v1/search/job/posts?keyword=" + encodeURIComponent(keyword) + "&limit=20&offset=0",
-      {
-        method: "POST",
-        headers: {
-          "User-Agent": UA,
-          "Content-Type": "application/json",
-          Referer: "https://jobs.bytedance.com/experienced/position",
-          "Portal-Channel": "office",
-          "Portal-Platform": "pc",
-          ...(cookies ? { Cookie: cookies } : {}),
-          ...(csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {}),
+    const all: ByteDancePost[] = [];
+    const seen = new Set<string>();
+    const PAGE = 50;
+    // 字节在招量极大（>=2500），放宽到 100 页（5000 上限）以更接近全量；
+    // 去重保护已确保即使接口忽略 offset 也不会 OOM。
+    const MAX_PAGES = 100;
+    // 字节接口支持 offset 翻页；循环到不足一页即停。
+    // 防御：按 externalId 去重，若某页无新增则立即停止——
+    // 部分站点会忽略 offset 每页返回完整结果集，无此保护会无限累积导致 OOM。
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const offset = page * PAGE;
+      const res = await fetch(
+        "https://jobs.bytedance.com/api/v1/search/job/posts?keyword=" +
+          encodeURIComponent(keyword) +
+          `&limit=${PAGE}&offset=${offset}`,
+        {
+          method: "POST",
+          headers: {
+            "User-Agent": UA,
+            "Content-Type": "application/json",
+            Referer: "https://jobs.bytedance.com/experienced/position",
+            "Portal-Channel": "office",
+            "Portal-Platform": "pc",
+            ...(cookies ? { Cookie: cookies } : {}),
+            ...(csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {}),
+          },
+          body: JSON.stringify({
+            keyword,
+            limit: PAGE,
+            offset,
+            job_category_id_list: [],
+            tag_id_list: [],
+            location_code_list: [],
+            subject_id_list: [],
+            recruitment_id_list: [],
+            portal_type: 2, // 社招
+            job_function_id_list: [],
+          }),
+          signal: AbortSignal.timeout(20_000),
         },
-        body: JSON.stringify({
-          keyword,
-          limit: 20,
-          offset: 0,
-          job_category_id_list: [],
-          tag_id_list: [],
-          location_code_list: [],
-          subject_id_list: [],
-          recruitment_id_list: [],
-          portal_type: 2, // 社招
-          job_function_id_list: [],
-        }),
-        signal: AbortSignal.timeout(20_000),
-      },
-    );
-    if (!res.ok) throw new Error(`bytedance HTTP ${res.status}`);
-    const body = (await res.json()) as { code: number; data?: { job_post_list?: ByteDancePost[] } };
-    if (body.code !== 0) throw new Error(`bytedance API code ${body.code}`);
+      );
+      if (!res.ok) throw new Error(`bytedance HTTP ${res.status}`);
+      const body = (await res.json()) as { code: number; data?: { job_post_list?: ByteDancePost[] } };
+      if (body.code !== 0) throw new Error(`bytedance API code ${body.code}`);
+      const list = body.data?.job_post_list ?? [];
+      let added = 0;
+      for (const p of list) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        all.push(p);
+        added++;
+      }
+      if (list.length < PAGE || added === 0) break;
+    }
 
-    return (body.data?.job_post_list ?? []).map((p) => ({
+    return all.map((p) => ({
       externalId: p.id,
       title: p.title,
       company: "字节跳动",

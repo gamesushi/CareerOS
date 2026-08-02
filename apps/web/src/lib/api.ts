@@ -64,6 +64,26 @@ export async function requireAdmin(): Promise<{ userId: string }> {
   return { userId };
 }
 
+/**
+ * 通用角色门禁：角色一律以 DB 为准，不信任 JWT 里的 session.role。
+ * 原因同 isActiveAdmin —— auth.ts 的 jwt callback 只在登录那一刻写入 role，
+ * 之后永不刷新；用户在设置页自助切换「招聘者」后若读 session 会拿到过期值。
+ */
+export async function requireRole(
+  roles: readonly string[],
+  message = "无权限",
+): Promise<{ userId: string; role: string }> {
+  const { userId } = await requireUser();
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, deletedAt: true },
+  });
+  if (!u || u.deletedAt || !roles.includes(u.role)) {
+    throw new ApiError(403, "forbidden", message);
+  }
+  return { userId, role: u.role };
+}
+
 export async function parseBody<T extends z.ZodTypeAny>(req: Request, schema: T): Promise<z.infer<T>> {
   let body: unknown;
   try {

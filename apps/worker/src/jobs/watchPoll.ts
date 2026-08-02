@@ -1,6 +1,6 @@
 import { prisma, Prisma } from "@careeros/db";
 import { SOURCES } from "../sources";
-import { politeDelay } from "../sources/types";
+import { politeDelay, type SourceJob } from "../sources/types";
 import { deriveCategories } from "../sources/lib/category";
 import { deriveJobTags, matchesTags } from "../sources/lib/taxonomy";
 import { scoreDiscoveredJobs } from "./scoreDiscovered";
@@ -38,15 +38,76 @@ function passesHardGates(
   return true;
 }
 
-export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: number; found: number }> {
+// 由过滤后的岗位构造入库行（字段同原 createMany 逻辑）
+function buildJobRow(
+  watch: { id: string; userId: string },
+  sourceId: string,
+  j: any,
+  categories: any,
+  tags: any,
+): Prisma.DiscoveredJobCreateManyInput {
+  const cleanArr = (x: unknown): Prisma.InputJsonValue[] =>
+    Array.isArray(x) ? (x.filter((v) => v != null) as Prisma.InputJsonValue[]) : [];
+  const normCategories = cleanArr(categories);
+  const normRoles = cleanArr(tags.roles);
+  const normRegions = cleanArr(tags.regions);
+  const normLanguages = cleanArr(tags.languages);
+  const normExperience = cleanArr(tags.experience);
+  const row: Prisma.DiscoveredJobCreateManyInput = {
+    watchId: watch.id,
+    userId: watch.userId,
+    source: sourceId,
+    externalId: j.externalId,
+    title: j.title.slice(0, 200),
+    url: j.url,
+    categories: normCategories as Prisma.InputJsonValue,
+    roles: normRoles as unknown as Prisma.InputJsonValue,
+    regions: normRegions as unknown as Prisma.InputJsonValue,
+    languages: normLanguages as unknown as Prisma.InputJsonValue,
+    experience: normExperience as unknown as Prisma.InputJsonValue,
+  };
+  if (j.company) row.company = j.company.slice(0, 128);
+  if (j.location) row.location = j.location.slice(0, 128);
+  if (j.salary) row.salary = j.salary.slice(0, 64);
+  if (j.snippet) row.snippet = j.snippet;
+  if (j.publishedAt instanceof Date && !Number.isNaN(j.publishedAt.getTime())) {
+    row.publishedAt = j.publishedAt;
+  }
+  if (j.raw != null) row.raw = j.raw as Prisma.InputJsonValue;
+  return row;
+}
+
+// create 行 → update 行：去掉稳定键，undefined 字段跳过（保留旧值），并清除停招标记（重新出现=复活）
+function rowToUpdate(r: Prisma.DiscoveredJobCreateManyInput): Prisma.DiscoveredJobUpdateInput {
+  const { watchId: _w, userId: _u, source: _s, externalId: _e, ...rest } = r as Record<string, unknown>;
+  const data: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rest)) {
+    if (v !== undefined) data[k] = v;
+  }
+  data.closedAt = null;
+  return data as unknown as Prisma.DiscoveredJobUpdateInput;
+}
+
+export async function handleWatchPollJob(
+  watchId?: string,
+): Promise<{ scanned: number; found: number; created: number; updated: number; closed: number; deleted: number }> {
   const now = new Date();
   const watches = watchId
     ? await prisma.jobWatch.findMany({ where: { id: watchId } })
     : await prisma.jobWatch.findMany({ where: { enabled: true } });
 
+  const CLOSE_GRACE_DAYS = 14; // 停招多少天后自动删除
   let scanned = 0;
   let found = 0;
+  let created = 0;
+  let updated = 0;
+  let closed = 0;
+  let deleted = 0;
   const usersWithNewJobs = new Set<string>();
+
+  // 跨 watch 的整板抓取缓存：实现 fetchAll 的来源（Greenhouse/Ashby/Lever/Playwright 整板型）
+  // 在一次轮询内按 sourceId 只抓一次，各关键词复用同一份结果，避免同一板块被多关键词重复抓取。
+  const boardCache = new Map<string, SourceJob[]>();
 
   for (const watch of watches) {
     // 定时扫描时只处理到期任务；手动触发（watchId 指定）不受间隔限制
@@ -57,6 +118,8 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
     scanned++;
 
     const errors: string[] = [];
+    // 本轮各来源实际抓到的 externalId，用于差集判定停招
+    const seenBySource = new Map<string, Set<string>>();
     for (const sourceId of watch.sources) {
       const source = SOURCES[sourceId];
       if (!source) {
@@ -64,11 +127,31 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
         continue;
       }
       for (const keyword of watch.keywords) {
+        let jobs: SourceJob[];
+        let didFetch = false;
         try {
-          const jobs = await withRetry(
-            () => source.search(keyword),
-            { retries: 2, delayMs: 1000, label: `${sourceId}/${keyword}` },
-          );
+          if (source.fetchAll) {
+            // 整板抓取型：一次轮询内按来源缓存，避免 (来源 × 关键词) 组合重复抓同一板块
+            if (!boardCache.has(sourceId)) {
+              boardCache.set(
+                sourceId,
+                await withRetry(() => source.fetchAll!(), {
+                  retries: 2,
+                  delayMs: 1000,
+                  label: `${sourceId}/fetchAll`,
+                }),
+              );
+              didFetch = true;
+            }
+            jobs = boardCache.get(sourceId)!;
+          } else {
+            // 真按关键词查询的来源（如腾讯/字节/猎聘）：逐关键词调用
+            jobs = await withRetry(
+              () => source.search(keyword),
+              { retries: 2, delayMs: 1000, label: `${sourceId}/${keyword}` },
+            );
+            didFetch = true;
+          }
           // 通用兜底：部分适配器（如米哈游 Playwright DOM 抓取）无法按 keyword 过滤，
           // 返回全量岗位。worker 层必须保证岗位 title/snippet 命中监测关键词才入库。
           const kw = keyword.trim().toLowerCase();
@@ -123,66 +206,84 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
             // 硬门槛（确定性丢弃）：排除词命中 / 陈旧过滤
             .filter(({ job }) => passesHardGates(job, watch));
           if (tagged.length > 0) {
-            // 可选字段仅在确有值时设置：Prisma createMany 不接受 undefined，
-            // 否则 remoteok / hackernews 等不返回 salary 的源会整批写入失败。
-            const data: Prisma.DiscoveredJobCreateManyInput[] = tagged.map(
-              ({ job: j, categories, tags }) => {
-                // Json 标签字段既可能因整字段为 undefined、也可能因数组内含
-                // undefined 元素（deriveJobTags/deriveCategories 的边界情况）而让
-                // 整批 createMany 报 Invalid invocation。统一清洗为「不含 null/undefined
-                // 元素的数组」，避免单条脏数据拖垮整批写入。
-                const cleanArr = (x: unknown): Prisma.InputJsonValue[] =>
-                  Array.isArray(x)
-                    ? (x.filter((v) => v != null) as Prisma.InputJsonValue[])
-                    : [];
-                const normCategories = cleanArr(categories);
-                const normRoles = cleanArr(tags.roles);
-                const normRegions = cleanArr(tags.regions);
-                const normLanguages = cleanArr(tags.languages);
-                const normExperience = cleanArr(tags.experience);
-                const row: Prisma.DiscoveredJobCreateManyInput = {
-                  watchId: watch.id,
-                  userId: watch.userId,
-                  source: sourceId,
-                  externalId: j.externalId,
-                  title: j.title.slice(0, 200),
-                  url: j.url,
-                  categories: normCategories as Prisma.InputJsonValue,
-                  roles: normRoles as unknown as Prisma.InputJsonValue,
-                  regions: normRegions as unknown as Prisma.InputJsonValue,
-                  languages: normLanguages as unknown as Prisma.InputJsonValue,
-                  experience: normExperience as unknown as Prisma.InputJsonValue,
-                };
-                if (j.company) row.company = j.company.slice(0, 128);
-                if (j.location) row.location = j.location.slice(0, 128);
-                if (j.salary) row.salary = j.salary.slice(0, 64);
-                if (j.snippet) row.snippet = j.snippet;
-                // publishedAt 必须是有效 Date：源解析失败会产生 Invalid Date 对象，
-                // 直接传入 DateTime 字段会让整批 createMany 报 Invalid invocation。
-                if (j.publishedAt instanceof Date && !Number.isNaN(j.publishedAt.getTime())) {
-                  row.publishedAt = j.publishedAt;
-                }
-                if (j.raw != null) row.raw = j.raw as Prisma.InputJsonValue;
-                return row;
-              },
+            // 构造入库行（复用原 cleanArr 清洗逻辑，由 buildJobRow 统一处理）
+            const rows = tagged.map(({ job: j, categories, tags }) =>
+              buildJobRow(watch, sourceId, j, categories, tags),
             );
-            const result = await prisma.discoveredJob.createMany({
-              data,
-              skipDuplicates: true, // 唯一键 (watch_id, source, external_id) 去重
+            // 记录本轮出现的 externalId（差集判定停招用）
+            let seen = seenBySource.get(sourceId);
+            if (!seen) { seen = new Set<string>(); seenBySource.set(sourceId, seen); }
+            for (const r of rows) seen.add(r.externalId);
+
+            // 区分新增 / 已存在：新增批量插入；已存在逐条更新内容并清除停招（复活）
+            const ids = rows.map((r) => r.externalId);
+            const existing = await prisma.discoveredJob.findMany({
+              where: { watchId: watch.id, source: sourceId, externalId: { in: ids } },
+              select: { externalId: true },
             });
-            found += result.count;
-            if (result.count > 0) usersWithNewJobs.add(watch.userId);
+            const existingIds = new Set(existing.map((e) => e.externalId));
+            const newRows = rows.filter((r) => !existingIds.has(r.externalId));
+            const updRows = rows.filter((r) => existingIds.has(r.externalId));
+            if (newRows.length > 0) {
+              const res = await prisma.discoveredJob.createMany({ data: newRows, skipDuplicates: true });
+              created += res.count;
+              if (res.count > 0) usersWithNewJobs.add(watch.userId);
+            }
+            if (updRows.length > 0) {
+              // 逐条更新（各岗位字段不同），并清除停招标记（重新出现=复活）
+              await Promise.all(
+                updRows.map((r) =>
+                  prisma.discoveredJob.updateMany({
+                    where: { watchId: watch.id, source: sourceId, externalId: r.externalId },
+                    data: rowToUpdate(r),
+                  }),
+                ),
+              );
+              updated += updRows.length;
+            }
+            found += rows.length;
           }
         } catch (e) {
           errors.push(`${sourceId}/${keyword}: ${e instanceof Error ? e.message : String(e)}`);
         }
-        await politeDelay();
+        // 仅在实际发起网络请求时礼貌延迟；缓存命中的关键词迭代（复用整板结果）跳过延迟，
+        // 避免多关键词 watch 被无谓的 sleep 拖慢（如 14 关键词 watch 的 ~3700 次空等）。
+        if (didFetch) await politeDelay();
       }
     }
 
+    // 差集：本轮未在抓取结果中出现的在招岗位标记为停招（closedAt）
+    const live = await prisma.discoveredJob.findMany({
+      where: { watchId: watch.id, closedAt: null, status: { not: "dismissed" } },
+      select: { id: true, source: true, externalId: true },
+    });
+    const toClose: string[] = [];
+    for (const j of live) {
+      const seen = seenBySource.get(j.source);
+      if (!seen || !seen.has(j.externalId)) toClose.push(j.id);
+    }
+    if (toClose.length > 0) {
+      const res = await prisma.discoveredJob.updateMany({
+        where: { id: { in: toClose } },
+        data: { closedAt: now },
+      });
+      closed += res.count;
+    }
+
+    // 清理：停招超过 14 天的岗位删除
+    const cutoff = new Date(now.getTime() - CLOSE_GRACE_DAYS * 86_400_000);
+    const delRes = await prisma.discoveredJob.deleteMany({
+      where: { watchId: watch.id, closedAt: { lt: cutoff } },
+    });
+    deleted += delRes.count;
+
     await prisma.jobWatch.update({
       where: { id: watch.id },
-      data: { lastRunAt: now, lastError: errors.length ? errors.join("；").slice(0, 1000) : null },
+      data: {
+        lastRunAt: now,
+        lastError: errors.length ? errors.join("；").slice(0, 1000) : null,
+        lastResult: JSON.stringify({ scanned, created, updated, closed, deleted, found }),
+      },
     });
   }
 
@@ -195,5 +296,5 @@ export async function handleWatchPollJob(watchId?: string): Promise<{ scanned: n
     }
   }
 
-  return { scanned, found };
+  return { scanned, found, created, updated, closed, deleted };
 }

@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   Inbox,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const NAV = [
   { href: "/admin/usage", label: "AI 成本", icon: DollarSign, live: true },
   { href: "/admin/jobs", label: "内容运营", icon: ClipboardCheck, live: true },
   { href: "/admin/review", label: "录入审核", icon: Inbox, live: true },
+  { href: "/admin/postings", label: "企业发布审核", icon: Building2, live: true },
   { href: "/admin/system", label: "系统健康", icon: Server, live: true },
   { href: "/admin/flags", label: "灰度开关", icon: ToggleRight, live: true },
   { href: "/admin/audit", label: "审计", icon: ScrollText, live: true },
