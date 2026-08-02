@@ -757,7 +757,8 @@ model Organization {
   slug        String   @unique @db.VarChar(64) // 公开主页 /c/<slug>
   name        String   @db.VarChar(160)
   orgType     OrgType  @map("org_type") // 与 JobPosting.orgType 同一词表
-  logoUrl     String?  @map("logo_url")
+  logoUrl     String?  @map("logo_url") // 展示地址：上传的是 /api/public/org-logo/<id>，也允许直接填外链
+  logoKey     String?  @map("logo_key") // 上传到对象存储的 key；外链 logo 时为空
   website     String?  @db.VarChar(255)
   description String? // 公司介绍，公开主页展示
   industry    String?  @db.VarChar(64)

@@ -5,6 +5,7 @@ import { prisma } from "@careeros/db";
 import { jobApplicationUpdateInput } from "@careeros/shared";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 import { assertTransition, requireEmployerOnApplication } from "@/lib/job-applications";
+import { enqueueNotify } from "@/lib/queue";
 
 export const PATCH = handler(async (req, { params }) => {
   const { userId } = await requireUser();
@@ -36,5 +37,8 @@ export const PATCH = handler(async (req, { params }) => {
     },
     select: { id: true, status: true, statusAt: true },
   });
+  // 只有雇主改状态才通知候选人：候选人自己撤回不必再收自己的邮件，
+  // 单改备注也不该惊动候选人。
+  if (input.status && !isCandidate) void enqueueNotify("application_status_changed", id);
   return ok(updated);
 });

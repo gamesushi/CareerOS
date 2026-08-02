@@ -26,7 +26,7 @@ Phase 2 补上这一层：
 - 站内投递（`JobApplication`）→ Phase 3
 - 多成员邀请 / 权限矩阵 UI → Phase 3（表已建好，只用 owner）
 - 企业实名认证（留 `verified` 字段，默认 false，不强制）
-- Logo 上传（`logoUrl` 先收 URL 字符串；`lib/s3.ts` 已具备上传能力，接 UI 是独立小工程）
+- ~~Logo 上传~~ → **2026-08-02 已补做**：`POST /api/v1/organizations/[id]/logo`（PNG/JPG/WebP ≤2MB，**不收 SVG**——它会以 `<img>` 出现在免登录公开页上，SVG 可内嵌脚本）+ 免登录读取 `/api/public/org-logo/[id]`
 - 发布收费 / 会员门禁
 
 ---
@@ -200,7 +200,7 @@ i18n（zh-CN + en）、DB 集成测试（slug 唯一 / 成员门禁 / 主页可�
 - **slug 抢注**：首期无审核，可能被抢注知名公司名。缓解：`verified` 字段已留位；真出现纠纷靠管理员改 slug。
 - **组织名冒用**：与上同源，属于 Phase 1 就存在的问题（`company` 本来就是自由填写），审核流是唯一防线。
 - **公开页 SEO / 缓存**：`/c/<slug>` 目前 `force-dynamic`，有量之后应改 ISR。
-- **Logo 上传**：`lib/s3.ts` 已可用，缺的是上传 UI 与图片校验（尺寸/类型/大小）。
+- ~~**Logo 上传**~~：已完成（见 §1）。仍未做的是尺寸裁剪与图片压缩——现在原图直传，2MB 的 logo 会原样发给每个访客。
 
 ---
 

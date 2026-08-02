@@ -871,7 +871,6 @@
   "company.field.location": "Location",
   "company.field.size": "Size",
   "company.field.website": "Website",
-  "company.field.logoUrl": "Logo image URL",
   "company.field.description": "About",
   "company.namePlaceholder": "e.g. Acme Tech",
   "company.descriptionPlaceholder": "What you build, what the team is like, why it's worth joining…",
@@ -915,5 +914,14 @@
   "inbox.moveTo.screening": "Move to screening",
   "inbox.moveTo.interview": "Interview",
   "inbox.moveTo.offer": "Make offer",
-  "inbox.moveTo.rejected": "Reject"
+  "inbox.moveTo.rejected": "Reject",
+  "company.field.logo": "Company logo",
+  "company.logoUpload": "Upload logo",
+  "company.logoUploading": "Uploading…",
+  "company.logoRemove": "Remove logo",
+  "company.logoUploaded": "Logo updated",
+  "company.logoRemoved": "Logo removed",
+  "company.logoFailed": "Upload failed",
+  "company.logoHint": "PNG / JPG / WebP, up to 2MB. Shown on your public company page.",
+  "company.logoAfterCreate": "You can upload a logo once the company page is created."
 }

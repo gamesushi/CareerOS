@@ -883,7 +883,6 @@
   "company.field.location": "所在地",
   "company.field.size": "规模",
   "company.field.website": "官网",
-  "company.field.logoUrl": "Logo 图片地址",
   "company.field.description": "公司介绍",
   "company.namePlaceholder": "如：星海互娱",
   "company.descriptionPlaceholder": "做什么业务、团队什么样、为什么值得加入…",
@@ -927,5 +926,14 @@
   "inbox.moveTo.screening": "进入筛选",
   "inbox.moveTo.interview": "约面试",
   "inbox.moveTo.offer": "发 Offer",
-  "inbox.moveTo.rejected": "不合适"
+  "inbox.moveTo.rejected": "不合适",
+  "company.field.logo": "公司 Logo",
+  "company.logoUpload": "上传 Logo",
+  "company.logoUploading": "上传中…",
+  "company.logoRemove": "移除 Logo",
+  "company.logoUploaded": "Logo 已更新",
+  "company.logoRemoved": "Logo 已移除",
+  "company.logoFailed": "上传失败",
+  "company.logoHint": "支持 PNG / JPG / WebP，不超过 2MB。会展示在公开公司主页上。",
+  "company.logoAfterCreate": "创建公司主页后即可上传 Logo。"
 }

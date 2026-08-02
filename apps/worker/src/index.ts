@@ -10,6 +10,8 @@ import { handleResumeDeriveJob } from "./jobs/resumeDerive";
 import { handleWatchPollJob } from "./jobs/watchPoll";
 import { handleCostAlertJob } from "./jobs/costAlertCheck";
 import { handleScoreDiscoveredJob } from "./jobs/scoreDiscovered";
+import { handleNotifyJob } from "./jobs/notify";
+import { type NotifyKind } from "@careeros/db";
 
 // AI 任务 worker：队列拓扑见 docs/design/04-ai-workflows.md §5
 // 并发 2、超时由各步骤自身控制（docreader 120s、LLM 110s）
@@ -24,6 +26,7 @@ const connection = {
 
 export const AI_QUEUE = "ai";
 export const WATCH_QUEUE = "watch";
+export const NOTIFY_QUEUE = "notify";
 
 type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "resume_derive" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered";
 
@@ -86,4 +89,16 @@ void watchQueue
   .upsertJobScheduler("cost-alert-scheduler", { every: 60 * 60_000 }, { name: "cost_alert_check", data: {} })
   .then(() => console.log("[alert] cost-alert scheduler armed (hourly)"));
 
-console.log(`[worker] listening on queues "${AI_QUEUE}", "${WATCH_QUEUE}" (redis ${redisUrl.host})`);
+// 通知队列：投递相关的邮件。并发 1 足够（量小），失败由 BullMQ 按 web 侧设的 attempts 重试。
+const notifyWorker = new Worker(
+  NOTIFY_QUEUE,
+  async (job) => handleNotifyJob(job.name as NotifyKind, job.data.applicationId as string),
+  { connection, concurrency: 1 },
+);
+notifyWorker.on("failed", (job, err) =>
+  console.error(`[notify] failed ${job?.name}#${job?.id}: ${err.message}`),
+);
+
+console.log(
+  `[worker] listening on queues "${AI_QUEUE}", "${WATCH_QUEUE}", "${NOTIFY_QUEUE}" (redis ${redisUrl.host})`,
+);

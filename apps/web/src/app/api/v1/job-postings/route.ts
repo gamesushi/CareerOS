@@ -7,6 +7,7 @@ import { jobPostingCreateInput, EMPLOYER_ROLES } from "@careeros/shared";
 import { handler, ok, parseBody, requireRole, ApiError } from "@/lib/api";
 import { listMyPostings } from "@/lib/job-postings";
 import { requireOrgMember } from "@/lib/organizations";
+import { assertPostingQuota } from "@/lib/limits";
 
 const NEED_EMPLOYER = "需要招聘者权限，请在「账号设置」中开启发岗";
 
@@ -18,6 +19,7 @@ export const GET = handler(async () => {
 export const POST = handler(async (req) => {
   const { userId } = await requireRole(EMPLOYER_ROLES, NEED_EMPLOYER);
   const input = await parseBody(req, jobPostingCreateInput);
+  await assertPostingQuota(userId); // 反垃圾：每人每 24 小时的发布上限
 
   // 以组织名义发布：校验成员身份，并用组织的 name/orgType 覆盖表单值——
   // 否则同一组织的不同岗会写出不同的公司名，公司主页就散了。

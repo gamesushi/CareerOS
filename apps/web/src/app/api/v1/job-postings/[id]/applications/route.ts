@@ -4,6 +4,7 @@
 import { prisma } from "@careeros/db";
 import { jobApplicationCreateInput } from "@careeros/shared";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
+import { enqueueNotify } from "@/lib/queue";
 import {
   applicationCreateData,
   assertApplicable,
@@ -39,6 +40,7 @@ export const POST = handler(async (req, { params }) => {
       data: applicationCreateData(id, userId, input.resumeId ?? null, input.coverLetter ?? null),
       select: { id: true, status: true, createdAt: true },
     });
+    void enqueueNotify("application_submitted", created.id); // 通知雇主，不阻塞响应
     return ok(created, 201);
   } catch (e) {
     // 唯一键 (jobPostingId, candidateId) 冲突 → 已经投过

@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   "/tools",
   "/api/tools",
   "/c", // 公开公司主页 /c/<slug>：免登录可访问（雇主要能把链接发给候选人）
+  "/api/public", // 公开只读资源（目前是公司 Logo），供上面那个页面加载
   "/welcome",
   "/terms",
   "/privacy",
