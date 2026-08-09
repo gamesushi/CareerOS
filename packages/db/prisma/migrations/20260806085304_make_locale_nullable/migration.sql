@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "users" ALTER COLUMN "locale" DROP NOT NULL,
+ALTER COLUMN "locale" DROP DEFAULT;

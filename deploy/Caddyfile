@@ -1,0 +1,11 @@
+# CareerOS · Caddy 边缘反代 + 自动 HTTPS
+# 变量从 compose 的 environment 注入：SITE_DOMAIN / ACME_EMAIL
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_DOMAIN} {
+	encode gzip
+	# 反向代理到 web 容器（compose 内网 3000）
+	reverse_proxy web:3000
+}

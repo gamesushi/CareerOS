@@ -1,0 +1,169 @@
+# CareerOS · 生产编排（单台 Oracle ARM VM 一把梭）
+# 构建/启动：docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.production up -d --build
+# 变量来源：deploy/.env.production（见 .env.production.example）
+
+name: careeros-prod
+
+services:
+  # ---------- 数据库（Postgres + pgvector，arm64 已验证）----------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: careeros-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-careeros}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-careeros}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-careeros}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # 不暴露宿主机端口，仅 compose 内网可达（postgres:5432）
+
+  # ---------- 队列（BullMQ）----------
+  redis:
+    image: redis:7-alpine
+    container_name: careeros-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  # ---------- 对象存储（MinIO，S3 兼容；可换 Oracle 对象存储，见指南）----------
+  minio:
+    image: minio/minio:latest
+    container_name: careeros-minio
+    command: server /data --console-address ":9101"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY};
+      mc mb -p local/${S3_BUCKET};
+      exit 0"
+    restart: "no"
+
+  # ---------- 文档解析（WeKnora docreader，gRPC，arm64 已验证）----------
+  docreader:
+    image: wechatopenai/weknora-docreader:latest
+    container_name: careeros-docreader
+    environment:
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+
+  # ---------- Web（Next.js）----------
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    container_name: careeros-web
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-careeros}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-careeros}?schema=careeros
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
+      AUTH_DEV_CREDENTIALS: "false"
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      AI_DAILY_BUDGET_USD: ${AI_DAILY_BUDGET_USD}
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    expose:
+      - "3000"   # 仅内网，由 caddy 反代
+
+  # ---------- Worker（BullMQ 消费者，常驻进程）----------
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.worker
+    container_name: careeros-worker
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-careeros}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-careeros}?schema=careeros
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      AUTH_SECRET: ${AUTH_SECRET}
+      DOCREADER_ADDR: docreader:50051
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      AI_DAILY_BUDGET_USD: ${AI_DAILY_BUDGET_USD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      docreader:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------- 边缘反代 + 自动 HTTPS（Let's Encrypt）----------
+  caddy:
+    image: caddy:2-alpine
+    container_name: careeros-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  caddy_data:
+  caddy_config:

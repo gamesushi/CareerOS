@@ -1,0 +1,24 @@
+# CareerOS · systemd 单元（主机重启后自动拉起整套容器）
+# 安装：
+#   sudo cp deploy/careeros.service /etc/systemd/system/careeros.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now careeros.service
+# 说明：compose 各服务本身已设 restart: unless-stopped（进程/容器崩溃自恢复）；
+#       本单元负责「主机重启」后整体重新 up。docker 守护进程需 enabled（默认即是）。
+
+[Unit]
+Description=CareerOS (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/careeros/deploy
+ExecStart=/usr/bin/docker compose -f /opt/careeros/deploy/docker-compose.prod.yml --env-file /opt/careeros/deploy/.env.production up -d
+ExecStop=/usr/bin/docker compose -f /opt/careeros/deploy/docker-compose.prod.yml --env-file /opt/careeros/deploy/.env.production down
+Environment=COMPOSE_PROJECT_NAME=careeros-prod
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,36 @@
+# CareerOS · Web (Next.js 16) · 生产镜像
+# 架构：linux/arm64（Oracle Ampere A1）。本地 Apple Silicon 同架构可直接 build 验证。
+FROM node:22-bookworm-slim
+
+# pnpm 11.13.1（与 packageManager 字段一致）
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable \
+ && corepack prepare pnpm@11.13.1 --activate
+
+WORKDIR /app
+
+# ---------- 1. 依赖（利用层缓存：先 copy 清单再 install）----------
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml patches/ ./
+COPY apps/web/package.json apps/web/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+RUN pnpm install --frozen-lockfile
+
+# ---------- 2. 源码 ----------
+COPY . .
+
+# Prisma Client 必须在 next build 之前生成（web 通过 @careeros/db 引用 @prisma/client）
+RUN pnpm --filter @careeros/db generate
+
+# ---------- 3. 构建 ----------
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN NEXT_TELEMETRY_DISABLED=1 pnpm --filter web build
+
+# ---------- 4. 运行 ----------
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+CMD ["pnpm", "--filter", "web", "start"]
