@@ -7,19 +7,23 @@ export type TemplateMeta = {
   id: string;
   name: string;
   description: string;
+  /** i18n key used by the UI. Falls back to `name` when key is missing. */
+  nameKey: string;
+  descriptionKey: string;
+  groupKey: string;
   defaultAccent: string;
   langGroup: LangGroup;
   langs?: ("zh" | "en" | "ja_shokumu" | "ja_rirekisho")[];
 };
 
 export const TEMPLATE_META: TemplateMeta[] = [
-  { id: "classic", name: "经典", description: "单栏黑白，稳妥通用", defaultAccent: "#222222", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
-  { id: "modern", name: "现代", description: "强调色横线与标题，外企风", defaultAccent: "#2563eb", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
-  { id: "sidebar", name: "侧栏", description: "双栏+时间线，信息密度高", defaultAccent: "#0f766e", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
-  { id: "compact", name: "紧凑", description: "居中极简，一页装下更多", defaultAccent: "#525252", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
-  { id: "ats", name: "ATS 英文", description: "美式求职优化，单栏无图，关键词友好", defaultAccent: "#111111", langGroup: "en", langs: ["en"] },
-  { id: "shokumu", name: "職務経歴書", description: "日本転職標準・会社別テーブル", defaultAccent: "#333333", langGroup: "ja", langs: ["ja_shokumu"] },
-  { id: "rirekisho", name: "履歴書", description: "JIS 様式・表形式（写真枠付）", defaultAccent: "#333333", langGroup: "ja", langs: ["ja_rirekisho"] },
+  { id: "classic", name: "经典", description: "单栏黑白，稳妥通用", nameKey: "resumeDetail.template.classic.name", descriptionKey: "resumeDetail.template.classic.description", groupKey: "resumeDetail.templateGroup.zh", defaultAccent: "#222222", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
+  { id: "modern", name: "现代", description: "强调色横线与标题，外企风", nameKey: "resumeDetail.template.modern.name", descriptionKey: "resumeDetail.template.modern.description", groupKey: "resumeDetail.templateGroup.zh", defaultAccent: "#2563eb", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
+  { id: "sidebar", name: "侧栏", description: "双栏+时间线，信息密度高", nameKey: "resumeDetail.template.sidebar.name", descriptionKey: "resumeDetail.template.sidebar.description", groupKey: "resumeDetail.templateGroup.zh", defaultAccent: "#0f766e", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
+  { id: "compact", name: "紧凑", description: "居中极简，一页装下更多", nameKey: "resumeDetail.template.compact.name", descriptionKey: "resumeDetail.template.compact.description", groupKey: "resumeDetail.templateGroup.zh", defaultAccent: "#525252", langGroup: "zh", langs: ["zh", "en", "ja_shokumu", "ja_rirekisho"] },
+  { id: "ats", name: "ATS 英文", description: "美式求职优化，单栏无图，关键词友好", nameKey: "resumeDetail.template.ats.name", descriptionKey: "resumeDetail.template.ats.description", groupKey: "resumeDetail.templateGroup.en", defaultAccent: "#111111", langGroup: "en", langs: ["en"] },
+  { id: "shokumu", name: "職務経歴書", description: "日本転職標準・会社別テーブル", nameKey: "resumeDetail.template.shokumu.name", descriptionKey: "resumeDetail.template.shokumu.description", groupKey: "resumeDetail.templateGroup.ja", defaultAccent: "#333333", langGroup: "ja", langs: ["ja_shokumu"] },
+  { id: "rirekisho", name: "履歴書", description: "JIS 様式・表形式（写真枠付）", nameKey: "resumeDetail.template.rirekisho.name", descriptionKey: "resumeDetail.template.rirekisho.description", groupKey: "resumeDetail.templateGroup.ja", defaultAccent: "#333333", langGroup: "ja", langs: ["ja_rirekisho"] },
 ];
 
 export const LANG_GROUP_LABELS: Record<LangGroup, string> = {
@@ -49,8 +53,8 @@ export function resolveTemplateMeta(templateId: string | null | undefined): Temp
 
 export function getTemplatesGroupedByLang() {
   return [
-    { group: "zh", label: LANG_GROUP_LABELS.zh, items: TEMPLATE_META.filter((t) => t.langGroup === "zh") },
-    { group: "en", label: LANG_GROUP_LABELS.en, items: TEMPLATE_META.filter((t) => t.langGroup === "en") },
-    { group: "ja", label: LANG_GROUP_LABELS.ja, items: TEMPLATE_META.filter((t) => t.langGroup === "ja") },
+    { group: "zh", label: LANG_GROUP_LABELS.zh, labelKey: "resumeDetail.templateGroup.zh", items: TEMPLATE_META.filter((t) => t.langGroup === "zh") },
+    { group: "en", label: LANG_GROUP_LABELS.en, labelKey: "resumeDetail.templateGroup.en", items: TEMPLATE_META.filter((t) => t.langGroup === "en") },
+    { group: "ja", label: LANG_GROUP_LABELS.ja, labelKey: "resumeDetail.templateGroup.ja", items: TEMPLATE_META.filter((t) => t.langGroup === "ja") },
   ];
 }

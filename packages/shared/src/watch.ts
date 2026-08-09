@@ -3,12 +3,83 @@ import { z } from "zod";
 // 岗位监测契约。来源清单与 worker 的适配器注册表保持一致（新增来源需同步这里）。
 
 // 品类：用于用户端「品类匹配」可选开关。新增品类见 sources/lib/category.ts。
+// 一级品类下挂二级细分（subcategories）——发布岗可同时选一级与二级，二级 id 以一级 id 为前缀。
+// 存储时一级与二级并存，保证候选端按一级筛选（jobs/active、monitor）仍能命中（见 job-postings.ts 注释）。
 export const JOB_CATEGORIES = [
-  { id: "game", label: "游戏类" },
-  { id: "finance", label: "金融类" },
-  { id: "tech", label: "技术类" },
-  { id: "ai", label: "AI类" },
+  {
+    id: "game",
+    label: "游戏类",
+    subcategories: [
+      { id: "game_client", label: "客户端开发" },
+      { id: "game_server", label: "服务端开发" },
+      { id: "game_art", label: "美术 · 特效" },
+      { id: "game_design", label: "策划 · 设计" },
+      { id: "game_techart", label: "技术美术" },
+      { id: "game_qa", label: "测试 · QA" },
+      { id: "game_ops", label: "运营 · 发行" },
+      { id: "game_producer", label: "制作人 · PM" },
+    ],
+  },
+  {
+    id: "finance",
+    label: "金融类",
+    subcategories: [
+      { id: "fin_quant", label: "量化研究" },
+      { id: "fin_trading", label: "交易 · 做市" },
+      { id: "fin_risk", label: "风控 · 合规" },
+      { id: "fin_product", label: "金融产品" },
+      { id: "fin_data", label: "金融数据 · 分析" },
+      { id: "fin_ops", label: "运营 · 客户" },
+      { id: "fin_sales", label: "机构销售" },
+    ],
+  },
+  {
+    id: "tech",
+    label: "技术类",
+    subcategories: [
+      { id: "tech_frontend", label: "前端" },
+      { id: "tech_backend", label: "后端" },
+      { id: "tech_fullstack", label: "全栈" },
+      { id: "tech_mobile", label: "移动端" },
+      { id: "tech_infra", label: "基础架构 · SRE" },
+      { id: "tech_data", label: "数据工程" },
+      { id: "tech_security", label: "安全" },
+      { id: "tech_qa", label: "测试 · 质量" },
+      { id: "tech_pm", label: "技术项目管理" },
+    ],
+  },
+  {
+    id: "ai",
+    label: "AI类",
+    subcategories: [
+      { id: "ai_research", label: "算法 · 研究" },
+      { id: "ai_mleng", label: "机器学习工程" },
+      { id: "ai_llm", label: "大模型 · LLM" },
+      { id: "ai_data", label: "数据 · 标注" },
+      { id: "ai_product", label: "AI 产品" },
+      { id: "ai_infra", label: "AI 基础设施" },
+      { id: "ai_agent", label: "智能体 · 应用" },
+    ],
+  },
 ] as const;
+
+/** 一级品类 id 列表（game / finance / tech / ai）。 */
+export const JOB_CATEGORY_IDS = JOB_CATEGORIES.map((c) => c.id) as string[];
+/** 全部二级细分 id 列表。 */
+export const JOB_SUBCATEGORY_IDS = JOB_CATEGORIES.flatMap((c) =>
+  c.subcategories.map((s) => s.id),
+) as string[];
+/** 所有合法品类 id（一级 + 二级），用于表单校验。 */
+export const ALL_CATEGORY_IDS = [...JOB_CATEGORY_IDS, ...JOB_SUBCATEGORY_IDS] as string[];
+/** 一级 id → 其下二级 id 集合，便于表单「取消一级时连带清空二级」。 */
+export const SUBCATEGORY_IDS_BY_PARENT: Record<string, string[]> = Object.fromEntries(
+  JOB_CATEGORIES.map((c) => [c.id, c.subcategories.map((s) => s.id)]),
+);
+/** id（一级或二级）→ 展示标签，统一给表单 / 候选卡片 / 组织主页用，避免散落 i18n key。 */
+export const CATEGORY_LABEL: Record<string, string> = Object.fromEntries([
+  ...JOB_CATEGORIES.map((c) => [c.id, c.label] as const),
+  ...JOB_CATEGORIES.flatMap((c) => c.subcategories.map((s) => [s.id, s.label] as const)),
+]) as Record<string, string>;
 
 // 一个来源可归属多个业态（industries 数组），筛选时命中任意一个即算匹配。
 // 例如腾讯/字节同时有互联网与游戏业务，选「游戏」也应出现。

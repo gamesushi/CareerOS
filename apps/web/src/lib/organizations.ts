@@ -107,6 +107,7 @@ export async function getPublicOrganization(slug: string) {
       description: true,
       url: true,
       categories: true,
+      referralCode: true,
       createdAt: true,
     },
   });

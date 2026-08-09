@@ -1,21 +1,20 @@
 "use client";
 
-// 公司资料：没有组织时是创建表单，有则是编辑表单 + 公开主页链接。
+// 公司资料：前期定位为「我的公司信息档案」，不创建公开主页、不填写主页地址，
+// 主页能力（/c/<slug>）留到未来。公司名支持从已抓取记录一键导入。
 // 首期一人一组织（UI 层面），表结构已支持多组织多成员，等 Phase 3 做成员邀请再放开。
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { ORG_TYPES, ORG_SIZES, slugify } from "@careeros/shared";
+import { ORG_SIZES, slugify } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ExternalLink, Image as ImageIcon, Loader2, Upload } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, Loader2, Upload, ChevronDown, Building2 } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 
 type Org = {
@@ -33,22 +32,31 @@ type Org = {
   myRole: string;
 };
 
-export function CompanyForm({ initial }: { initial: Org | null }) {
+export function CompanyForm({
+  initial,
+  existingCompanies,
+}: {
+  initial: Org | null;
+  existingCompanies: string[];
+}) {
   const t = useT();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: initial?.name ?? "",
-    slug: initial?.slug ?? "",
-    orgType: (initial?.orgType ?? "startup") as (typeof ORG_TYPES)[number]["id"],
     website: initial?.website ?? "",
     description: initial?.description ?? "",
     industry: initial?.industry ?? "",
     size: initial?.size ?? "",
     location: initial?.location ?? "",
   });
-  // slug 只在用户没手动改过时跟随组织名自动生成，避免覆盖用户的选择
-  const [slugTouched, setSlugTouched] = useState(!!initial);
+
+  // 已抓取公司下拉
+  const [showCompanies, setShowCompanies] = useState(false);
+  const [companyFilter, setCompanyFilter] = useState("");
+  const filteredCompanies = companyFilter.trim()
+    ? existingCompanies.filter((c) => c.toLowerCase().includes(companyFilter.toLowerCase()))
+    : existingCompanies.slice(0, 8);
 
   // Logo 单独走上传接口（不随表单一起提交）：文件要 multipart，且要能单独删除
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? null);
@@ -86,23 +94,31 @@ export function CompanyForm({ initial }: { initial: Org | null }) {
     }
   }
 
+  const setName = (name: string) => {
+    setForm((f) => ({ ...f, name })); // 不再自动衍生 slug（前期不创建主页）
+    setCompanyFilter(name);
+  };
+
   const set =
     (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const v = e.target.value;
-      setForm((f) => ({
-        ...f,
-        [k]: v,
-        ...(k === "name" && !slugTouched ? { slug: slugify(v) } : {}),
-      }));
+      if (k === "name") {
+        setName(v);
+        return;
+      }
+      setForm((f) => ({ ...f, [k]: v }));
     };
+
+  function selectExisting(company: string) {
+    setName(company);
+    setShowCompanies(false);
+  }
 
   async function save() {
     setSaving(true);
     const body = {
       name: form.name.trim(),
-      slug: form.slug.trim() || undefined,
-      orgType: form.orgType,
       website: form.website.trim() || undefined,
       description: form.description.trim() || undefined,
       industry: form.industry.trim() || undefined,
@@ -134,62 +150,61 @@ export function CompanyForm({ initial }: { initial: Org | null }) {
         <p className="text-sm text-muted-foreground">{t("company.subtitle")}</p>
       </div>
 
-      {initial && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="flex flex-wrap items-center gap-2 py-3 text-sm">
-            <span className="text-muted-foreground">{t("company.publicPage")}</span>
-            <Link
-              href={`/c/${initial.slug}`}
-              target="_blank"
-              className="font-medium text-primary hover:underline"
-            >
-              /c/{initial.slug} <ExternalLink className="inline size-3" />
-            </Link>
-            {initial.verified && <Badge variant="secondary">{t("company.verified")}</Badge>}
-            <Badge variant="outline" className="ml-auto">
-              {t(`company.role.${initial.myRole}`)}
-            </Badge>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardContent className="space-y-3 py-4">
-          <div className="space-y-1.5">
-            <Label>{t("employer.field.orgType")}</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {ORG_TYPES.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, orgType: o.id }))}
-                  className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
-                    form.orgType === o.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-                  }`}
-                >
-                  {t(`orgType.${o.id}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>{t("company.field.name")} *</Label>
-              <Input value={form.name} onChange={set("name")} placeholder={t("company.namePlaceholder")} />
+            <div className="col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>{t("company.field.name")} *</Label>
+                {existingCompanies.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCompanies((s) => !s)}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                  >
+                    <ChevronDown className="size-3.5" />
+                    {t("company.importButton")}
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={form.name}
+                  onChange={set("name")}
+                  onFocus={() => setShowCompanies(!!existingCompanies.length)}
+                  onBlur={() => setTimeout(() => setShowCompanies(false), 150)}
+                  placeholder={t("company.namePlaceholder")}
+                  className="pl-9"
+                />
+                {showCompanies && existingCompanies.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+                    <div className="max-h-56 overflow-auto p-1">
+                      {filteredCompanies.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          {t("company.noExistingCompany")}
+                        </div>
+                      )}
+                      {filteredCompanies.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectExisting(c);
+                          }}
+                          className="w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-accent"
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("company.importHint")}</p>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("company.field.slug")}</Label>
-              <Input
-                value={form.slug}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  set("slug")(e);
-                }}
-                placeholder="acme-tech"
-              />
-              <p className="text-xs text-muted-foreground">{t("company.slugHint")}</p>
-            </div>
+
             <div className="space-y-1.5">
               <Label>{t("company.field.industry")}</Label>
               <Input value={form.industry} onChange={set("industry")} />

@@ -22,7 +22,8 @@ beforeAll(async () => {
   const posting = await prisma.jobPosting.create({
     data: {
       postedByUserId: employer,
-      orgType: "startup",
+      posterRole: "hr",
+      companyStage: "startup_0_3",
       company: "星海互娱",
       title: "关卡设计师",
       description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",
@@ -102,7 +103,8 @@ describe("发帖配额", () => {
     const draft = await prisma.jobPosting.create({
       data: {
         postedByUserId: employer,
-        orgType: "startup",
+        posterRole: "hr",
+        companyStage: "unregistered",
         company: "X",
         title: "草稿",
         description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",

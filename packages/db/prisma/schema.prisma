@@ -166,7 +166,7 @@ model User {
   emailVerified  DateTime?       @map("email_verified")
   image          String?         @map("avatar_url")
   role           UserRole        @default(user)
-  locale         String          @default("zh") @db.VarChar(8)
+  locale         String?         @db.VarChar(8) // 用户显式设置的语言；null 表示未设置，首次按 Accept-Language 自动检测
   region         String?         @db.VarChar(64)
   // 应聘表单补充字段（对照字节等美企申请）
   mobile         String?         @db.VarChar(64) // 手机
@@ -269,6 +269,20 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// 邮件验证码（OTP）登录：每次请求生成 6 位码，DB 存明文码 + 过期时间 + 尝试次数。
+// 同一邮箱只保留最新一条有效码（请求时先删旧），避免旧码复用。
+model EmailOtp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @db.Citext
+  code      String   @db.VarChar(16)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz()
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([email])
+  @@map("email_otps")
 }
 
 // ============ 职业画像与实体 ============
@@ -720,6 +734,26 @@ enum OrgType {
   @@map("org_type")
 }
 
+// 发布者以什么身份发岗（与 OrgType 解耦：同一家公司里可能是 HR、用人经理或员工内推）
+enum PosterRole {
+  hr // HR
+  hiring_manager // 用人经理
+  employee_referral // 内推
+
+  @@map("poster_role")
+}
+
+// 公司 / 团队成立年限，供候选端了解企业阶段
+enum CompanyStage {
+  unregistered // 尚未注册
+  startup_0_3 // 0-3 年（初创期）
+  growth_3_5 // 3-5 年（成长期）
+  stable_5_10 // 5-10 年（稳定期）
+  mature_10plus // 10 年以上（成熟期）
+
+  @@map("company_stage")
+}
+
 enum JobPostingStatus {
   draft
   open
@@ -820,13 +854,19 @@ model JobPosting {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   postedByUserId String           @map("posted_by_user_id") @db.Uuid
   orgId          String?          @map("org_id") @db.Uuid // 预留：将来接 Organization/Company，历史岗不用迁移
-  orgType        OrgType          @map("org_type")
+  // orgType 已从表单中移除；保留字段用于组织发布时反查，个人发布时为 null
+  orgType        OrgType?         @map("org_type")
+  // 发布者身份：与 OrgType 解耦，同一家公司也可能是 HR / 用人经理 / 员工内推
+  posterRole     PosterRole       @default(hr) @map("poster_role")
+  // 公司 / 团队成立年限
+  companyStage   CompanyStage     @default(unregistered) @map("company_stage")
   company        String           @db.VarChar(128) // 展示用公司 / 团队名
   title          String           @db.VarChar(200)
   location       String?          @db.VarChar(128)
   salary         String?          @db.VarChar(64)
   description    String // 完整 JD 文本
   url            String? // 外链申请地址；首期无站内投递
+  referralCode  String?          @map("referral_code") @db.VarChar(64) // 可选内推码（仅内推场景），供候选人投递时引用
   categories     Json             @default("[]") // 品类标签数组，与 DiscoveredJob.categories 同构（game/finance/tech/ai）
   status         JobPostingStatus @default(draft)
   // 治理：复用 DiscoveredJob 同款审核流与下架能力，避免 B 端成为绕过审核的入口

@@ -46,7 +46,7 @@ async function recentFailCount(email: string): Promise<number> {
 }
 
 function logFail(
-  method: "password" | "dev",
+  method: "password" | "dev" | "otp",
   email: string | null,
   ip: string | null,
   ua: string | null,
@@ -117,6 +117,93 @@ providers.push(
       // 成功登录审计
       await prisma.loginLog.create({
         data: { userId: user.id, email: user.email, method: "password", success: true, ip, userAgent: ua },
+      });
+      return { id: user.id, email: user.email, name: user.name };
+    },
+  }),
+);
+
+// 邮件验证码（OTP）登录：与密码登录并列的基线登录方式，适合不想设密码的用户。
+// 验证码由 /api/v1/auth/request-otp 生成并邮件发送，此处仅校验。
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+providers.push(
+  Credentials({
+    id: "email-otp",
+    name: "Email Code",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      code: { label: "Code", type: "text" },
+      tosAccepted: { label: "TOS", type: "text" },
+    },
+    async authorize(credentials, request) {
+      const email = String(credentials?.email ?? "").trim().toLowerCase();
+      const code = String(credentials?.code ?? "").trim();
+      const ip = extractClientIp(request);
+      const ua = extractUserAgent(request);
+
+      if ((await recentFailCount(email)) >= RATE_LIMIT_MAX_FAILS) {
+        await logFail("otp", email || null, ip, ua, "rate_limited");
+        return null;
+      }
+      if (!email || !email.includes("@")) {
+        await logFail("otp", email || null, ip, ua, "invalid_email");
+        return null;
+      }
+
+      const otp = await prisma.emailOtp.findFirst({
+        where: { email, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!otp) {
+        await logFail("otp", email, ip, ua, "no_otp");
+        return null;
+      }
+      if (otp.attempts >= OTP_MAX_ATTEMPTS) {
+        await prisma.emailOtp.delete({ where: { id: otp.id } }).catch(() => {});
+        await logFail("otp", email, ip, ua, "too_many_attempts");
+        return null;
+      }
+      if (otp.code !== code) {
+        await prisma.emailOtp.update({
+          where: { id: otp.id },
+          data: { attempts: { increment: 1 } },
+        });
+        await logFail("otp", email, ip, ua, "wrong_code");
+        return null;
+      }
+
+      // 校验通过：消费该验证码（一次性）。
+      await prisma.emailOtp.delete({ where: { id: otp.id } }).catch(() => {});
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        await logFail("otp", email, ip, ua, "no_user");
+        return null;
+      }
+      if (user.deletedAt) {
+        await logFail("otp", email, ip, ua, "deleted");
+        return null;
+      }
+      if (user.bannedAt) {
+        await logFail("otp", email, ip, ua, "banned");
+        return null;
+      }
+
+      // 验证码登录即视为邮箱归属已确认（与 Google 同逻辑）。
+      const data: { emailVerified?: Date; tosAcceptedAt?: Date; tosVersion?: string } = {};
+      if (!user.emailVerified) data.emailVerified = new Date();
+      if (String(credentials?.tosAccepted ?? "") === "true") {
+        data.tosAcceptedAt = new Date();
+        data.tosVersion = CURRENT_TOS_VERSION;
+      }
+      if (Object.keys(data).length) {
+        await prisma.user.update({ where: { id: user.id }, data });
+      }
+
+      await prisma.loginLog.create({
+        data: { userId: user.id, email: user.email, method: "otp", success: true, ip, userAgent: ua },
       });
       return { id: user.id, email: user.email, name: user.name };
     },

@@ -19,11 +19,18 @@ const STATUS_BADGE: Record<string, { text: string; cls: string }> = {
   rejected: { text: "已拒绝", cls: "bg-destructive/10 text-destructive" },
 };
 
-const ORG_TYPE_LABEL: Record<string, string> = {
-  individual_hr: "HR 个人",
-  startup: "创业公司",
-  non_company_team: "创业团队",
-  enterprise: "大型企业",
+const POSTER_ROLE_LABEL: Record<string, string> = {
+  hr: "HR",
+  hiring_manager: "用人经理",
+  employee_referral: "内推",
+};
+
+const COMPANY_STAGE_LABEL: Record<string, string> = {
+  unregistered: "尚未注册",
+  startup_0_3: "0-3 年",
+  growth_3_5: "3-5 年",
+  stable_5_10: "5-10 年",
+  mature_10plus: "10 年以上",
 };
 
 export default async function AdminPostingsPage({
@@ -42,7 +49,7 @@ export default async function AdminPostingsPage({
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">企业发布审核</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          审核雇主（HR 个人 / 创业公司 / 创业团队）发布的招聘岗位。待审核{" "}
+          审核雇主发布的招聘岗位。待审核{" "}
           <span className={pendingCount > 0 ? "font-semibold text-amber-600" : ""}>{int(pendingCount)}</span> 条；
           过审后进入候选端「在招岗位」，拒绝后仅发布者本人可见拒绝理由。
         </p>
@@ -67,7 +74,8 @@ export default async function AdminPostingsPage({
             <tr>
               <th className="px-3 py-2 font-medium">岗位</th>
               <th className="px-3 py-2 font-medium">发布者</th>
-              <th className="px-3 py-2 font-medium">主体</th>
+              <th className="px-3 py-2 font-medium">身份</th>
+              <th className="px-3 py-2 font-medium">阶段</th>
               <th className="px-3 py-2 font-medium">状态</th>
               <th className="px-3 py-2 font-medium">提交时间</th>
               <th className="px-3 py-2 font-medium"></th>
@@ -76,7 +84,7 @@ export default async function AdminPostingsPage({
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
                   {filter === "pending" ? "队列已清空 🎉" : "无匹配记录"}
                 </td>
               </tr>
@@ -102,7 +110,12 @@ export default async function AdminPostingsPage({
                   <td className="px-3 py-2 text-xs text-muted-foreground">{p.postedBy?.email ?? "—"}</td>
                   <td className="px-3 py-2">
                     <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                      {ORG_TYPE_LABEL[p.orgType] ?? p.orgType}
+                      {POSTER_ROLE_LABEL[p.posterRole] ?? p.posterRole}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      {COMPANY_STAGE_LABEL[p.companyStage] ?? p.companyStage}
                     </span>
                   </td>
                   <td className="space-y-1 px-3 py-2">

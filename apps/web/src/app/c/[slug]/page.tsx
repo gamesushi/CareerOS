@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPublicOrganization } from "@/lib/organizations";
+import { CATEGORY_LABEL } from "@careeros/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -116,9 +117,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                     key={c}
                     className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
                   >
-                    {c}
+                    {CATEGORY_LABEL[c] ?? c}
                   </span>
                 ))}
+                {p.referralCode && (
+                  <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                    内推码 {p.referralCode}
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {[p.location, p.salary].filter(Boolean).join(" · ")}

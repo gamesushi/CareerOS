@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES } from "@careeros/shared";
+import { WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES, CATEGORY_LABEL } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ExternalLink } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
 import { extractFullJd } from "@/lib/jd";
 import { ApplyDialog } from "./apply-dialog";
 
@@ -40,15 +40,19 @@ type ActiveJob = {
    * 故在此客户端合流（详见 docs/b-end-plan.md §7）。
    */
   origin: "external" | "posted";
-  orgType?: string | null;
+  posterRole?: string | null;
+  companyStage?: string | null;
   /** posted 岗若挂了组织，公司名渲染成指向 /c/<slug> 公开主页的链接。 */
   orgSlug?: string | null;
+  /** 内推码：仅内推岗填写，候选端展示供投递引用。 */
+  referralCode?: string | null;
 };
 
 /** 企业发布岗（/job-postings/feed 返回形状）。 */
 type PostedJob = {
   id: string;
-  orgType: string;
+  posterRole: string;
+  companyStage: string;
   company: string;
   title: string;
   location?: string | null;
@@ -58,6 +62,7 @@ type PostedJob = {
   categories?: string[] | null;
   createdAt: string;
   org?: { slug: string; name: string; verified: boolean } | null;
+  referralCode?: string | null;
 };
 
 /** 企业发布岗 → 列表行。posted 岗没有 matchScore / jdId / raw，对应能力在卡片上自然隐藏。 */
@@ -66,8 +71,10 @@ function postedToRow(p: PostedJob): ActiveJob {
     id: p.id,
     source: POSTED_SOURCE,
     origin: "posted",
-    orgType: p.orgType,
+    posterRole: p.posterRole,
+    companyStage: p.companyStage,
     orgSlug: p.org?.slug ?? null,
+    referralCode: p.referralCode ?? null,
     title: p.title,
     company: p.company,
     location: p.location,
@@ -99,6 +106,7 @@ const ROLE_GROUPS = ["game", "finance", "tech", "ai", "general"].map((cat) => ({
 export default function ActiveJobsPage() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
   const [jobs, setJobs] = useState<ActiveJob[] | null>(null);
   /** jobPostingId → 我的投递状态，用于把「投递」按钮换成状态徽标。 */
   const [myApplications, setMyApplications] = useState<Record<string, string>>({});
@@ -267,7 +275,7 @@ export default function ActiveJobsPage() {
         </button>
         {JOB_CATEGORIES.map((c) => (
           <button key={c.id} type="button" onClick={() => changeCategory(c.id)}>
-            <Badge variant={(mounted ? categoryFilter : "all") === c.id ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
+            <Badge variant={(mounted ? categoryFilter : "all") === c.id ? "default" : "outline"}>{CATEGORY_LABEL[c.id] ?? c.id}</Badge>
           </button>
         ))}
       </div>
@@ -341,9 +349,12 @@ export default function ActiveJobsPage() {
                         {j.origin === "posted" && (
                           <Badge className="px-1.5 py-0 text-[10px]">{t("jobs.postedBadge")}</Badge>
                         )}
+                        {j.origin === "posted" && j.referralCode && (
+                          <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{t("jobs.referralCodeBadge", { code: j.referralCode })}</Badge>
+                        )}
                         {closedFlag && <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">{t("jobs.closed")}</Badge>}
                         {j.categories?.map((c) => (
-                          <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{t(`category.${c}`)}</Badge>
+                          <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{CATEGORY_LABEL[c] ?? c}</Badge>
                         ))}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -365,11 +376,11 @@ export default function ActiveJobsPage() {
                         )}
                         {` · ${
                           j.origin === "posted"
-                            ? t(`orgType.${j.orgType}`)
+                            ? [t(`posterRole.${j.posterRole}`), t(`companyStage.${j.companyStage}`)].filter(Boolean).join(" · ")
                             : (SOURCE_LABEL[j.source] ?? j.source)
                         }`}
-                        {j.publishedAt && ` · ${t("jobs.publishedAt")} ${new Date(j.publishedAt).toLocaleDateString("zh-CN")}`}
-                        {closedFlag && j.closedAt && ` · ${t("jobs.closedAt")} ${new Date(j.closedAt).toLocaleDateString("zh-CN")}`}
+                        {j.publishedAt && ` · ${t("jobs.publishedAt")} ${new Date(j.publishedAt).toLocaleDateString(locale)}`}
+                        {closedFlag && j.closedAt && ` · ${t("jobs.closedAt")} ${new Date(j.closedAt).toLocaleDateString(locale)}`}
                       </p>
                       {j.snippet && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{j.snippet}</p>}
                     </div>

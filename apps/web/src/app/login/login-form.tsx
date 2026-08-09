@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -36,10 +36,12 @@ function GoogleIcon() {
 
 function LoginForm({
   passwordEnabled,
+  otpEnabled,
   googleEnabled,
   devEnabled,
 }: {
   passwordEnabled: boolean;
+  otpEnabled: boolean;
   googleEnabled: boolean;
   devEnabled: boolean;
 }) {
@@ -53,10 +55,60 @@ function LoginForm({
   const [tosChecked, setTosChecked] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 登录方式切换：密码 / 验证码。密码始终可用；验证码仅在 otpEnabled 时出现。
+  const [mode, setMode] = useState<"password" | "otp">("password");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpMsg, setOtpMsg] = useState("");
+  const [otpDevCode, setOtpDevCode] = useState("");
+
   // dev 邮箱直登
   const [devEmail, setDevEmail] = useState("");
   const [devTos, setDevTos] = useState(false);
   const [devLoading, setDevLoading] = useState(false);
+
+  // 验证码发送冷却倒计时
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const id = setTimeout(() => setOtpCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [otpCooldown]);
+
+  async function handleSendCode() {
+    if (!email.includes("@") || otpCooldown > 0) return;
+    setOtpSending(true);
+    setOtpMsg("");
+    setOtpDevCode("");
+    try {
+      const res = await fetch("/api/v1/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOtpMsg(data?.message || t("login.error"));
+      } else {
+        setOtpSent(true);
+        setOtpCooldown(60);
+        if (data?.devCode) setOtpDevCode(data.devCode);
+      }
+    } catch {
+      setOtpMsg(t("login.error"));
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function handleOtpLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tosChecked || !otpSent) return;
+    setLoading(true);
+    await signIn("email-otp", { email, code: otpCode, tosAccepted: "true", callbackUrl });
+    setLoading(false);
+  }
 
   function showError() {
     if (!errorParam) return;
@@ -106,7 +158,7 @@ function LoginForm({
           </Button>
         )}
 
-        {(googleEnabled && (passwordEnabled || devEnabled)) && (
+        {(googleEnabled && (passwordEnabled || otpEnabled || devEnabled)) && (
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
             <span>或</span>
@@ -114,67 +166,170 @@ function LoginForm({
           </div>
         )}
 
-        {passwordEnabled && (
-          <form onSubmit={handlePasswordLogin} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">{t("login.email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">{t("login.password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder={t("login.passwordPlaceholder")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <label className="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-3.5 shrink-0 accent-primary"
-                checked={tosChecked}
-                onChange={(e) => setTosChecked(e.target.checked)}
-              />
-              <span>
-                {t("login.tosPrefix")}
-                <Link href="/terms" target="_blank" className="text-foreground underline underline-offset-2">
-                  {t("login.tosTerms")}
-                </Link>
-                {t("login.tosAnd")}
-                <Link href="/privacy" target="_blank" className="text-foreground underline underline-offset-2">
-                  {t("login.tosPrivacy")}
-                </Link>
-              </span>
-            </label>
-            {authError && <p className="text-xs text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !tosChecked}>
-              {loading ? t("login.loading") : t("login.submit")}
-            </Button>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                {t("login.noAccount")}{" "}
-                <Link href="/register" className="text-foreground underline underline-offset-2">
-                  {t("login.registerLink")}
-                </Link>
-              </span>
-              <Link
-                href="/forgot-password"
-                className="text-foreground underline underline-offset-2"
-              >
-                {t("login.forgot")}
-              </Link>
-            </div>
-          </form>
+        {(passwordEnabled || otpEnabled) && (
+          <div className="space-y-3">
+            {otpEnabled && (
+              <div className="flex items-center gap-1 rounded-lg bg-muted p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMode("password")}
+                  className={`flex-1 rounded-md px-3 py-1.5 font-medium transition ${
+                    mode === "password" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                  }`}
+                >
+                  {t("login.passwordMode")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("otp")}
+                  className={`flex-1 rounded-md px-3 py-1.5 font-medium transition ${
+                    mode === "otp" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                  }`}
+                >
+                  {t("login.otpMode")}
+                </button>
+              </div>
+            )}
+
+            {mode === "password" && passwordEnabled && (
+              <form onSubmit={handlePasswordLogin} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">{t("login.email")}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">{t("login.password")}</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder={t("login.passwordPlaceholder")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-3.5 shrink-0 accent-primary"
+                    checked={tosChecked}
+                    onChange={(e) => setTosChecked(e.target.checked)}
+                  />
+                  <span>
+                    {t("login.tosPrefix")}
+                    <Link href="/terms" target="_blank" className="text-foreground underline underline-offset-2">
+                      {t("login.tosTerms")}
+                    </Link>
+                    {t("login.tosAnd")}
+                    <Link href="/privacy" target="_blank" className="text-foreground underline underline-offset-2">
+                      {t("login.tosPrivacy")}
+                    </Link>
+                  </span>
+                </label>
+                {authError && <p className="text-xs text-destructive">{authError}</p>}
+                <Button type="submit" className="w-full" disabled={loading || !tosChecked}>
+                  {loading ? t("login.loading") : t("login.submit")}
+                </Button>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {t("login.noAccount")}{" "}
+                    <Link href="/register" className="text-foreground underline underline-offset-2">
+                      {t("login.registerLink")}
+                    </Link>
+                  </span>
+                  <Link
+                    href="/forgot-password"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    {t("login.forgot")}
+                  </Link>
+                </div>
+              </form>
+            )}
+
+            {mode === "otp" && otpEnabled && (
+              <form onSubmit={handleOtpLogin} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="otp-email">{t("login.email")}</Label>
+                  <Input
+                    id="otp-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="otp-code">{t("login.otpCode")}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="otp-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder={t("login.otpCodePlaceholder")}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      required
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendCode}
+                      disabled={otpSending || otpCooldown > 0 || !email.includes("@")}
+                      className="shrink-0"
+                    >
+                      {otpCooldown > 0 ? `${otpCooldown}s` : otpSending ? t("login.sending") : t("login.sendCode")}
+                    </Button>
+                  </div>
+                  {otpMsg && <p className="text-xs text-destructive">{otpMsg}</p>}
+                  {otpDevCode && (
+                    <p className="text-xs text-muted-foreground">
+                      开发验证码：<span className="font-mono font-semibold text-foreground">{otpDevCode}</span>
+                    </p>
+                  )}
+                </div>
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-3.5 shrink-0 accent-primary"
+                    checked={tosChecked}
+                    onChange={(e) => setTosChecked(e.target.checked)}
+                  />
+                  <span>
+                    {t("login.tosPrefix")}
+                    <Link href="/terms" target="_blank" className="text-foreground underline underline-offset-2">
+                      {t("login.tosTerms")}
+                    </Link>
+                    {t("login.tosAnd")}
+                    <Link href="/privacy" target="_blank" className="text-foreground underline underline-offset-2">
+                      {t("login.tosPrivacy")}
+                    </Link>
+                  </span>
+                </label>
+                {authError && <p className="text-xs text-destructive">{authError}</p>}
+                <Button type="submit" className="w-full" disabled={loading || !tosChecked || !otpSent}>
+                  {loading ? t("login.loading") : t("login.submit")}
+                </Button>
+                <div className="text-xs">
+                  <span className="text-muted-foreground">
+                    {t("login.noAccount")}{" "}
+                    <Link href="/register" className="text-foreground underline underline-offset-2">
+                      {t("login.registerLink")}
+                    </Link>
+                  </span>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         {devEnabled && (
@@ -224,7 +379,7 @@ function LoginForm({
           </>
         )}
 
-        {!googleEnabled && !passwordEnabled && !devEnabled && (
+        {!googleEnabled && !passwordEnabled && !otpEnabled && !devEnabled && (
           <p className="text-xs text-muted-foreground">
             登录方式未启用，请检查认证配置（AUTH_GOOGLE_ID / AUTH_DEV_CREDENTIALS）。
           </p>
@@ -245,10 +400,12 @@ function LoginForm({
 
 export default function LoginFormWrapper({
   passwordEnabled,
+  otpEnabled,
   googleEnabled,
   devEnabled,
 }: {
   passwordEnabled: boolean;
+  otpEnabled: boolean;
   googleEnabled: boolean;
   devEnabled: boolean;
 }) {
@@ -257,6 +414,7 @@ export default function LoginFormWrapper({
       <Suspense>
         <LoginForm
           passwordEnabled={passwordEnabled}
+          otpEnabled={otpEnabled}
           googleEnabled={googleEnabled}
           devEnabled={devEnabled}
         />

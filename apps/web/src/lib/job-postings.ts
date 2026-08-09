@@ -15,13 +15,15 @@ export const PUBLIC_POSTING_WHERE: Prisma.JobPostingWhereInput = {
 
 const FEED_SELECT = {
   id: true,
-  orgType: true,
+  posterRole: true,
+  companyStage: true,
   company: true,
   title: true,
   location: true,
   salary: true,
   description: true,
   url: true,
+  referralCode: true,
   categories: true,
   createdAt: true,
   // 有组织的岗，候选端把公司名渲染成指向 /c/<slug> 公司主页的链接

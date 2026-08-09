@@ -88,7 +88,8 @@ describe("公开公司主页", () => {
     const base = {
       postedByUserId: owner,
       orgId,
-      orgType: "startup" as const,
+      posterRole: "hr" as const,
+      companyStage: "startup_0_3" as const,
       company: "Acme Tech",
       description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",
     };
@@ -129,7 +130,8 @@ describe("删组织", () => {
       data: {
         postedByUserId: owner,
         orgId: tmp.id,
-        orgType: "startup",
+        posterRole: "hr",
+        companyStage: "startup_0_3",
         company: "Temp Co",
         title: "临时岗",
         description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",

@@ -12,11 +12,6 @@ const DOC_TYPES = [
   { key: "thank_you", label: "writing.type.thanks" },
   { key: "follow_up", label: "writing.type.followup" },
 ] as const;
-const LANGS = [
-  { key: "zh", label: "中文" },
-  { key: "en", label: "English" },
-  { key: "ja", label: "日本語" },
-] as const;
 const TONES = [
   { key: "formal", label: "writing.tone.formal" },
   { key: "warm", label: "writing.tone.warm" },
@@ -33,6 +28,11 @@ function docLangFor(locale: string): "zh" | "en" | "ja" {
 export default function WritingStudioPage() {
   const t = useT();
   const locale = useLocale();
+  const LANGS = [
+    { key: "zh", label: t("writing.lang.zh") },
+    { key: "en", label: t("writing.lang.en") },
+    { key: "ja", label: t("writing.lang.ja") },
+  ];
   const [docType, setDocType] = useState<string>("cover_letter");
   const [language, setLanguage] = useState<string>(() => docLangFor(locale));
   const [tone, setTone] = useState<string>("formal");

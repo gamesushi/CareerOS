@@ -33,6 +33,7 @@ import {
   robinhoodSource, schonfeldSource, exoduspointSource, virtuSource, pinganSource, efundSource, cmbSource,
 } from "./finance";
 import { mihoyoSource } from "./mihoyo";
+import { kuroSource } from "./kuro";
 import {
   stripeSource, datadogSource, figmaSource, cloudflareSource, twilioSource, gitlabSource,
   oktaSource, zscalerSource, mongodbSource, databricksSource, fastlySource, anthropicSource,
@@ -63,6 +64,7 @@ export const SOURCES: Record<string, JobSource> = {
   [hackernewsSource.id]: hackernewsSource,
   [neteaseSource.id]: neteaseSource,
   [mihoyoSource.id]: mihoyoSource,
+  [kuroSource.id]: kuroSource,
   // 游戏公司（Greenhouse 官方招聘板）
   [riotgamesSource.id]: riotgamesSource,
   [scopelySource.id]: scopelySource,

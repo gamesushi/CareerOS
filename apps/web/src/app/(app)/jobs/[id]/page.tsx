@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Target, CircleAlert } from "lucide-react";
+import { toast } from "sonner";
 import { useT } from "@/lib/i18n/provider";
 import { Suspense } from "react";
 
@@ -63,6 +64,17 @@ function JdDetailInner({ id }: { id: string }) {
     return () => { active = false; };
   }, [id, matchId]);
 
+  // JD 解析状态轮询：pending / parsing 时每 2s 拉一次，转 parsed / failed 后自动停。
+  // 这样导入后无需手动刷新即可看到解析结果，也不会因 worker 延迟而卡在空白页。
+  useEffect(() => {
+    if (!jd || (jd.status !== "pending" && jd.status !== "parsing")) return;
+    const timer = setInterval(async () => {
+      const res = await api<JdDetail>(`/jds/${id}`, { silent: true });
+      if (res) setJd(res);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [jd?.status, id]);
+
   // 匹配结果轮询（computing → succeeded/failed）
   useEffect(() => {
     if (!matchId) return;
@@ -105,7 +117,23 @@ function JdDetailInner({ id }: { id: string }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/jobs")}>{t("common.back")}</Button>
-          <Button onClick={rematch}><Target className="size-4" /> {t("jobDetail.rematch")}</Button>
+          {jd.status === "failed" && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const res = await api(`/jds/${id}/reparse`, { method: "POST" });
+                if (res) {
+                  setJd((prev) => (prev ? { ...prev, status: "pending" } : prev));
+                  toast.success(t("jobDetail.reparseStarted"));
+                }
+              }}
+            >
+              <Loader2 className="size-4" /> {t("jobDetail.reparse")}
+            </Button>
+          )}
+          <Button onClick={rematch} disabled={jd.status !== "parsed"}>
+            <Target className="size-4" /> {t("jobDetail.rematch")}
+          </Button>
         </div>
       </div>
 
@@ -148,6 +176,22 @@ function JdDetailInner({ id }: { id: string }) {
 
         {/* 右：匹配报告 */}
         <div className="space-y-4">
+          {(jd.status === "pending" || jd.status === "parsing") && (
+            <Card>
+              <CardContent className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                {t("jobDetail.parsePendingHint")}
+              </CardContent>
+            </Card>
+          )}
+          {jd.status === "failed" && (
+            <Card>
+              <CardContent className="space-y-2 py-8 text-center">
+                <CircleAlert className="mx-auto size-6 text-destructive" />
+                <p className="text-sm text-muted-foreground">{t("jobDetail.parseFailedHint")}</p>
+              </CardContent>
+            </Card>
+          )}
           {!match && matchId && (
             <Card><CardContent className="flex items-center justify-center gap-2 py-10">
               <Loader2 className="size-4 animate-spin" /><span className="text-sm">{t("jobDetail.computing")}</span>

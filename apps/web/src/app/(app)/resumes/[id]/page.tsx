@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TEMPLATE_META, resolveTemplateMeta, filterTemplatesForType, TYPE_DEFAULT_TEMPLATE, getTemplatesGroupedByLang } from "@/lib/pdf/template-meta";
 import { Loader2, Download, Globe, CircleAlert, TriangleAlert, Plus, Languages } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
 import { DeriveResumeDialog } from "@/components/resumes/derive-dialog";
 
 type FamilyResumeItem = {
@@ -47,6 +47,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
   const [detail, setDetail] = useState<ResumeDetail | null>(null);
   const [doc, setDoc] = useState<JsonResume | null>(null);
   const [title, setTitle] = useState("");
@@ -115,15 +116,16 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
       });
 
       setPreviewKey((k) => k + 1);
-      const labelMap: Record<string, string> = {
-        work: "工作经历",
-        projects: "项目经历",
-        education: "教育经历",
-        all: "整份简历",
+      const sectionKey: Record<string, string> = {
+        work: "resumeDetail.secWork",
+        projects: "resumeDetail.secProjects",
+        education: "resumeDetail.secEducation",
+        all: "resumeDetail.secAll",
       };
-      toast.success(`已成功将${labelMap[section] ?? "模块"}翻译为 ${targetLang}`);
+      const sectionLabel = t(sectionKey[section] ?? "resumeDetail.secAll");
+      toast.success(t("resumeDetail.translatedSection", { section: sectionLabel, lang: targetLang }));
     } catch (err: any) {
-      toast.error(`翻译失败: ${err?.message || "请稍后重试"}`);
+      toast.error(t("resumeDetail.translateFail", { msg: err?.message || t("resumeDetail.retryLater") }));
     } finally {
       setTranslatingSection(null);
     }
@@ -176,12 +178,28 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
     return () => clearInterval(timer);
   }, [detail?.state, load]);
 
-  const LANG_SHORT_LABEL: Record<string, string> = {
-    zh: "🇨🇳 中文",
-    en: "🇺🇸 English",
-    ja_shokumu: "🇯🇵 職務経歴書",
-    ja_rirekisho: "🇯🇵 履歴書",
+  const langBase = locale === "ja" ? "ja" : locale.startsWith("en") ? "en" : "zh";
+  const LANG_NAMES: Record<string, Record<string, string>> = {
+    zh: {
+      zh: "🇨🇳 中文",
+      en: "🇺🇸 英文",
+      ja_shokumu: "🇯🇵 日式職務経歴書",
+      ja_rirekisho: "🇯🇵 日式履历书",
+    },
+    en: {
+      zh: "🇨🇳 Chinese",
+      en: "🇺🇸 English",
+      ja_shokumu: "🇯🇵 Japanese CV (Shokumu)",
+      ja_rirekisho: "🇯🇵 Japanese Resume (Rirekisho)",
+    },
+    ja: {
+      zh: "🇨🇳 中国語",
+      en: "🇺🇸 英語",
+      ja_shokumu: "🇯🇵 職務経歴書",
+      ja_rirekisho: "🇯🇵 履歴書",
+    },
   };
+  const LANG_SHORT_LABEL: Record<string, string> = LANG_NAMES[langBase] ?? LANG_NAMES.zh;
 
   async function save(markFinal = false) {
     if (!doc) return;
@@ -321,10 +339,10 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           <SelectContent>
             {getTemplatesGroupedByLang().map((grp) => (
               <SelectGroup key={grp.group}>
-                <SelectLabel className="text-xs font-semibold text-muted-foreground">{grp.label}</SelectLabel>
+                <SelectLabel className="text-xs font-semibold text-muted-foreground">{t(grp.labelKey)}</SelectLabel>
                 {grp.items.map((tm) => (
                   <SelectItem key={tm.id} value={tm.id}>
-                    {tm.name}
+                    {t(tm.nameKey)}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -348,7 +366,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">多语言版本家族</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t("resumeDetail.familyLabel")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {familyList.map((f) => (
               <DropdownMenuItem
@@ -363,7 +381,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setDeriveOpen(true)} className="cursor-pointer text-xs text-primary font-medium flex items-center gap-1.5">
               <Plus className="size-3.5" />
-              <span>生成新语言版本…</span>
+              <span>{t("resumeDetail.newLangVersion")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -381,11 +399,11 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
               ) : (
                 <Languages className="size-3.5" />
               )}
-              <span>{translatingSection === "all" ? "翻译中…" : "翻译"}</span>
+              <span>{translatingSection === "all" ? t("resumeDetail.translating") : t("resumeDetail.translate")}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-40">
-            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">整份简历翻译为…</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">{t("resumeDetail.translateWholeTo")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {TRANSLATE_LANGUAGES.map((l) => (
               <DropdownMenuItem

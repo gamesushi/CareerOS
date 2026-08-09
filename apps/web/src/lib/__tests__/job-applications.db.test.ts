@@ -47,7 +47,8 @@ beforeAll(async () => {
 
   const base = {
     postedByUserId: employer,
-    orgType: "startup" as const,
+    posterRole: "hr" as const,
+    companyStage: "startup_0_3" as const,
     company: "JA Org",
     description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",
   };

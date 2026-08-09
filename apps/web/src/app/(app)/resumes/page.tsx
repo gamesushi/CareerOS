@@ -141,7 +141,7 @@ export default function ResumesPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {TEMPLATE_META.map((tm) => (
-                      <SelectItem key={tm.id} value={tm.id}>{tm.name} — {tm.description}</SelectItem>
+                      <SelectItem key={tm.id} value={tm.id}>{t(tm.nameKey)} — {t(tm.descriptionKey)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

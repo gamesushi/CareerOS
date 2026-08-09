@@ -57,3 +57,53 @@ export function normalizeLocale(value: string | undefined | null): Locale {
 export function htmlLangFor(locale: Locale): string {
   return LOCALES.find((l) => l.code === locale)?.htmlLang ?? "en";
 }
+
+/** 根据 Accept-Language 请求头，从受支持的语言中协商出最合适的 locale。 */
+export function negotiateLocale(acceptLanguage: string | null | undefined): Locale {
+  if (!acceptLanguage) return DEFAULT_LOCALE;
+
+  type Candidate = { tag: string; q: number };
+  const candidates: Candidate[] = acceptLanguage
+    .split(",")
+    .map((part) => {
+      const [rawTag, rawQ] = part.trim().split(";").map((s) => s.trim());
+      const tag = (rawTag || "").toLowerCase();
+      const q = rawQ ? parseFloat(rawQ.replace(/^q=/i, "")) : 1;
+      return { tag, q: Number.isFinite(q) ? q : 0 };
+    })
+    .filter((c) => c.tag && c.q > 0);
+
+  let best: Locale = DEFAULT_LOCALE;
+  let bestScore = -1;
+
+  for (const { tag, q } of candidates) {
+    for (const locale of LOCALES.map((l) => l.code)) {
+      const score = matchLocaleScore(tag, locale);
+      if (score <= 0) continue;
+      const weighted = score * q;
+      if (weighted > bestScore) {
+        bestScore = weighted;
+        best = locale;
+      }
+    }
+  }
+
+  return best;
+}
+
+function matchLocaleScore(tag: string, locale: string): number {
+  const loc = locale.toLowerCase();
+
+  // 中文特殊处理：简化字/繁体字/地区码
+  if (loc === "zh-cn") {
+    if (tag === "zh-cn" || tag === "zh-hans" || tag === "zh") return 1;
+  }
+  if (loc === "zh-tw") {
+    if (tag === "zh-tw" || tag === "zh-hant" || tag === "zh-hk" || tag === "zh-mo") return 1;
+  }
+
+  // 完全匹配，如 "en-us" -> "en-us"（如果支持）或 "ja-jp" -> "ja"
+  if (tag === loc) return 1;
+  if (tag === loc.split("-")[0]) return 0.5;
+  return 0;
+}

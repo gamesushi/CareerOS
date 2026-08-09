@@ -191,10 +191,10 @@ export function DeriveResumeDialog({
               <SelectContent>
                 {getTemplatesGroupedByLang().map((grp) => (
                   <SelectGroup key={grp.group}>
-                    <SelectLabel className="text-xs font-semibold text-muted-foreground">{grp.label}</SelectLabel>
+                    <SelectLabel className="text-xs font-semibold text-muted-foreground">{t(grp.labelKey)}</SelectLabel>
                     {grp.items.map((tm) => (
                       <SelectItem key={tm.id} value={tm.id}>
-                        {tm.name} — {tm.description}
+                        {t(tm.nameKey)} — {t(tm.descriptionKey)}
                       </SelectItem>
                     ))}
                   </SelectGroup>

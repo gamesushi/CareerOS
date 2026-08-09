@@ -14,7 +14,8 @@ let approvedId = "";
 let closedId = "";
 
 const base = {
-  orgType: "startup" as const,
+  posterRole: "hr" as const,
+  companyStage: "startup_0_3" as const,
   company: "测试公司",
   description: "岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述岗位描述",
 };

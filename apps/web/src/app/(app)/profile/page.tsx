@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhotoUploader } from "@/components/photo-uploader";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
 import { Sparkles, Loader2, Globe } from "lucide-react";
 import type { ProfileLangData, PersonalRecord } from "@/lib/merge-personal";
 
@@ -34,6 +34,7 @@ type Me = {
 };
 
 const WORK_AUTH_NONE = "__none__";
+const LANG_ORDER = ["zh", "en", "ja"] as const;
 
 const emptyLangData: ProfileLangData = {
   name: "",
@@ -44,8 +45,18 @@ const emptyLangData: ProfileLangData = {
   address: "",
 };
 
+function langFromLocale(locale: string): "zh" | "en" | "ja" {
+  if (locale.startsWith("zh")) return "zh";
+  if (locale.startsWith("ja")) return "ja";
+  if (locale.startsWith("en")) return "en";
+  return "zh";
+}
+
 export default function ProfilePage() {
   const t = useT();
+  const locale = useLocale();
+  const userLang = langFromLocale(locale);
+  const orderedLangs = [userLang, ...LANG_ORDER.filter((l) => l !== userLang)];
   const [me, setMe] = useState<Me | null>(null);
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -108,7 +119,7 @@ export default function ProfilePage() {
 
   const handleAiTranslate = async () => {
     if (!zhData.headline && !zhData.summary && !zhData.name) {
-      toast.error("请先填写中文基本资料（姓名、头衔或简介）");
+      toast.error(t("profile.aiTranslateEmpty"));
       return;
     }
     setTranslating(true);
@@ -137,9 +148,9 @@ export default function ProfilePage() {
           address: res.ja?.address || prev.address || "",
         }));
       }
-      toast.success("✨ 已成功通过 AI 自动生成英文与日文档案！请在对应标签页核对。");
+      toast.success(t("profile.aiTranslateSuccess"));
     } catch {
-      toast.error("AI 翻译失败，请稍后重试");
+      toast.error(t("profile.aiTranslateError"));
     } finally {
       setTranslating(false);
     }
@@ -189,9 +200,7 @@ export default function ProfilePage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold">{t("profile.title")}</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            设置您的共享个人信息与多语言（中文 / English / 日本語）专属档案。切换简历样式时将自动调用对应语言资料。
-          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t("profile.subtitle")}</p>
         </div>
         <Button
           variant="outline"
@@ -201,134 +210,125 @@ export default function ProfilePage() {
           className="gap-1.5 border-amber-500/40 bg-amber-500/5 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
         >
           {translating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-amber-500" />}
-          AI 一键翻译多语言档案
+          {t("profile.aiTranslate")}
         </Button>
       </div>
 
-      <Tabs defaultValue="zh">
+      <Tabs defaultValue={orderedLangs[0]}>
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 gap-2">
-          <TabsTrigger value="zh" className="data-[state=active]:bg-muted px-4 py-2">
-            🇨🇳 中文档案 (ZH)
-          </TabsTrigger>
-          <TabsTrigger value="en" className="data-[state=active]:bg-muted px-4 py-2">
-            🇺🇸 English Profile (EN)
-          </TabsTrigger>
-          <TabsTrigger value="ja" className="data-[state=active]:bg-muted px-4 py-2">
-            🇯🇵 日本語プロフィール (JA)
-          </TabsTrigger>
+          {orderedLangs.map((lang) => (
+            <TabsTrigger key={lang} value={lang} className="data-[state=active]:bg-muted px-4 py-2">
+              {t(`profile.tab.${lang}`)}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* ==================== 🇨🇳 中文档案 ==================== */}
+        {/* ==================== 中文档案 ==================== */}
         <TabsContent value="zh" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">中文基础资料</CardTitle>
-              <CardDescription>生成 / 预览中文版简历（经典 / 现代 / 侧栏 / 紧凑等样式）时自动调用</CardDescription>
+              <CardTitle className="text-base">{t("profile.section.zhTitle")}</CardTitle>
+              <CardDescription>{t("profile.section.zhDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>中文姓名</Label>
-                  <Input value={zhData.name ?? ""} onChange={(e) => setZhData((d) => ({ ...d, name: e.target.value }))} placeholder="如：何北航" />
+                  <Label>{t("profile.label.name")}</Label>
+                  <Input value={zhData.name ?? ""} onChange={(e) => setZhData((d) => ({ ...d, name: e.target.value }))} placeholder={t("profile.placeholder.name")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{t("resumeDetail.email")}</Label>
+                  <Label>{t("profile.label.email")}</Label>
                   <Input value={me.email} readOnly disabled className="bg-muted/50 text-muted-foreground" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>联系电话</Label>
-                  <Input value={zhData.mobile ?? ""} onChange={(e) => setZhData((d) => ({ ...d, mobile: e.target.value }))} placeholder="13800000000" />
+                  <Label>{t("profile.label.phone")}</Label>
+                  <Input value={zhData.mobile ?? ""} onChange={(e) => setZhData((d) => ({ ...d, mobile: e.target.value }))} placeholder={t("profile.placeholder.phone")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>意向 / 居住城市</Label>
-                  <Input value={zhData.preferredCity ?? ""} onChange={(e) => setZhData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder="北京 / 上海 / 深圳" />
+                  <Label>{t("profile.label.city")}</Label>
+                  <Input value={zhData.preferredCity ?? ""} onChange={(e) => setZhData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder={t("profile.placeholder.city")} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>详细地址</Label>
-                <Input value={zhData.address ?? ""} onChange={(e) => setZhData((d) => ({ ...d, address: e.target.value }))} placeholder="北京市朝阳区…" />
+                <Label>{t("profile.label.address")}</Label>
+                <Input value={zhData.address ?? ""} onChange={(e) => setZhData((d) => ({ ...d, address: e.target.value }))} placeholder={t("profile.placeholder.address")} />
               </div>
               <div className="space-y-1.5">
-                <Label>职业头衔 / Headline</Label>
-                <Input value={zhData.headline ?? ""} onChange={(e) => setZhData((d) => ({ ...d, headline: e.target.value }))} placeholder="如：海外游戏发行专家 / 全栈工程师" />
+                <Label>{t("profile.label.headline")}</Label>
+                <Input value={zhData.headline ?? ""} onChange={(e) => setZhData((d) => ({ ...d, headline: e.target.value }))} placeholder={t("profile.placeholder.headline")} />
               </div>
               <div className="space-y-1.5">
-                <Label>个人简介 / Summary</Label>
-                <Textarea rows={3} value={zhData.summary ?? ""} onChange={(e) => setZhData((d) => ({ ...d, summary: e.target.value }))} placeholder="9年+互联网·游戏行业经验，精通日本市场用户研究…" />
+                <Label>{t("profile.label.summary")}</Label>
+                <Textarea rows={3} value={zhData.summary ?? ""} onChange={(e) => setZhData((d) => ({ ...d, summary: e.target.value }))} placeholder={t("profile.placeholder.summary")} />
               </div>
 
-              {/* 中文标签页 — 证件照（可选） */}
               <Separator />
               <div className="space-y-1.5">
-                <Label>证件照（可选）</Label>
-                <p className="text-xs text-muted-foreground">若上传，支持照片的模板会自动渲染；清空后所有简历同步隐藏。</p>
-                <PhotoUploader
-                  value={photo ?? undefined}
-                  onChange={(v) => setPhoto(v ?? null)}
-                />
+                <Label>{t("profile.label.photo")}</Label>
+                <p className="text-xs text-muted-foreground">{t("profile.label.photoHint")}</p>
+                <PhotoUploader value={photo ?? undefined} onChange={(v) => setPhoto(v ?? null)} />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ==================== 🇺🇸 English Profile ==================== */}
+        {/* ==================== English Profile ==================== */}
         <TabsContent value="en" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Globe className="size-4 text-blue-500" />
-                English Profile
+                {t("profile.section.enTitle")}
               </CardTitle>
-              <CardDescription>Automatically applied when using the ATS English template or exporting US-style resumes</CardDescription>
+              <CardDescription>{t("profile.section.enDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Full Name</Label>
-                  <Input value={enData.name ?? ""} onChange={(e) => setEnData((d) => ({ ...d, name: e.target.value }))} placeholder="e.g. Beihang He" />
+                  <Label>{t("profile.label.name")}</Label>
+                  <Input value={enData.name ?? ""} onChange={(e) => setEnData((d) => ({ ...d, name: e.target.value }))} placeholder={t("profile.placeholder.name")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Email</Label>
+                  <Label>{t("profile.label.email")}</Label>
                   <Input value={me.email} readOnly disabled className="bg-muted/50 text-muted-foreground" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Phone Number</Label>
-                  <Input value={enData.mobile ?? ""} onChange={(e) => setEnData((d) => ({ ...d, mobile: e.target.value }))} placeholder="+81 80-9619-4237" />
+                  <Label>{t("profile.label.phone")}</Label>
+                  <Input value={enData.mobile ?? ""} onChange={(e) => setEnData((d) => ({ ...d, mobile: e.target.value }))} placeholder={t("profile.placeholder.phone")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Target / Current City</Label>
-                  <Input value={enData.preferredCity ?? ""} onChange={(e) => setEnData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder="Tokyo, Japan / San Jose, CA" />
+                  <Label>{t("profile.label.city")}</Label>
+                  <Input value={enData.preferredCity ?? ""} onChange={(e) => setEnData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder={t("profile.placeholder.city")} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Address</Label>
-                <Input value={enData.address ?? ""} onChange={(e) => setEnData((d) => ({ ...d, address: e.target.value }))} placeholder="San Jose, CA 95110" />
+                <Label>{t("profile.label.address")}</Label>
+                <Input value={enData.address ?? ""} onChange={(e) => setEnData((d) => ({ ...d, address: e.target.value }))} placeholder={t("profile.placeholder.address")} />
               </div>
               <div className="space-y-1.5">
-                <Label>Professional Title / Headline</Label>
-                <Input value={enData.headline ?? ""} onChange={(e) => setEnData((d) => ({ ...d, headline: e.target.value }))} placeholder="e.g. Japan Market Content & Growth Strategist" />
+                <Label>{t("profile.label.headline")}</Label>
+                <Input value={enData.headline ?? ""} onChange={(e) => setEnData((d) => ({ ...d, headline: e.target.value }))} placeholder={t("profile.placeholder.headline")} />
               </div>
               <div className="space-y-1.5">
-                <Label>Professional Summary</Label>
-                <Textarea rows={3} value={enData.summary ?? ""} onChange={(e) => setEnData((d) => ({ ...d, summary: e.target.value }))} placeholder="Senior strategist with 9+ years of experience in gaming & internet industry..." />
+                <Label>{t("profile.label.summary")}</Label>
+                <Textarea rows={3} value={enData.summary ?? ""} onChange={(e) => setEnData((d) => ({ ...d, summary: e.target.value }))} placeholder={t("profile.placeholder.summary")} />
               </div>
 
-              {/* 英文标签页 — 签证状态 */}
               <Separator />
               <div className="space-y-1.5">
-                <Label>Work Authorization / Visa Status</Label>
-                <p className="text-xs text-muted-foreground">US employers typically require work authorization disclosure. Leave blank if not applying to US positions.</p>
+                <Label>{t("profile.label.workAuth")}</Label>
+                <p className="text-xs text-muted-foreground">{t("profile.label.workAuthHint")}</p>
                 <Select value={workAuth} onValueChange={setWorkAuth}>
-                  <SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("profile.workAuth.notSpecified")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={WORK_AUTH_NONE}>Not specified</SelectItem>
-                    <SelectItem value="us_authorized">Authorized to work (Citizen / Green Card / H1B)</SelectItem>
-                    <SelectItem value="requires_sponsorship">Requires visa sponsorship</SelectItem>
-                    <SelectItem value="other">Other / N/A</SelectItem>
+                    <SelectItem value={WORK_AUTH_NONE}>{t("profile.workAuth.notSpecified")}</SelectItem>
+                    <SelectItem value="us_authorized">{t("profile.workAuth.usAuthorized")}</SelectItem>
+                    <SelectItem value="requires_sponsorship">{t("profile.workAuth.requiresSponsorship")}</SelectItem>
+                    <SelectItem value="other">{t("profile.workAuth.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -336,78 +336,66 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* ==================== 🇯🇵 日本語プロフィール ==================== */}
+        {/* ==================== 日本語プロフィール ==================== */}
         <TabsContent value="ja" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Globe className="size-4 text-red-500" />
-                日本語プロフィール
+                {t("profile.section.jaTitle")}
               </CardTitle>
-              <CardDescription>選択したテンプレートが「職務経歴書」や「履歴書」の場合、右側のプレビューや出力で自動適用されます</CardDescription>
+              <CardDescription>{t("profile.section.jaDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>氏名</Label>
-                  <Input value={jaData.name ?? ""} onChange={(e) => setJaData((d) => ({ ...d, name: e.target.value }))} placeholder="例：何 北航" />
+                  <Label>{t("profile.label.name")}</Label>
+                  <Input value={jaData.name ?? ""} onChange={(e) => setJaData((d) => ({ ...d, name: e.target.value }))} placeholder={t("profile.placeholder.name")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>E-mail</Label>
+                  <Label>{t("profile.label.email")}</Label>
                   <Input value={me.email} readOnly disabled className="bg-muted/50 text-muted-foreground" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>電話番号</Label>
-                  <Input value={jaData.mobile ?? ""} onChange={(e) => setJaData((d) => ({ ...d, mobile: e.target.value }))} placeholder="080-9619-4237" />
+                  <Label>{t("profile.label.phone")}</Label>
+                  <Input value={jaData.mobile ?? ""} onChange={(e) => setJaData((d) => ({ ...d, mobile: e.target.value }))} placeholder={t("profile.placeholder.phone")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>希望勤務地 / 現住所都市</Label>
-                  <Input value={jaData.preferredCity ?? ""} onChange={(e) => setJaData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder="東京" />
+                  <Label>{t("profile.label.city")}</Label>
+                  <Input value={jaData.preferredCity ?? ""} onChange={(e) => setJaData((d) => ({ ...d, preferredCity: e.target.value }))} placeholder={t("profile.placeholder.city")} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>現住所</Label>
-                <Input value={jaData.address ?? ""} onChange={(e) => setJaData((d) => ({ ...d, address: e.target.value }))} placeholder="東京都渋谷区1-2-3" />
+                <Label>{t("profile.label.address")}</Label>
+                <Input value={jaData.address ?? ""} onChange={(e) => setJaData((d) => ({ ...d, address: e.target.value }))} placeholder={t("profile.placeholder.address")} />
               </div>
               <div className="space-y-1.5">
-                <Label>職種・肩書 / Headline</Label>
-                <Input value={jaData.headline ?? ""} onChange={(e) => setJaData((d) => ({ ...d, headline: e.target.value }))} placeholder="例：日本市場コンテンツ＆成長戦略家" />
+                <Label>{t("profile.label.headline")}</Label>
+                <Input value={jaData.headline ?? ""} onChange={(e) => setJaData((d) => ({ ...d, headline: e.target.value }))} placeholder={t("profile.placeholder.headline")} />
               </div>
               <div className="space-y-1.5">
-                <Label>職務要約・自己PR / Summary</Label>
-                <Textarea rows={3} value={jaData.summary ?? ""} onChange={(e) => setJaData((d) => ({ ...d, summary: e.target.value }))} placeholder="インターネット・ゲーム業界で9年以上の経験を持ち、日本市場のユーザーリサーチ…" />
+                <Label>{t("profile.label.summary")}</Label>
+                <Textarea rows={3} value={jaData.summary ?? ""} onChange={(e) => setJaData((d) => ({ ...d, summary: e.target.value }))} placeholder={t("profile.placeholder.summary")} />
               </div>
 
-              {/* 日文标签页 — 履歴書専用 */}
               <Separator />
               <div className="space-y-1.5">
-                <Label>証明写真（履歴書用）</Label>
-                <p className="text-xs text-muted-foreground">日本の履歴書では写真欄が必須です（40mm×30mm）。削除するとすべての履歴書プレビューで写真が非表示になります。</p>
-                <PhotoUploader
-                  value={photo ?? undefined}
-                  onChange={(v) => setPhoto(v ?? null)}
-                />
+                <Label>{t("profile.label.photo")}</Label>
+                <p className="text-xs text-muted-foreground">{t("profile.label.photoHint")}</p>
+                <PhotoUploader value={photo ?? undefined} onChange={(v) => setPhoto(v ?? null)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>ふりがな</Label>
-                  <p className="text-xs text-muted-foreground">履歴書の氏名欄の上にふりがなを表示します</p>
-                  <Input
-                    value={furigana}
-                    onChange={(e) => setFurigana(e.target.value)}
-                    placeholder="やまだ たろう"
-                  />
+                  <Label>{t("profile.label.furigana")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("profile.label.furiganaHint")}</p>
+                  <Input value={furigana} onChange={(e) => setFurigana(e.target.value)} placeholder="やまだ たろう" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>生年月日</Label>
-                  <p className="text-xs text-muted-foreground">履歴書に出生年月日を記載します（年齢は自動計算）</p>
-                  <Input
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                  />
+                  <Label>{t("profile.label.birthDate")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("profile.label.birthDateHint")}</p>
+                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
                 </div>
               </div>
             </CardContent>

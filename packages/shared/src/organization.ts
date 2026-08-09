@@ -34,7 +34,8 @@ export const organizationCreateInput = z.object({
     .regex(SLUG_RE, "只能用小写字母、数字和连字符，且首尾为字母或数字")
     .max(64)
     .optional(),
-  orgType: z.enum(["individual_hr", "startup", "non_company_team"]),
+  // 公司资料页不再展示「发布主体」选择，统一默认创业公司；仍保留字段供 API/旧数据兼容
+  orgType: z.enum(["individual_hr", "startup", "non_company_team"]).optional().default("startup"),
   website: z.string().trim().url("请填写合法网址").max(255).optional().or(z.literal("")),
   logoUrl: z.string().trim().url("请填写合法图片地址").max(2000).optional().or(z.literal("")),
   description: z.string().trim().max(5000).optional(),

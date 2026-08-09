@@ -10,15 +10,35 @@
 // - withBrowser 负责启动/关闭浏览器，handler 内自由导航 + 抽取
 // - 若目标站弹出验证码/拦截页，handler 应识别并返回空数组（graceful，不污染监测）
 
+import { existsSync } from "node:fs";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { UA } from "../types";
 
 export const HEADLESS_TIMEOUT = 45_000;
 
+/**
+ * 优先复用本机已安装的系统 Chrome（避免再下载 Playwright chromium，本机常未预装）。
+ * 找不到时回退到 Playwright 自带 chromium（生产/CI 场景）。
+ */
+function findSystemChrome(): string | undefined {
+  const candidates: string[] =
+    process.platform === "darwin"
+      ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+      : process.platform === "win32"
+        ? [
+            "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+            "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+          ]
+        : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/opt/google/chrome/chrome"];
+  return candidates.find((p) => existsSync(p));
+}
+
 /** 启动一个带 stealth 参数的 chromium 实例。 */
 export async function launchBrowser(): Promise<Browser> {
+  const exe = findSystemChrome();
   return chromium.launch({
     headless: true,
+    ...(exe ? { executablePath: exe } : {}),
     args: [
       "--disable-blink-features=AutomationControlled",
       "--disable-dev-shm-usage",

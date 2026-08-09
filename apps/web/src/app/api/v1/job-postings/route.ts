@@ -37,13 +37,16 @@ export const POST = handler(async (req) => {
     data: {
       postedByUserId: userId,
       orgId: org?.id ?? null,
-      orgType: org?.orgType ?? input.orgType,
+      orgType: org?.orgType ?? null,
+      posterRole: input.posterRole,
+      companyStage: input.companyStage,
       company: org?.name ?? input.company,
       title: input.title,
       location: input.location || null,
       salary: input.salary || null,
       description: input.description,
       url: input.url || null,
+      referralCode: input.referralCode || null,
       categories: input.categories as unknown as Prisma.InputJsonValue,
       status: input.status,
       // 草稿不进审核队列；提交发布的一律 pending，过审后才进候选端（与用户录入岗位同一治理口径）

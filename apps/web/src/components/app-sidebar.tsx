@@ -78,6 +78,7 @@ const PERSONAL_ITEMS: readonly NavItem[] = [
 // 招聘者专属入口，仅 isRecruiter 时渲染
 const EMPLOYER_ITEMS: readonly NavItem[] = [
   { href: "/employer/jobs", key: "nav.employerJobs", icon: Building2 },
+  { href: "/employer/jobs/manage", key: "nav.employerManageJobs", icon: ListChecks },
   { href: "/employer/company", key: "nav.employerCompany", icon: Store },
 ];
 
@@ -85,12 +86,15 @@ const TOP_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", key: "nav.dashboard", icon: LayoutDashboard },
 ];
 
-// 精确判定导航高亮：「岗位匹配」(/jobs) 与「在招岗位」(/jobs/active) 是平级兄弟，
-// 在 /jobs/active 时不该高亮 /jobs；但 /jobs 在 /jobs/[id] 等子页仍应高亮。
+// 精确判定导航高亮：
+// - 「岗位匹配」(/jobs) 与「在招岗位」(/jobs/active) 是平级兄弟，/jobs/active 时不该高亮 /jobs；
+// - 「发布岗位」(/employer/jobs) 与「岗位管理」(/employer/jobs/manage) 同理；
+// - 但父级在 /jobs/[id]、/employer/jobs/[id]/applications 等子页仍应高亮。
 function isNavActive(href: string, pathname: string): boolean {
   if (pathname === href) return true;
   if (!pathname.startsWith(href + "/")) return false;
   if (href === "/jobs" && pathname.startsWith("/jobs/active")) return false;
+  if (href === "/employer/jobs" && pathname.startsWith("/employer/jobs/manage")) return false;
   return true;
 }
 

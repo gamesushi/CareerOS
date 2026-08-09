@@ -1,17 +1,25 @@
 import { redirect } from "next/navigation";
+import { Metadata } from "next";
 import { getSession } from "@/lib/auth";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { prisma } from "@careeros/db";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { AccountDanger } from "./account-danger";
 import { AccountExport } from "./account-export";
 import { EmployerRole } from "./employer-role";
 
-export const metadata = { title: "账号设置 · CareerOS" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t("settings.pageTitle") };
+}
 
 // 账号设置：展示近期登录（登录审计透明化），并提供自助注销入口。
 export default async function SettingsPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
+  const t = await getT();
+  const locale = await getLocale();
 
   const [recent, me] = await Promise.all([
     prisma.loginLog.findMany({
@@ -26,14 +34,14 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-10">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">账号设置</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("settings.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{session.user.email}</p>
       </header>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">近期登录</h2>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("settings.recentLogins")}</h2>
         {recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无登录记录</p>
+          <p className="text-sm text-muted-foreground">{t("settings.noLogins")}</p>
         ) : (
           <ul className="divide-y rounded-md border">
             {recent.map((l) => (
@@ -42,19 +50,24 @@ export default async function SettingsPage() {
                 className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
               >
                 <span className="tabular-nums text-muted-foreground">
-                  {new Date(l.createdAt).toLocaleString("zh-CN")}
+                  {new Date(l.createdAt).toLocaleString(locale)}
                 </span>
                 <span className="capitalize">{l.method}</span>
                 <span className={l.success ? "text-green-600" : "text-red-600"}>
-                  {l.success ? "成功" : "失败"}
+                  {l.success ? t("settings.loginSuccess") : t("settings.loginFailed")}
                 </span>
                 <span className="max-w-[10rem] truncate text-xs text-muted-foreground">
-                  {l.ip ?? "-"}
+                  {l.ip ?? t("settings.unknownIp")}
                 </span>
               </li>
             ))}
           </ul>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("settings.language")}</h2>
+        <LocaleSwitcher className="w-full max-w-xs" />
       </section>
 
       <EmployerRole role={me?.role ?? "user"} />

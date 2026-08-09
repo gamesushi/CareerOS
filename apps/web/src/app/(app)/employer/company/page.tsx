@@ -21,6 +21,26 @@ export default async function EmployerCompanyPage() {
     redirect("/settings?employer=1");
   }
 
-  const orgs = await listMyOrganizations(session.user.id);
-  return <CompanyForm initial={orgs[0] ?? null} />;
+  const [orgs, existingCompanies] = await Promise.all([
+    listMyOrganizations(session.user.id),
+    prisma.discoveredJob.findMany({
+      where: { userId: session.user.id, company: { not: null } },
+      select: { company: true },
+      distinct: ["company"],
+      orderBy: { company: "asc" },
+      take: 50,
+    }),
+  ]);
+
+  // 过滤掉猎聘等来源返回的匿名展示名（如"某上海互联网上市公司"），这类名对一键导入无意义。
+  const realCompanies = existingCompanies
+    .map((c) => c.company!)
+    .filter((c) => !!c && !c.startsWith("某"));
+
+  return (
+    <CompanyForm
+      initial={orgs[0] ?? null}
+      existingCompanies={realCompanies}
+    />
+  );
 }

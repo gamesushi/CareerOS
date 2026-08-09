@@ -113,8 +113,8 @@ export async function listPostingReviewQueue(p: { filter?: ReviewFilter; page?: 
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
-        id: true, orgType: true, company: true, title: true, location: true,
-        salary: true, url: true, description: true, status: true,
+        id: true, posterRole: true, companyStage: true, company: true, title: true, location: true,
+        salary: true, url: true, referralCode: true, description: true, status: true,
         reviewStatus: true, reviewNote: true, reviewedAt: true,
         takenDownAt: true, createdAt: true,
         postedBy: { select: { email: true, name: true } },
