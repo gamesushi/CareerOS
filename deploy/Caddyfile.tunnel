@@ -1,0 +1,10 @@
+# CareerOS · Caddy 隧道模式（无公网 IP / Cloudflare Tunnel 时用）
+# Cloudflare 在边缘终结 HTTPS，本机只跑 HTTP 反代即可，无需申请 Let's Encrypt 证书。
+{
+    # 不配置 email，不申请证书
+}
+
+:80 {
+    encode gzip
+    reverse_proxy web:3000
+}
