@@ -12,8 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Search, X } from "lucide-react";
 import { useT, useLocale } from "@/lib/i18n/provider";
+import { Input } from "@/components/ui/input";
 import { extractFullJd } from "@/lib/jd";
 import { ApplyDialog } from "./apply-dialog";
 
@@ -119,6 +120,7 @@ export default function ActiveJobsPage() {
   // 客户端二级筛选（品类 / 职种，与岗位监测一致，持久化到 localStorage）
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -214,15 +216,22 @@ export default function ActiveJobsPage() {
     }
   }
 
-  // 品类 / 职种：客户端二级筛选（与岗位监测一致）
+  // 品类 / 职种 + 搜索：客户端二级筛选
   const visibleJobs = useMemo(() => {
     if (!jobs) return null;
-    return jobs.filter(
-      (j) =>
-        (categoryFilter === "all" || (j.categories ?? []).includes(categoryFilter)) &&
-        (roleFilter === "all" || (j.roles ?? []).includes(roleFilter)),
-    );
-  }, [jobs, categoryFilter, roleFilter]);
+    const q = search.trim().toLowerCase();
+    return jobs.filter((j) => {
+      const matchesCategory = categoryFilter === "all" || (j.categories ?? []).includes(categoryFilter);
+      const matchesRole = roleFilter === "all" || (j.roles ?? []).includes(roleFilter);
+      if (!matchesCategory || !matchesRole) return false;
+      if (!q) return true;
+      const haystack = [j.title, j.company, j.location, j.salary, j.snippet]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [jobs, categoryFilter, roleFilter, search]);
 
   const feedRoles =
     categoryFilter === "all"
@@ -265,6 +274,25 @@ export default function ActiveJobsPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder={t("jobs.searchPlaceholder")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pl-9 pr-8"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 品类筛选（与岗位监测一致） */}

@@ -29,7 +29,7 @@ export type JdParsed = z.infer<typeof jdParsed>;
 
 // 匹配打分常量（docs/design/01 §3.2；集中一处便于调参）
 export const MATCH_WEIGHTS = { skill: 0.5, experience: 0.3, industry: 0.2 };
-export const SKILL_SIM_THRESHOLD = 0.85; // 名称未命中时的向量兜底阈值
+export const SKILL_SIM_THRESHOLD = 0.8; // 名称未命中时的向量兜底阈值（0.85→0.80：放宽中文/跨语言近义技能兜底）
 export const EXP_SIM_FULL = 0.8; // ≥ 记满分
 export const EXP_SIM_ZERO = 0.65; // < 记零分，中间线性
 

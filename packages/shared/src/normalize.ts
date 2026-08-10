@@ -21,7 +21,12 @@ const SKILL_ALIASES: Record<string, string> = {
   k8s: "kubernetes",
 };
 
+// 中文技能名常见的冗余修饰词（JD 解析易把"用户研究"拆成"用户与市场研究"）。
+// 剥离后便于与技能中心的短名精确命中："用户与市场研究"→"用户研究"、"项目推进与执行"→"项目推进"。
+const ZH_REDUNDANT = ["与市场", "与执行", "与运营", "与分析", "相关工作", "经验"];
+
 export function normalizeSkill(name: string): string {
-  const lower = name.trim().toLowerCase().slice(0, 80);
+  let lower = name.trim().toLowerCase().slice(0, 80);
+  for (const w of ZH_REDUNDANT) lower = lower.split(w).join("");
   return SKILL_ALIASES[lower] ?? lower;
 }

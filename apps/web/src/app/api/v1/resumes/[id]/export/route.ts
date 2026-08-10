@@ -2,7 +2,7 @@ import { prisma } from "@careeros/db";
 import { jsonResume, type JsonResume } from "@careeros/shared";
 import { requireUser, ApiError } from "@/lib/api";
 import { mergePersonalIntoResume } from "@/lib/merge-personal";
-import { renderResumePdf, pdfResponse, ResumeRenderError } from "@/lib/pdf/render";
+import { renderResumePdf, pdfResponse, ResumeRenderError, applySectionVisibility } from "@/lib/pdf/render";
 
 // PDF 导出：react-pdf 服务端渲染，直接流式返回。
 // ?inline=1 时浏览器内嵌显示（编辑器预览 iframe 复用同一渲染器，所见即所得）。
@@ -50,11 +50,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     (FORMATS as readonly string[]).includes(rawFmt) ? (rawFmt as (typeof FORMATS)[number]) : "pdf";
   const baseName = encodeURIComponent(`${resume.title.replace(/[\\/:*?"<>|]/g, "_")}`);
 
+  // 段可见性开关对所有格式（pdf/md/doc/docx）统一生效
+  const visibleMerged = applySectionVisibility(merged as JsonResume);
+
   if (format !== "pdf") {
     try {
       if (format === "md") {
         const { resumeToMarkdown } = await import("@/lib/export/markdown");
-        const md = resumeToMarkdown(merged as JsonResume);
+        const md = resumeToMarkdown(visibleMerged as JsonResume);
         return new Response(md, {
           headers: {
             "Content-Type": "text/markdown; charset=utf-8",
@@ -65,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
       if (format === "doc") {
         const { resumeToDoc } = await import("@/lib/export/doc");
-        const html = resumeToDoc(merged as JsonResume);
+        const html = resumeToDoc(visibleMerged as JsonResume);
         return new Response(html, {
           headers: {
             "Content-Type": "application/msword; charset=utf-8",
@@ -75,7 +78,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         });
       }
       const { resumeToDocx } = await import("@/lib/export/docx");
-      const buf = await resumeToDocx(merged as JsonResume);
+      const buf = await resumeToDocx(visibleMerged as JsonResume);
       return new Response(new Uint8Array(buf), {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

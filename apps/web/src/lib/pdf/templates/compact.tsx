@@ -95,7 +95,7 @@ export function CompactTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
           <Section title={t.skills}>
             <Text style={s.skillLine}>
               {resume.skills
-                .map((sk) => `${sk.name}${sk.level && sk.level !== "0" ? `（${sk.level}）` : ""}`)
+                .map((sk) => `${sk.name}`)
                 .join("　·　")}
             </Text>
           </Section>

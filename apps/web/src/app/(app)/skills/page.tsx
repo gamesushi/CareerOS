@@ -43,6 +43,14 @@ type Evidence = {
   createdAt: string;
 };
 
+type SkillAlias = {
+  id: string;
+  aliasNorm: string;
+  skillId: string;
+  skill: { id: string; name: string };
+  note?: string | null;
+};
+
 const CATEGORY_LABEL: Record<string, string> = {
   language: "skills.cat.language", framework: "skills.cat.framework", tool: "skills.cat.tool", domain: "skills.cat.domain", soft: "skills.cat.soft",
 };
@@ -65,6 +73,8 @@ export default function SkillsPage() {
   const [newSkill, setNewSkill] = useState({ name: "", category: "", level: "" });
   const [evForm, setEvForm] = useState({ sourceType: "external", sourceId: "", note: "", url: "", weight: "3" });
   const [sourceOptions, setSourceOptions] = useState<{ id: string; label: string }[]>([]);
+  const [aliases, setAliases] = useState<SkillAlias[] | null>(null);
+  const [newAlias, setNewAlias] = useState("");
 
   const load = useCallback(async () => {
     const res = await api<{ data: Skill[] }>("/skills");
@@ -83,8 +93,14 @@ export default function SkillsPage() {
   async function openDetail(s: Skill) {
     setDetail(s);
     setEvidences(null);
-    const res = await api<{ data: Evidence[] }>(`/skills/${s.id}/evidences`);
-    if (res) setEvidences(res.data);
+    setAliases(null);
+    setNewAlias("");
+    const [evRes, alRes] = await Promise.all([
+      api<{ data: Evidence[] }>(`/skills/${s.id}/evidences`),
+      api<{ data: SkillAlias[] }>(`/skill-aliases`),
+    ]);
+    if (evRes) setEvidences(evRes.data);
+    if (alRes) setAliases(alRes.data);
   }
 
   // 证据来源实体选项按需加载
@@ -167,6 +183,31 @@ export default function SkillsPage() {
       toast.success(t("common.deleted"));
       setDetail(null);
       void load();
+    }
+  }
+
+  async function addAlias() {
+    if (!detail) return;
+    if (!newAlias.trim()) {
+      toast.error(t("skillAlias.nameRequired"));
+      return;
+    }
+    const res = await api("/skill-aliases", {
+      method: "POST",
+      body: JSON.stringify({ aliasName: newAlias.trim(), skillId: detail.id }),
+    });
+    if (res) {
+      toast.success(t("skillAlias.added"));
+      setNewAlias("");
+      const alRes = await api<{ data: SkillAlias[] }>(`/skill-aliases`);
+      if (alRes) setAliases(alRes.data);
+    }
+  }
+
+  async function removeAlias(aliasId: string) {
+    const res = await api(`/skill-aliases/${aliasId}`, { method: "DELETE" });
+    if (res) {
+      setAliases((prev) => (prev ? prev.filter((a) => a.id !== aliasId) : prev));
     }
   }
 
@@ -327,6 +368,43 @@ export default function SkillsPage() {
                     <Input value={evForm.note} onChange={(e) => setEvForm({ ...evForm, note: e.target.value })} placeholder={t("skills.notePlaceholder")} />
                   </div>
                   <Button size="sm" onClick={addEvidence}>{t("skills.addEvidence")}</Button>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-medium">{t("skillAlias.heading")}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{t("skillAlias.hint")}</p>
+                  </div>
+                  {!aliases && <Skeleton className="h-12" />}
+                  <div className="space-y-2">
+                    {aliases
+                      ?.filter((a) => a.skillId === detail.id)
+                      .map((a) => (
+                        <div key={a.id} className="flex items-center justify-between gap-2 rounded-md border p-2.5 text-sm">
+                          <span className="min-w-0 flex-1 truncate">{a.aliasNorm}</span>
+                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => removeAlias(a.id)}>
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    {aliases && aliases.filter((a) => a.skillId === detail.id).length === 0 && (
+                      <p className="text-xs text-muted-foreground">{t("skillAlias.empty")}</p>
+                    )}
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 space-y-1.5">
+                      <Label>{t("skillAlias.newLabel")}</Label>
+                      <Input
+                        value={newAlias}
+                        onChange={(e) => setNewAlias(e.target.value)}
+                        placeholder={t("skillAlias.newPlaceholder")}
+                        onKeyDown={(e) => { if (e.key === "Enter") addAlias(); }}
+                      />
+                    </div>
+                    <Button size="sm" onClick={addAlias}>{t("skillAlias.add")}</Button>
+                  </div>
                 </div>
 
                 <Separator />

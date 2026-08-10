@@ -99,6 +99,17 @@ export const jsonResume = z.object({
       honninKibou: z.string().max(500).optional(), // 本人希望記入欄
     })
     .optional(),
+  // 段可见性开关：用户在编辑器逐段控制是否出现在导出/预览的 PDF 中。
+  // 缺省（字段不存在或 true）= 显示；false = 隐藏。隐藏仅影响渲染，不删除数据。
+  "x-sections": z
+    .object({
+      work: z.boolean().optional(),
+      projects: z.boolean().optional(),
+      skills: z.boolean().optional(),
+      education: z.boolean().optional(),
+      awards: z.boolean().optional(),
+    })
+    .optional(),
   // 程序化/种子数据透传的扩展字段（非 JSON Resume 标准键，以 x- 命名空间保留）
   "x-meta": z
     .object({

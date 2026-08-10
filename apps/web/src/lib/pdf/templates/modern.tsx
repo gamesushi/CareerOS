@@ -103,7 +103,7 @@ export function ModernTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }:
             <View style={s.skillRow}>
               {resume.skills.map((sk, i) => (
                 <Text key={i} style={s.skillChip}>
-                  {sk.name}{sk.level && sk.level !== "0" ? ` · ${sk.level}` : ""}
+                  {sk.name}
                 </Text>
               ))}
             </View>

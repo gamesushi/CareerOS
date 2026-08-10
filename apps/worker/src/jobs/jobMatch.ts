@@ -46,6 +46,9 @@ export async function handleJobMatchJob(matchId: string): Promise<void> {
     if (p.skills.length > 0) {
       const userSkills = await prisma.skill.findMany({ where: { userId } });
       const byNorm = new Map(userSkills.map((s) => [s.nameNorm, s]));
+      // 用户级同义别名：JD 技能名(归一化) → 用户已有技能 id，作为精确命中后的第二优先级兜底。
+      const userAliases = await prisma.skillAlias.findMany({ where: { userId } });
+      const aliasMap = new Map(userAliases.map((a) => [a.aliasNorm, a.skillId]));
       const jdSkillVectors = await embedTexts(p.skills.map((s) => s.name));
 
       let gained = 0;
@@ -54,6 +57,15 @@ export async function handleJobMatchJob(matchId: string): Promise<void> {
         total += jdSkill.weight;
         let hit = byNorm.get(normalizeSkill(jdSkill.name)) ?? null;
         let similarity = 1;
+
+        // 第二优先级：用户个人化同义别名兜底（如 JD"用户研究方法"→用户技能"用户研究"）
+        if (!hit) {
+          const aliasedSkillId = aliasMap.get(normalizeSkill(jdSkill.name));
+          if (aliasedSkillId) {
+            hit = userSkills.find((s) => s.id === aliasedSkillId) ?? null;
+            similarity = 1;
+          }
+        }
 
         if (!hit) {
           const top = await topSimilar(userId, jdSkillVectors[i], ["skill"]);

@@ -122,7 +122,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
             <View style={s.skillRow}>
               {resume.skills.map((sk, i) => (
                 <Text key={i} style={s.skillChip}>
-                  {sk.name}{sk.level && sk.level !== "0" ? ` (${sk.level})` : ""}
+                  {sk.name}
                 </Text>
               ))}
             </View>

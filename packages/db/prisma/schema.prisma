@@ -192,6 +192,7 @@ model User {
   experiences         CareerExperience[]
   projects            Project[]
   skills              Skill[]
+  skillAliases        SkillAlias[]
   achievements        Achievement[]
   educations          Education[]
   honors              Honor[]
@@ -385,9 +386,28 @@ model Skill {
   evidences SkillEvidence[]
   projects  ProjectSkill[]
   workLogs  WorkLogSkill[]
+  aliases   SkillAlias[]
 
   @@unique([userId, nameNorm])
   @@map("skills")
+}
+
+// 用户级技能同义别名：JD 里的技能名（如"用户研究方法"）映射到用户已有的技能（如"用户研究"），
+// 用于弥补全局 SKILL_ALIASES 无法覆盖的个人化近义。匹配时作为精确命中后的兜底（第二优先级）。
+model SkillAlias {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  aliasNorm String   @map("alias_norm") @db.VarChar(80)
+  skillId   String   @map("skill_id") @db.Uuid
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, aliasNorm])
+  @@index([skillId])
+  @@map("skill_aliases")
 }
 
 model SkillEvidence {

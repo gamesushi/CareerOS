@@ -6,7 +6,7 @@
 
 import { createElement } from "react";
 import { prisma, type Resume } from "@careeros/db";
-import { jsonResume } from "@careeros/shared";
+import { jsonResume, type JsonResume } from "@careeros/shared";
 import { resolveTemplate } from "@/lib/pdf/registry";
 import { mergePersonalIntoResume } from "@/lib/merge-personal";
 
@@ -34,12 +34,37 @@ export async function mergedResumeOf(resume: Resume) {
   );
 }
 
+/**
+ * 按 resume["x-sections"] 过滤隐藏的区块。
+ * 隐藏段（值为 false）在渲染前清空其数组，使所有模板统一跳过（模板均按 length>0 守卫）。
+ * 不影响数据源：DB 中的 resumeJson 保留完整内容，仅渲染输出剔除。
+ */
+const SECTION_KEYS = ["work", "projects", "skills", "education", "awards"] as const;
+type SectionKey = (typeof SECTION_KEYS)[number];
+
+function applySectionVisibility(resume: JsonResume): JsonResume {
+  const vis = (resume["x-sections"] ?? {}) as Partial<Record<SectionKey, boolean>>;
+  let changed = false;
+  const out: JsonResume = { ...resume };
+  for (const key of SECTION_KEYS) {
+    if (vis[key] === false && Array.isArray((resume as Record<string, unknown>)[key])) {
+      (out as Record<string, unknown>)[key] = [];
+      changed = true;
+    }
+  }
+  return changed ? out : resume;
+}
+
+/** 供导出路由（md/doc/docx 等非 PDF 分支）复用同一套段可见性过滤逻辑。 */
+export { applySectionVisibility };
+
 /** 渲染 PDF。templateId/accent 可覆盖（预览用），不传则取简历自身设置。 */
 export async function renderResumePdf(
   resume: Resume,
   opts: { templateId?: string | null; accent?: string | null } = {},
 ): Promise<Buffer> {
   const merged = await mergedResumeOf(resume);
+  const visible = applySectionVisibility(merged);
   const template = resolveTemplate(opts.templateId ?? resume.templateId);
   const accent =
     (opts.accent && /^#[0-9a-fA-F]{6}$/.test(opts.accent) ? opts.accent : null) ??
@@ -51,7 +76,7 @@ export async function renderResumePdf(
   try {
     return await renderToBuffer(
       createElement(template.component, {
-        resume: merged,
+        resume: visible,
         lang: resume.resumeType,
         accent,
       }) as unknown as DocElement,

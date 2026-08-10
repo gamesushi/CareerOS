@@ -19,7 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TEMPLATE_META, resolveTemplateMeta, filterTemplatesForType, TYPE_DEFAULT_TEMPLATE, getTemplatesGroupedByLang } from "@/lib/pdf/template-meta";
-import { Loader2, Download, Globe, CircleAlert, TriangleAlert, Plus, Languages } from "lucide-react";
+import { Loader2, Download, Globe, CircleAlert, TriangleAlert, Plus, Languages, Eye, EyeOff } from "lucide-react";
 import { useT, useLocale } from "@/lib/i18n/provider";
 import { DeriveResumeDialog } from "@/components/resumes/derive-dialog";
 
@@ -224,6 +224,41 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
       if (markFinal) void load();
     }
   }
+
+  // 段可见性：控制每段是否出现在右侧 PDF 预览 / 导出中（不影响左栏编辑，也不删除数据）。
+  type SectionKey = "work" | "projects" | "skills" | "education" | "awards";
+  const sectionVisible = (key: SectionKey): boolean => {
+    const vis = (doc?.["x-sections"] as Record<string, boolean> | undefined) ?? {};
+    return vis[key] !== false;
+  };
+  async function toggleSection(key: SectionKey) {
+    if (!doc) return;
+    const cur = (doc["x-sections"] as Record<string, boolean> | undefined) ?? {};
+    const next = { ...cur, [key]: cur[key] === false ? true : false };
+    const newDoc = { ...doc, "x-sections": next } as JsonResume;
+    setDoc(newDoc);
+    const docWithTheme: JsonResume = { ...newDoc, "x-theme": accent ? { accent } : undefined };
+    await api(`/resumes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ title, templateId, resumeJson: docWithTheme }),
+      silent: true,
+    });
+    setPreviewKey((k) => k + 1); // 重载右侧预览
+  }
+  // 段标题 + 眼睛开关（开关只控制右侧 PDF，左栏始终可编辑）
+  const sectionHead = (key: SectionKey, label: React.ReactNode) => (
+    <div className="flex items-center justify-between">
+      <h2 className="text-sm font-semibold">{label}</h2>
+      <button
+        type="button"
+        onClick={() => toggleSection(key)}
+        title={sectionVisible(key) ? t("resumeDetail.hideFromResume") : t("resumeDetail.showInResume")}
+        className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        {sectionVisible(key) ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+      </button>
+    </div>
+  );
 
   // 健壮导出：fetch + Blob，先校验 Content-Type，绝不会把 HTML/错误页存成目标格式文件。
   async function downloadResume(format: "pdf" | "docx" | "doc" | "md") {
@@ -455,9 +490,10 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
         {/* 左：SectionEditor */}
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+          <p className="px-1 text-xs text-muted-foreground">{t("resumeDetail.sectionToggleHint")}</p>
           <Card>
             <CardContent className="space-y-4 py-4">
-              <h2 className="text-sm font-semibold">{t("resumeDetail.workExp", { count: doc.work.length })}</h2>
+              {sectionHead("work", t("resumeDetail.workExp", { count: doc.work.length }))}
               {doc.work.map((w, i) => (
                 <div key={i} className="space-y-2">
                   {i > 0 && <Separator />}
@@ -494,7 +530,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           {doc.projects.length > 0 && (
             <Card>
               <CardContent className="space-y-4 py-4">
-                <h2 className="text-sm font-semibold">{t("resumeDetail.projects", { count: doc.projects.length })}</h2>
+                {sectionHead("projects", t("resumeDetail.projects", { count: doc.projects.length }))}
                 {doc.projects.map((p, i) => (
                   <div key={i} className="space-y-2">
                     {i > 0 && <Separator />}
@@ -532,7 +568,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           {doc.education.length > 0 && (
             <Card>
               <CardContent className="space-y-4 py-4">
-                <h2 className="text-sm font-semibold">{t("resumeDetail.education", { count: doc.education.length })}</h2>
+                {sectionHead("education", t("resumeDetail.education", { count: doc.education.length }))}
                 {doc.education.map((e, i) => (
                   <div key={i} className="space-y-2">
                     {i > 0 && <Separator />}
@@ -570,11 +606,11 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           {doc.skills.length > 0 && (
             <Card>
               <CardContent className="space-y-3 py-4">
-                <h2 className="text-sm font-semibold">{t("resumeDetail.skills", { count: doc.skills.length })}</h2>
+                {sectionHead("skills", t("resumeDetail.skills", { count: doc.skills.length }))}
                 <div className="flex flex-wrap gap-2">
                   {doc.skills.map((s, i) => (
                     <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-xs">
-                      {s.name}{s.level && s.level !== "0" ? `（${s.level}）` : ""}
+                      {s.name}
                     </span>
                   ))}
                 </div>
@@ -585,7 +621,7 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
           {doc.awards.length > 0 && (
             <Card>
               <CardContent className="space-y-3 py-4">
-                <h2 className="text-sm font-semibold">{t("resumeDetail.awards", { count: doc.awards.length })}</h2>
+                {sectionHead("awards", t("resumeDetail.awards", { count: doc.awards.length }))}
                 <ul className="list-disc space-y-1 pl-4 text-sm">
                   {doc.awards.map((a, i) => (
                     <li key={i}>{a.title}{a.date ? `（${a.date}）` : ""}</li>
