@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { MatcherClient } from "./matcher-client";
 
 export const metadata: Metadata = {
-  title: "简历 ↔ JD 关键词匹配器 · CareerOS",
+  title: "履歴書 ↔ JD キーワードマッチャー · CareerOS",
   description:
-    "粘贴简历与岗位 JD，实时计算关键词重合度，高亮命中与缺失关键词。纯前端、零上传、保护隐私。",
+    "履歴書と求人 JD を貼り付け、キーワードの一致度をリアルタイム計算。フロントエンド完結、アップロードなし。",
 };
 
 export default function MatcherPage() {

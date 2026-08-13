@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/lib/i18n/provider";
 
 // 英文停用词：匹配时噪音大、对岗位相关性无意义，予以过滤。
 const EN_STOPWORDS = new Set([
@@ -90,8 +91,15 @@ const levelClass: Record<Level, string> = {
 };
 
 export function MatcherClient() {
+  const t = useT();
   const [resume, setResume] = useState("");
   const [jd, setJd] = useState("");
+
+  const levelText: Record<Level, string> = {
+    Strong: t("toolsPages.matcher.strong"),
+    Partial: t("toolsPages.matcher.partial"),
+    Weak: t("toolsPages.matcher.weak"),
+  };
 
   const result = useMemo(() => {
     if (resume.trim().length < 5 || jd.trim().length < 5) return null;
@@ -103,38 +111,35 @@ export function MatcherClient() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">简历 ↔ JD 关键词匹配器</h1>
-        <p className="text-muted-foreground">
-          粘贴你的简历与岗位 JD，实时计算关键词重合度并高亮命中/缺失关键词。
-          <span className="font-medium text-foreground"> 纯前端计算，文本不会上传。</span>
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("toolsPages.matcher.h1")}</h1>
+        <p className="text-muted-foreground">{t("toolsPages.matcher.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">你的简历</CardTitle>
-            <CardDescription>粘贴完整简历文本</CardDescription>
+            <CardTitle className="text-lg">{t("toolsPages.matcher.yourResume")}</CardTitle>
+            <CardDescription>{t("toolsPages.matcher.yourResumeDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="例如：3 年前端开发经验，精通 React、TypeScript，负责过 B 端中后台与可视化大屏…"
+              placeholder={t("toolsPages.matcher.yourResumePh")}
               className="min-h-56"
             />
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">岗位 JD</CardTitle>
-            <CardDescription>粘贴目标岗位描述</CardDescription>
+            <CardTitle className="text-lg">{t("toolsPages.matcher.jd")}</CardTitle>
+            <CardDescription>{t("toolsPages.matcher.jdDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
               value={jd}
               onChange={(e) => setJd(e.target.value)}
-              placeholder="例如：招聘前端工程师，要求 React、TypeScript，有可视化/中后台经验优先…"
+              placeholder={t("toolsPages.matcher.jdPh")}
               className="min-h-56"
             />
           </CardContent>
@@ -146,16 +151,20 @@ export function MatcherClient() {
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <CardTitle className="text-lg">匹配结果</CardTitle>
+                <CardTitle className="text-lg">{t("toolsPages.matcher.result")}</CardTitle>
                 <div className="flex items-center gap-3">
                   <span className="text-3xl font-bold tabular-nums">{result.pct}%</span>
                   <Badge variant="outline" className={levelClass[result.level]}>
-                    {result.level === "Strong" ? "高度匹配" : result.level === "Partial" ? "部分匹配" : "偏弱匹配"}
+                    {levelText[result.level]}
                   </Badge>
                 </div>
               </div>
               <CardDescription>
-                基于 {result.jdCount} 个 JD 关键词、命中 {result.matched.length} 个（简历共提取 {result.resumeCount} 个关键词）
+                {t("toolsPages.matcher.resultDesc", {
+                  jd: result.jdCount,
+                  matched: result.matched.length,
+                  resume: result.resumeCount,
+                })}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -163,12 +172,14 @@ export function MatcherClient() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">命中关键词</CardTitle>
-                <CardDescription className="text-emerald-600 dark:text-emerald-400">简历与 JD 都出现</CardDescription>
+                <CardTitle className="text-lg">{t("toolsPages.matcher.matched")}</CardTitle>
+                <CardDescription className="text-emerald-600 dark:text-emerald-400">
+                  {t("toolsPages.matcher.matchedDesc")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {result.matched.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">暂未命中关键词，试着补充简历中的技能/经历描述。</p>
+                  <p className="text-sm text-muted-foreground">{t("toolsPages.matcher.matchedEmpty")}</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {result.matched.map((k) => (
@@ -182,12 +193,14 @@ export function MatcherClient() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">缺失关键词</CardTitle>
-                <CardDescription className="text-rose-600 dark:text-rose-400">JD 要求但简历未覆盖</CardDescription>
+                <CardTitle className="text-lg">{t("toolsPages.matcher.missing")}</CardTitle>
+                <CardDescription className="text-rose-600 dark:text-rose-400">
+                  {t("toolsPages.matcher.missingDesc")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {result.missing.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">简历已基本覆盖 JD 关键词。</p>
+                  <p className="text-sm text-muted-foreground">{t("toolsPages.matcher.missingEmpty")}</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {result.missing.map((k) => (
@@ -203,11 +216,8 @@ export function MatcherClient() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">JD 高亮</CardTitle>
-              <CardDescription>
-                <span className="text-emerald-600 dark:text-emerald-400">绿色</span> = 命中，
-                <span className="text-foreground"> 默认</span> = 未命中
-              </CardDescription>
+              <CardTitle className="text-lg">{t("toolsPages.matcher.highlight")}</CardTitle>
+              <CardDescription>{t("toolsPages.matcher.highlightDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="whitespace-pre-wrap break-words leading-relaxed">

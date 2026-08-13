@@ -4,7 +4,14 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useT, useLocale } from "@/lib/i18n/provider";
 import type { LeaderboardBy, LeaderboardResult } from "@/lib/leaderboard";
+
+const localeMap: Record<string, string> = {
+  ja: "ja-JP",
+  en: "en-US",
+  "zh-CN": "zh-CN",
+};
 
 export function LeaderboardClient({
   initialBy,
@@ -15,6 +22,8 @@ export function LeaderboardClient({
   initialRemote: boolean;
   initialData: LeaderboardResult;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [by, setBy] = useState<LeaderboardBy>(initialBy);
   const [remote, setRemote] = useState<boolean>(initialRemote);
   const [data, setData] = useState<LeaderboardResult>(initialData);
@@ -49,15 +58,13 @@ export function LeaderboardClient({
   }
 
   const max = data.items.reduce((m, it) => Math.max(m, it.count), 0) || 1;
-  const titleLabel = by === "company" ? "热门招聘公司" : "热门招聘来源";
+  const titleLabel = by === "company" ? t("toolsPages.leaderboard.titleCompany") : t("toolsPages.leaderboard.titleSource");
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">公司 / 来源招聘排行榜</h1>
-        <p className="text-muted-foreground">
-          基于 CareerOS 多源岗位监测数据，按在招职位数排名。免登录公开榜，数据为实时聚合。
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("toolsPages.leaderboard.h1")}</h1>
+        <p className="text-muted-foreground">{t("toolsPages.leaderboard.subtitle")}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -69,7 +76,7 @@ export function LeaderboardClient({
               by === "company" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
             }`}
           >
-            按公司
+            {t("toolsPages.leaderboard.byCompany")}
           </button>
           <button
             type="button"
@@ -78,12 +85,12 @@ export function LeaderboardClient({
               by === "source" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
             }`}
           >
-            按来源
+            {t("toolsPages.leaderboard.bySource")}
           </button>
         </div>
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
           <input type="checkbox" checked={remote} onChange={toggleRemote} />
-          仅远程岗位
+          {t("toolsPages.leaderboard.remoteOnlyLabel")}
         </label>
         {loading && <Loader2 className="size-4 animate-spin" />}
       </div>
@@ -94,18 +101,20 @@ export function LeaderboardClient({
             <CardTitle className="text-lg">
               {titleLabel} Top {data.items.length}
             </CardTitle>
-            <Badge variant="outline">共 {data.total} 条在招记录</Badge>
+            <Badge variant="outline">{t("toolsPages.leaderboard.total", { n: data.total })}</Badge>
           </div>
           <CardDescription>
-            {data.remoteOnly ? "已过滤：仅远程岗位" : "全部岗位"} · 更新于{" "}
-            {new Date(data.generatedAt).toLocaleString("zh-CN")}
+            {data.remoteOnly
+              ? t("toolsPages.leaderboard.descRemote")
+              : t("toolsPages.leaderboard.descAll")}
+            {" · "}
+            {t("toolsPages.leaderboard.updated")}
+            {new Date(data.generatedAt).toLocaleString(localeMap[locale] ?? "ja-JP")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {data.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              暂无数据。可能监测任务尚未抓取到岗位，或当前过滤条件下没有结果。
-            </p>
+            <p className="text-sm text-muted-foreground">{t("toolsPages.leaderboard.empty")}</p>
           ) : (
             <ol className="space-y-2">
               {data.items.map((it, i) => (

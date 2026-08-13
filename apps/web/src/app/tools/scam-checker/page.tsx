@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { ScamCheckerClient } from "./scam-checker-client";
 
 export const metadata: Metadata = {
-  title: "幽灵岗 / 诈骗招聘检测 · CareerOS",
+  title: "スカム・詐欺求人検出 · CareerOS",
   description:
-    "粘贴招聘文案，AI 识别入职押金、培训贷、刷单垫付等红旗并给出风险等级。免费、无需登录。",
+    "求人文案を貼り付け、AI が入金保証金・研修ローン・転売ヤラセなどの赤旗を検出しリスクレベルを提示。",
 };
 
 export default function ScamCheckerPage() {

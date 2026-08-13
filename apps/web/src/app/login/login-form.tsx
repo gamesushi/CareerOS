@@ -154,14 +154,14 @@ function LoginForm({
             onClick={() => signIn("google", { callbackUrl })}
           >
             <GoogleIcon />
-            Continue with Google
+            {t("login.googleSignin")}
           </Button>
         )}
 
         {(googleEnabled && (passwordEnabled || otpEnabled || devEnabled)) && (
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
-            <span>或</span>
+            <span>{t("login.or")}</span>
             <span className="h-px flex-1 bg-border" />
           </div>
         )}
@@ -293,7 +293,7 @@ function LoginForm({
                   {otpMsg && <p className="text-xs text-destructive">{otpMsg}</p>}
                   {otpDevCode && (
                     <p className="text-xs text-muted-foreground">
-                      开发验证码：<span className="font-mono font-semibold text-foreground">{otpDevCode}</span>
+                      {t("login.devCodePrefix")}<span className="font-mono font-semibold text-foreground">{otpDevCode}</span>
                     </p>
                   )}
                 </div>
@@ -337,7 +337,7 @@ function LoginForm({
             {passwordEnabled && (
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="h-px flex-1 bg-border" />
-                <span>开发模式</span>
+                <span>{t("login.devMode")}</span>
                 <span className="h-px flex-1 bg-border" />
               </div>
             )}
@@ -381,7 +381,7 @@ function LoginForm({
 
         {!googleEnabled && !passwordEnabled && !otpEnabled && !devEnabled && (
           <p className="text-xs text-muted-foreground">
-            登录方式未启用，请检查认证配置（AUTH_GOOGLE_ID / AUTH_DEV_CREDENTIALS）。
+            {t("login.noAuthHint")}
           </p>
         )}
 
@@ -390,7 +390,7 @@ function LoginForm({
             href="/welcome"
             className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            了解 CareerOS 产品 →
+            {t("login.learnMore")} →
           </Link>
         </div>
       </CardContent>
