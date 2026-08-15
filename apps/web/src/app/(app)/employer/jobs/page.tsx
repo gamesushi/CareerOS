@@ -4,7 +4,7 @@ import { EMPLOYER_ROLES } from "@careeros/shared";
 import { getSession } from "@/lib/auth";
 import { EmployerJobs } from "./employer-jobs";
 
-export const metadata = { title: "发布岗位 · CareerOS" };
+export const metadata = { title: "发布岗位 · uCareerOS" };
 
 // 雇主发岗页。页面级门控与接口级 requireRole 同源——都查 DB，
 // 保证用户刚在设置页开启发岗、尚未重新登录时也能立刻进来（JWT 里的 role 是登录快照）。

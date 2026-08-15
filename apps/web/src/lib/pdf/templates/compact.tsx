@@ -46,7 +46,7 @@ export function CompactTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
   );
 
   return (
-    <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
+    <Document title={`${b.name} - Resume`} producer="uCareerOS" creator="uCareerOS">
       <Page size={th.paper} style={s.page}>
         <View style={s.header}>
           <Text style={s.name}>{b.name}</Text>

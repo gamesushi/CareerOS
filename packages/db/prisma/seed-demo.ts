@@ -281,7 +281,7 @@ async function main() {
   await prisma.resume.create({
     data: {
       userId: uid,
-      title: "Career OS  Pitch Resume (EN)",
+      title: "uCareerOS  Pitch Resume (EN)",
       resumeType: "en",
       templateId: "openresume-modern",
       status: "final",

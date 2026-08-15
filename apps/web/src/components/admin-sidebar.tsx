@@ -39,7 +39,7 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
           <ShieldCheck className="size-5 text-primary" />
           管理后台
         </Link>
-        <p className="mt-0.5 text-xs text-muted-foreground">CareerOS Admin</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">uCareerOS Admin</p>
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map(({ href, label, icon: Icon, live }) => {

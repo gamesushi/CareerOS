@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/errors";
 import { listApplicationsForPosting, requireEmployerOnPosting } from "@/lib/job-applications";
 import { ApplicationInbox } from "./inbox";
 
-export const metadata = { title: "投递 · CareerOS" };
+export const metadata = { title: "投递 · uCareerOS" };
 export const dynamic = "force-dynamic";
 
 // 雇主收件箱。授权走与接口同一个 requireEmployerOnPosting——

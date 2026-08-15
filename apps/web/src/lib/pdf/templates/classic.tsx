@@ -45,7 +45,7 @@ export function ClassicTemplate({ resume, lang = "zh", accent = DEFAULT_ACCENT }
   );
 
   return (
-    <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
+    <Document title={`${b.name} - Resume`} producer="uCareerOS" creator="uCareerOS">
       <Page size={th.paper} style={s.page}>
         <Text style={s.name}>{b.name}</Text>
         {b.label ? <Text style={s.label}>{b.label}</Text> : null}

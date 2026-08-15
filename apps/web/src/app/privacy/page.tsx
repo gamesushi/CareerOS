@@ -3,8 +3,8 @@ import Link from "next/link";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
 export const metadata: Metadata = {
-  title: "隐私政策 | CareerOS",
-  description: "CareerOS 隐私政策",
+  title: "隐私政策 | uCareerOS",
+  description: "uCareerOS 隐私政策",
 };
 
 /**
@@ -18,12 +18,12 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <article className="legal-article">
-        <h1>CareerOS 隐私政策</h1>
+        <h1>uCareerOS 隐私政策</h1>
         <p className="text-sm text-muted-foreground">
           版本：{CURRENT_TOS_VERSION} · 生效日期：2026 年 8 月 1 日
         </p>
         <p>
-          本政策说明 CareerOS（以下称“本平台”或“我们”）如何收集、使用、存储、共享和保护您的个人信息，
+          本政策说明 uCareerOS（以下称“本平台”或“我们”）如何收集、使用、存储、共享和保护您的个人信息，
           以及您依法享有的权利。<strong>请在使用本平台前仔细阅读；勾选同意即表示您已知悉并同意本政策。</strong>
           如您不同意本政策，请勿注册或使用本平台。
         </p>

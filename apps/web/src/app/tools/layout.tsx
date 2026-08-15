@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "免费求职工具 · CareerOS",
+  title: "免费求职工具 · uCareerOS",
   description:
-    "CareerOS 免费公开工具：简历↔JD 关键词匹配器、幽灵岗/诈骗招聘检测。纯前端、零上传、保护隐私。",
+    "uCareerOS 免费公开工具：简历↔JD 关键词匹配器、幽灵岗/诈骗招聘检测。纯前端、零上传、保护隐私。",
 };
 
 export default function ToolsLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +13,7 @@ export default function ToolsLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link href="/tools" className="font-semibold">
-            CareerOS 工具
+            uCareerOS 工具
           </Link>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <Link href="/tools/matcher" className="hover:text-foreground">
@@ -30,7 +30,7 @@ export default function ToolsLayout({ children }: { children: React.ReactNode })
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
       <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-        CareerOS · 免费工具 · 数据仅在本机处理，不会上传服务器
+        uCareerOS · 免费工具 · 数据仅在本机处理，不会上传服务器
       </footer>
     </div>
   );

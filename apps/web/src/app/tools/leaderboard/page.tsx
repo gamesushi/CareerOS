@@ -3,9 +3,9 @@ import { getLeaderboard, parseLeaderboardBy, parseLeaderboardLimit, parseRemoteF
 import { LeaderboardClient } from "./leaderboard-client";
 
 export const metadata: Metadata = {
-  title: "公司 / 来源招聘排行榜 · CareerOS 免费求职工具",
+  title: "公司 / 来源招聘排行榜 · uCareerOS 免费求职工具",
   description:
-    "基于 CareerOS 多源岗位监测数据，按在招职位数排名的热门公司与招聘来源。免登录公开榜，实时聚合。",
+    "基于 uCareerOS 多源岗位监测数据，按在招职位数排名的热门公司与招聘来源。免登录公开榜，实时聚合。",
 };
 
 export default async function LeaderboardPage({

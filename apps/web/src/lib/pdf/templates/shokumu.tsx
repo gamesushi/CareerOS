@@ -63,7 +63,7 @@ export function ShokumuTemplate({ resume }: TemplateProps) {
   }
 
   return (
-    <Document title={`${b.name} - 職務経歴書`} producer="CareerOS" creator="CareerOS">
+    <Document title={`${b.name} - 職務経歴書`} producer="uCareerOS" creator="uCareerOS">
       <Page size={th.paper} style={s.page}>
         <Text style={s.title}>職 務 経 歴 書</Text>
         <Text style={s.meta}>{dateLine}</Text>

@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 // 没有合并是因为 web 需要它做密码找回（请求内同步发），而 worker 是通知队列的唯一消费者；
 // 抽到 @careeros/db 会给那个包平白加 nodemailer 依赖。改配置时两处要同步。
 
-const DEFAULT_FROM = "CareerOS <no-reply@careeros.app>";
+const DEFAULT_FROM = "uCareerOS <no-reply@careeros.app>";
 
 let cached: nodemailer.Transporter | null | undefined;
 

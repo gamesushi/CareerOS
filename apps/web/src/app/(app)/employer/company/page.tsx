@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { listMyOrganizations } from "@/lib/organizations";
 import { CompanyForm } from "./company-form";
 
-export const metadata = { title: "公司资料 · CareerOS" };
+export const metadata = { title: "公司资料 · uCareerOS" };
 export const dynamic = "force-dynamic";
 
 // 公司资料页。门控与 /employer/jobs 同源——查 DB，不读 JWT 里的 role 快照。

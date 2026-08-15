@@ -89,7 +89,7 @@ export function RirekishoTemplate({ resume }: TemplateProps) {
   rows.push({ y: "", m: "", text: "以上", right: true });
 
   return (
-    <Document title={`${b.name} - 履歴書`} producer="CareerOS" creator="CareerOS">
+    <Document title={`${b.name} - 履歴書`} producer="uCareerOS" creator="uCareerOS">
       <Page size={th.paper} style={s.page}>
         <Text style={s.title}>履　歴　書</Text>
         <Text style={s.dateLine}>{dateLine}</Text>

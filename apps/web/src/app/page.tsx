@@ -3,14 +3,15 @@ import Link from "next/link";
 import { getPublicStats } from "@/lib/stats";
 import { StatsCounter } from "@/app/welcome/stats-counter";
 import { getT, getLocale } from "@/lib/i18n/server";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
-  title: "CareerOS · 职业知识库驱动的求职操作系统",
+  title: "uCareerOS · 职业知识库驱动的求职操作系统",
   description:
-    "CareerOS 聚合中国、美国、日本的招聘源，用 AI 帮你匹配岗位、识别诈骗、生成多地区简历，并把所有洞察沉淀为可累积的职业知识库。",
+    "uCareerOS 聚合中国、美国、日本的招聘源，用 AI 帮你匹配岗位、识别诈骗、生成多地区简历，并把所有洞察沉淀为可累积的职业知识库。",
 };
 
 // 公开展示页：统计数字每小时重新聚合一次（ISR），兼顾"最新"与数据库压力。
@@ -64,15 +65,16 @@ export default async function WelcomePage() {
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link href="/" className="font-semibold">
-            CareerOS
+            uCareerOS
           </Link>
-          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+          <nav className="flex items-center gap-3 text-sm text-muted-foreground">
             <Link href="/tools" className="hover:text-foreground">
               {t("landing.navTools")}
             </Link>
             <Link href="/login" className="hover:text-foreground">
               {t("landing.navApp")}
             </Link>
+            <LocaleSwitcher className="h-9 w-auto" />
           </nav>
         </div>
       </header>

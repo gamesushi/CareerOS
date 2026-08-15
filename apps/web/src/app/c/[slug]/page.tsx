@@ -24,12 +24,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const data = await getPublicOrganization(slug);
-  if (!data) return { title: "公司不存在 · CareerOS" };
+  if (!data) return { title: "公司不存在 · uCareerOS" };
   return {
-    title: `${data.org.name} 招聘中的职位 · CareerOS`,
+    title: `${data.org.name} 招聘中的职位 · uCareerOS`,
     description:
       data.org.description?.slice(0, 150) ??
-      `${data.org.name}在 CareerOS 发布的 ${data.postings.length} 个在招职位。`,
+      `${data.org.name}在 uCareerOS 发布的 ${data.postings.length} 个在招职位。`,
   };
 }
 
@@ -137,7 +137,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       )}
 
       <footer className="mt-10 border-t pt-4 text-center text-xs text-muted-foreground">
-        由 <Link href="/" className="text-primary hover:underline">CareerOS</Link> 提供
+        由 <Link href="/" className="text-primary hover:underline">uCareerOS</Link> 提供
       </footer>
     </div>
   );

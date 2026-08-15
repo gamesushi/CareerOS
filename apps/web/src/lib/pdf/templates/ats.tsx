@@ -54,7 +54,7 @@ export function AtsTemplate({ resume, lang = "en", accent = DEFAULT_ACCENT }: Te
   }, th);
 
   return (
-    <Document title={`${b.name} - Resume`} producer="CareerOS" creator="CareerOS">
+    <Document title={`${b.name} - Resume`} producer="uCareerOS" creator="uCareerOS">
       <Page size={th.paper} style={s.page}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
           <View style={{ flex: 1 }}>

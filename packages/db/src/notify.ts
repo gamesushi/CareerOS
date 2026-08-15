@@ -36,7 +36,7 @@ function wrap(title: string, lines: string[], cta?: { label: string; url: string
     : "";
   return `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;line-height:1.7;color:#111;max-width:520px">
 <h2 style="font-size:16px;margin:0 0 16px">${esc(title)}</h2>${body}${button}
-<p style="margin:24px 0 0;font-size:12px;color:#888">此邮件由 CareerOS 自动发送，请勿直接回复。</p></div>`;
+<p style="margin:24px 0 0;font-size:12px;color:#888">此邮件由 uCareerOS 自动发送，请勿直接回复。</p></div>`;
 }
 
 /**

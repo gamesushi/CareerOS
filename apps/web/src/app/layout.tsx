@@ -17,12 +17,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 应用自身已内置 11 种语言（右上角切换器），不需要 Chrome 自带的整页翻译。
+// 浏览器翻译会改写 React 管理的文本节点，导致切换语言时 React 调和失败
+// （Failed to execute 'removeChild' on 'Node' / NotFoundError）。这里显式禁用它。
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const messages = getMessages(locale);
   return {
     title: messages["app.name"],
     description: messages["app.description"],
+    other: { google: "notranslate" },
   };
 }
 
@@ -36,6 +40,7 @@ export default async function RootLayout({
   return (
     <html
       lang={htmlLangFor(locale)}
+      translate="no"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

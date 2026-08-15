@@ -52,7 +52,7 @@ export const POST = handler(async (req) => {
 
 async function fetchUrlText(url: string): Promise<string> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; CareerOS/0.1)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; uCareerOS/0.1)" },
     signal: AbortSignal.timeout(15_000),
   }).catch((e) => {
     throw new ApiError(400, "fetch_failed", `抓取链接失败：${e.message}`);

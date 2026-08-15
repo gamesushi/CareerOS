@@ -26,7 +26,7 @@ export async function runCostAlertCheck(prisma: PrismaClient): Promise<CostCheck
     await fetch(cfg.webhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: `⚠️ CareerOS：今日 AI 成本 $${cost.toFixed(4)} 已达阈值 $${threshold.toFixed(4)}（${today}）` }),
+      body: JSON.stringify({ text: `⚠️ uCareerOS：今日 AI 成本 $${cost.toFixed(4)} 已达阈值 $${threshold.toFixed(4)}（${today}）` }),
     });
   } catch {
     return { status: "webhook_error", cost, threshold };
