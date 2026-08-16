@@ -81,6 +81,10 @@ services:
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
       AUTH_DEV_CREDENTIALS: "false"
+      # Auth.js 在反代（caddy）之后需知道自己的公网 origin，否则会用被改写的 Host
+      # 头（localhost:3000）推断域名，导致 /api/auth/signout 等把相对回跳地址解析成
+      # http://localhost:3000/...。此处强制公网 https 域名（.env.production 未设时取默认）。
+      AUTH_URL: ${AUTH_URL:-https://ucareeros.com}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_SECURE: ${SMTP_SECURE}
