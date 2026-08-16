@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getPublicOrigin } from "@/lib/origin";
 
 // 轻量登录 gate：只检查 session cookie 是否有效，真正的鉴权在 API 层（requireUser）。
 // 避免在 middleware（edge runtime）里引入 Prisma。
@@ -22,7 +23,11 @@ const PUBLIC_PATHS = [
 ];
 
 function buildLoginUrl(req: NextRequest, pathname: string): URL {
-  const url = req.nextUrl.clone();
+  // 关键：反向代理（caddy）之后 req.nextUrl.host 是内网 upstream（localhost:3000 / web:3000），
+  // 直接 clone 它会把浏览器重定向到 http://localhost:3000/login，登录后整段会话都被困在内网地址。
+  // 必须改用公网 origin（X-Forwarded-Host/Proto 或 env 或兜底域名）拼登录地址，与邮件链接同源修复一致。
+  const origin = getPublicOrigin(req);
+  const url = new URL(origin);
   url.pathname = "/login";
   url.searchParams.set("callbackUrl", pathname);
   return url;
