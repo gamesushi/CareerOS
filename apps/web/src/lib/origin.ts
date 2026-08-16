@@ -12,7 +12,14 @@
 export function getPublicOrigin(req: Request): string {
   const fwdHost = req.headers.get("x-forwarded-host");
   if (fwdHost) {
-    const proto = req.headers.get("x-forwarded-proto") ?? "https";
+    // 生产环境公网站永远走 HTTPS（TLS 在边缘 / Cloudflare 隧道处终结）。
+    // 但 cloudflared 隧道 / caddy:80 的内网一跳会把 X-Forwarded-Proto 写成 http，
+    // 若直接用它，middleware 会把用户重定向到 http://ucareeros.com，登录页变明文不安全。
+    // 故生产环境强制 https；本地 dev（NODE_ENV 非 production）才尊重透传的 proto。
+    const proto =
+      process.env.NODE_ENV === "production"
+        ? "https"
+        : (req.headers.get("x-forwarded-proto") ?? "https");
     return `${proto}://${fwdHost}`;
   }
 
