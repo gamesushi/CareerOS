@@ -35,9 +35,17 @@ function buildLoginUrl(req: NextRequest, pathname: string): URL {
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const secure = req.nextUrl.protocol === "https:";
-  const cookieName = secure ? "__Secure-authjs.session-token" : "authjs.session-token";
-  const cookie = req.cookies.get(cookieName);
+  // 会话 cookie 名称取决于 Auth.js 是否以 https 写入：
+  //  - 设了 AUTH_URL=https://… 或请求经 TLS 终止的反代（X-Forwarded-Proto=https）时，
+  //    Auth.js 写入带 Secure 前缀的 __Secure-authjs.session-token；
+  //  - 否则写入 authjs.session-token。
+  // 反代之后 req.nextUrl.protocol 始终是内部 http，不能据此判断 secure，否则会去读
+  // 错误的 cookie 名 → 永远读不到会话 → 登录成功后无限重定向到 /login（ERR_TOO_MANY_REDIRECTS）。
+  // 因此两个名字都尝试，以浏览器实际带上的那个为准。
+  const secureCookie = req.cookies.get("__Secure-authjs.session-token");
+  const plainCookie = req.cookies.get("authjs.session-token");
+  const cookie = secureCookie ?? plainCookie;
+  const cookieName = cookie?.name ?? "authjs.session-token";
   const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   // 若带有会话 cookie，先校验有效性。无效（如 AUTH_SECRET 轮换后旧会话 cookie 解密失败）
