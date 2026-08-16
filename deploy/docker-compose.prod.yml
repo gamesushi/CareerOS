@@ -67,7 +67,10 @@ services:
   # ---------- Web（Next.js）----------
   web:
     build:
-      context: .
+      # context 必须是仓库根：compose 文件在 deploy/ 下，新版 docker compose 会把
+      # 相对 context 解析为「compose 文件所在目录」，故用 .. 指向仓库根，否则会变
+      # 成 deploy/deploy 导致 build 找不到 Dockerfile。
+      context: ..
       dockerfile: deploy/Dockerfile.web
     container_name: careeros-web
     environment:
@@ -112,7 +115,7 @@ services:
   # ---------- Worker（BullMQ 消费者，常驻进程）----------
   worker:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/Dockerfile.worker
     container_name: careeros-worker
     environment:
