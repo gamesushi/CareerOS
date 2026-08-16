@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@careeros/db";
 import { issueVerificationEmail } from "@/lib/verification";
+import { getPublicOrigin } from "@/lib/origin";
 import { ApiError, handler, parseBody } from "@/lib/api";
 
 const schema = z.object({ email: z.string().email() });
@@ -26,7 +27,7 @@ export const POST = handler(async (req) => {
     throw new ApiError(409, "already_verified", "该邮箱已验证");
   }
 
-  const origin = new URL(req.url).origin;
+  const origin = getPublicOrigin(req);
   const r = await issueVerificationEmail(normalized, origin);
   const body: Record<string, unknown> = { ok: true, message: "验证邮件已生成。" };
   if (r.devVerifyUrl) body.devVerifyUrl = r.devVerifyUrl;

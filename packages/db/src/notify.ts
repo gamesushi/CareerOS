@@ -47,7 +47,7 @@ export async function buildApplicationEmail(
   prisma: PrismaClient,
   kind: NotifyKind,
   applicationId: string,
-  appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3010",
+  appBaseUrl = process.env.APP_BASE_URL ?? process.env.APP_URL ?? "https://ucareeros.com",
 ): Promise<NotifyEmail | null> {
   const app = await prisma.jobApplication.findUnique({
     where: { id: applicationId },

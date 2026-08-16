@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/password";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { issueVerificationEmail } from "@/lib/verification";
 import { negotiateLocale } from "@/lib/i18n/config";
+import { getPublicOrigin } from "@/lib/origin";
 import { ApiError, handler, parseBody } from "@/lib/api";
 
 const schema = z.object({
@@ -45,7 +46,7 @@ export const POST = handler(async (req) => {
   // 冷却期内的 429 忽略（账号已创建，用户稍后可在 banner 里重发）。
   let devVerifyUrl: string | undefined;
   try {
-    const origin = new URL(req.url).origin;
+    const origin = getPublicOrigin(req);
     const r = await issueVerificationEmail(normalized, origin);
     devVerifyUrl = r.devVerifyUrl;
   } catch (e) {

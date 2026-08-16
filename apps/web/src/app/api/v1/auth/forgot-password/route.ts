@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@careeros/db";
 import { generateResetToken } from "@/lib/password";
 import { sendEmail, buildPasswordResetEmail } from "@/lib/email";
+import { getPublicOrigin } from "@/lib/origin";
 import { ApiError, handler, parseBody } from "@/lib/api";
 
 const schema = z.object({ email: z.string().email() });
@@ -51,7 +52,7 @@ export const POST = handler(async (req) => {
       data: { userId: user.id, token: hashed, expiresAt: new Date(Date.now() + TOKEN_TTL_MS) },
     });
 
-    const origin = new URL(req.url).origin;
+    const origin = getPublicOrigin(req);
     const resetUrl = `${origin}/reset-password?token=${raw}`;
     const { sent } = await sendEmail({ to: user.email, ...buildPasswordResetEmail(resetUrl) });
     if (!sent) {

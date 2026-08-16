@@ -36,7 +36,7 @@ export async function issueVerificationEmail(email: string, origin?: string): Pr
     data: { identifier: normalized, token: hashed, expires: new Date(Date.now() + VERIFY_TTL_MS) },
   });
 
-  const base = origin ?? process.env.APP_URL ?? "http://localhost:3010";
+  const base = origin ?? process.env.APP_URL ?? "https://ucareeros.com";
   const verifyUrl = `${base}/verify-email?token=${raw}`;
   const { sent } = await sendEmail({ to: normalized, ...buildEmailVerificationEmail(verifyUrl) });
   if (!sent) {
