@@ -11,7 +11,12 @@ export const looseDate = z
   .nullable()
   .optional();
 
-export const confidence = z.enum(["high", "mid", "low"]);
+export const confidence = z.preprocess((v) => {
+  // 兼容模型偶发用中文输出置信度（中文简历下较常见）
+  if (typeof v !== "string") return v;
+  const map: Record<string, string> = { 高: "high", 中: "mid", 低: "low" };
+  return map[v] ?? v;
+}, z.enum(["high", "mid", "low"]));
 
 export const extractedExperience = z.object({
   company: z.string().min(1).max(128),
