@@ -10,6 +10,13 @@ RUN corepack enable \
 
 WORKDIR /app
 
+# Prisma 在 build 时需检测到 OpenSSL 才能生成正确的 Query Engine
+# （debian-openssl-3.0.x）。否则会默认 openssl-1.1.x，运行时找不到引擎而
+# PrismaClientInitializationError 崩溃。必须在 pnpm install / prisma generate 之前安装。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
+
 # ---------- 1. 依赖 ----------
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 # 必须单独一行把 patches/ 复制为目录：多源 COPY 中目录源会被拍平到 ./ 下，
