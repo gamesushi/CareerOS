@@ -11,7 +11,10 @@ RUN corepack enable \
 WORKDIR /app
 
 # ---------- 1. 依赖（利用层缓存：先 copy 清单再 install）----------
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml patches/ ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# 必须单独一行把 patches/ 复制为目录：多源 COPY 中目录源会被拍平到 ./ 下，
+# 导致补丁落到 /app/<file> 而非 /app/patches/<file>，pnpm install 会 ENOENT。
+COPY patches/ ./patches/
 COPY apps/web/package.json apps/web/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages/db/package.json packages/db/package.json
