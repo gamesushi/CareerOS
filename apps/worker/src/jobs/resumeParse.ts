@@ -7,7 +7,7 @@ import {
   type ExtractedPayload,
 } from "@careeros/shared";
 import { getObjectBuffer } from "../lib/s3";
-import { parseDocument } from "../lib/docreader";
+import { extractDocumentText } from "../lib/extractText";
 import { runResumeParse, PROMPT_VERSION } from "../ai/tasks/resumeParse";
 import { startRun, finishRun } from "../ai/audit";
 
@@ -23,16 +23,8 @@ export async function handleResumeParseJob(importId: string): Promise<void> {
     // 1. 文档解析
     await prisma.resumeImport.update({ where: { id: importId }, data: { status: "parsing", error: null } });
     const file = await getObjectBuffer(imp.fileKey);
-    const ext = imp.fileName.split(".").pop()?.toLowerCase() ?? "";
-    // 纯文本 / Markdown 已是文本，无需 docreader 转换（docreader 不支持 txt，md 亦无需转换）
-    const TEXT_EXT = new Set(["txt", "md", "markdown"]);
-    let markdown: string;
-    if (TEXT_EXT.has(ext)) {
-      markdown = file.toString("utf-8").trim();
-      if (!markdown) throw new Error("文件内容为空（txt/md 解码后无文本）");
-    } else {
-      markdown = await parseDocument(file, imp.fileName);
-    }
+    // 纯文本 / Markdown 直接解码；PDF/Word 等先 docreader，失败或抽空时自动回退本地 OCR。
+    const markdown = await extractDocumentText(file, imp.fileName);
     await prisma.resumeImport.update({
       where: { id: importId },
       data: { rawText: markdown, status: "extracting" },

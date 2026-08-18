@@ -34,6 +34,13 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && pnpm --filter worker exec playwright install chromium
 
+# ---------- 4b. 本地 OCR 兜底（扫描件 / 退化文字层 PDF）----------
+# pdftoppm 把页面渲染成 PNG，tesseract 用 chi_sim+eng 识别。完全离线，不依赖外部 API。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      poppler-utils tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-eng \
+ && rm -rf /var/lib/apt/lists/*
+
 # ---------- 4. 运行 ----------
 # 不用 package.json 里的 --env-file=.env（生产由 compose 注入环境变量），避免容器里缺 .env 文件报错。
 ENV NODE_ENV=production

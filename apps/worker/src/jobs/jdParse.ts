@@ -1,6 +1,6 @@
 import { prisma, Prisma } from "@careeros/db";
 import { getObjectBuffer } from "../lib/s3";
-import { parseDocument } from "../lib/docreader";
+import { extractDocumentText } from "../lib/extractText";
 import { runJdParse, PROMPT_VERSION } from "../ai/tasks/jdParse";
 import { startRun, finishRun } from "../ai/audit";
 
@@ -18,14 +18,8 @@ export async function handleJdParseJob(jdId: string): Promise<void> {
     if (jd.fileKey && !content.trim()) {
       const buf = await getObjectBuffer(jd.fileKey);
       const fileName = jd.fileKey.split("/").pop() ?? "jd.pdf";
-      const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
-      // 纯文本 / Markdown 已是文本，无需 docreader 转换
-      const TEXT_EXT = new Set(["txt", "md", "markdown"]);
-      if (TEXT_EXT.has(ext)) {
-        content = buf.toString("utf-8").trim();
-      } else {
-        content = await parseDocument(buf, fileName);
-      }
+      // 纯文本 / Markdown 直接解码；PDF/Word 等先 docreader，失败或抽空时自动回退本地 OCR。
+      content = await extractDocumentText(buf, fileName);
       await prisma.jobDescription.update({ where: { id: jdId }, data: { rawContent: content } });
     }
 
