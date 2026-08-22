@@ -1126,5 +1126,18 @@
   "landing.region.jp.name": "Japan",
   "landing.region.jp.p1": "Resume + career-history (rirekisho + shokumu keirekisho) as a pair, with strict format rules",
   "landing.region.jp.p2": "Usually requires an ID photo, furigana, and date of birth",
-  "landing.region.jp.p3": "Top sources: Wantedly and others"
+  "landing.region.jp.p3": "Top sources: Wantedly and others",
+  "review.dupSectionTitle": "Suspected duplicate experiences (AI, {count})",
+  "review.dupSectionHint": "AI thinks these are the same real job. Choose how to handle them.",
+  "review.dupSourceNew": "This import",
+  "review.dupSourceExisting": "Existing profile",
+  "review.dupSourceNewOther": "This import (other)",
+  "review.dupAiBadge": "AI · confidence {confidence}",
+  "review.dupChoiceLabel": "Action",
+  "review.dupChoiceMerge": "Merge into one",
+  "review.dupChoiceKeepExisting": "Keep existing",
+  "review.dupChoiceKeepNew": "Overwrite with new",
+  "review.dupChoiceKeepBoth": "Keep both",
+  "review.dupMergedPreview": "Merged preview",
+  "review.dupHandledByPanel": "Handled by merge panel"
 }

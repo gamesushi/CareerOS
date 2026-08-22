@@ -1,5 +1,6 @@
 export * from "./entities";
 export * from "./normalize";
+export * from "./dedup";
 export * from "./extraction";
 export * from "./jd";
 export * from "./watch";

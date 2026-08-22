@@ -705,5 +705,18 @@
   "landing.region.jp.name": "일본",
   "landing.region.jp.p1": "이력서 + 경력기술서 세트, 형식은 엄격히 구분",
   "landing.region.jp.p2": "보통 증명사진 부착, 후리가나 표기, 생년월일 기입 필요",
-  "landing.region.jp.p3": "주요 소스: Wantedly 등"
+  "landing.region.jp.p3": "주요 소스: Wantedly 등",
+  "review.dupSectionTitle": "중복 가능성 있음 (AI 판정, {count})",
+  "review.dupSectionHint": "AI가 이들을 같은 실제 경력으로 판단했습니다. 처리 방식을 선택하세요.",
+  "review.dupSourceNew": "이번 가져오기",
+  "review.dupSourceExisting": "기존 프로필",
+  "review.dupSourceNewOther": "이번 가져오기(다른)",
+  "review.dupAiBadge": "AI 판정 · 신뢰도 {confidence}",
+  "review.dupChoiceLabel": "처리",
+  "review.dupChoiceMerge": "하나로 병합",
+  "review.dupChoiceKeepExisting": "기존 유지",
+  "review.dupChoiceKeepNew": "새 버전으로 덮어쓰기",
+  "review.dupChoiceKeepBoth": "둘 다 유지",
+  "review.dupMergedPreview": "병합 미리보기",
+  "review.dupHandledByPanel": "병합 패널에서 처리"
 }

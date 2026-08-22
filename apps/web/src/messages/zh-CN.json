@@ -1135,5 +1135,18 @@
   "landing.region.jp.name": "日本",
   "landing.region.jp.p1": "简历 + 职务经历书双书，格式严格区分",
   "landing.region.jp.p2": "通常需贴证件照、标注假名、填写出生日期",
-  "landing.region.jp.p3": "主流来源：Wantedly 等"
+  "landing.region.jp.p3": "主流来源：Wantedly 等",
+  "review.dupSectionTitle": "疑似重复经历（AI 判定，{count}）",
+  "review.dupSectionHint": "AI 判定以下经历为同一段真实工作，请选择处理方式",
+  "review.dupSourceNew": "本次导入",
+  "review.dupSourceExisting": "已有档案",
+  "review.dupSourceNewOther": "本次导入（另一条）",
+  "review.dupAiBadge": "AI 判定 · 置信度 {confidence}",
+  "review.dupChoiceLabel": "处理方式",
+  "review.dupChoiceMerge": "合并为一条",
+  "review.dupChoiceKeepExisting": "保留已有",
+  "review.dupChoiceKeepNew": "用新版覆盖",
+  "review.dupChoiceKeepBoth": "两者都保留",
+  "review.dupMergedPreview": "合并预览",
+  "review.dupHandledByPanel": "由合并面板处理"
 }

@@ -16,7 +16,7 @@ import { useT } from "@/lib/i18n/provider";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import type { DatePrecision } from "@careeros/shared";
+import { buildApplyExperiences, mergeFields, type DatePrecision, type DupHit, type ExpFields, type MergeChoice } from "@careeros/shared";
 
 // ===== 抽取结果的本地编辑模型 =====
 type Confidence = "high" | "mid" | "low";
@@ -73,6 +73,10 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
   const [achs, setAchs] = useState<AchDraft[]>([]);
   const [edus, setEdus] = useState<EduDraft[]>([]);
 
+  // 查重合并：AI 判定的疑似重复命中 + 玩家对每条命中的处理选择
+  const [dupHits, setDupHits] = useState<DupHit[]>([]);
+  const [choices, setChoices] = useState<Record<string, MergeChoice>>({});
+
   // 抽取结果只应加载一次：review 为终态，数据不会再变。
   // SSE 到达终态会关闭连接并降级为轮询，若不做守卫，每次轮询都会
   // 重新 setExps/setProjs，把用户手动打开的低置信度开关重置回关闭。
@@ -91,13 +95,28 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     setFileName(res.fileName);
     setRawText(res.rawText ?? "");
 
-    const dupExp = new Map<number, string>(duplicates.experiences.map((d: { index: number; existingLabel: string }) => [d.index, d.existingLabel]));
+    const hits: DupHit[] = (duplicates?.experiences ?? []).filter((d: DupHit) => d.same === true);
+    const dupLabel = new Map<number, string>();
+    const involved = new Set<number>();
+    for (const h of hits) {
+      involved.add(h.index);
+      if (typeof h.otherIndex === "number") involved.add(h.otherIndex);
+      const label =
+        h.otherLabel ??
+        (typeof h.otherIndex === "number" && result.experiences[h.otherIndex]
+          ? `${result.experiences[h.otherIndex].company} · ${result.experiences[h.otherIndex].title}`
+          : "");
+      if (label) dupLabel.set(h.index, label);
+    }
     const dupSkill = new Map<number, string>(duplicates.skills.map((d: { index: number; existingLabel: string }) => [d.index, d.existingLabel]));
+
+    setDupHits(hits);
+    setChoices({});
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setExps(result.experiences.map((e: any, i: number): ExpDraft => ({
-      include: e.confidence !== "low" && !dupExp.has(i),
-      duplicate: dupExp.get(i),
+      include: e.confidence !== "low" && !involved.has(i),
+      duplicate: dupLabel.get(i),
       confidence: e.confidence,
       company: e.company ?? "", title: e.title ?? "",
       startDate: e.startDate ?? "", startDatePrecision: e.startDatePrecision ?? "day",
@@ -190,20 +209,34 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
   }
 
   async function apply() {
-    const included = exps.filter((e) => e.include);
-    const invalid = included.find((e) => !e.company || !e.title || !e.startDate);
+    // 用纯函数归约查重命中 + 玩家选择 → 最终写操作（create / update / drop）
+    const expFields = exps.map(toFields);
+    const includeArr = exps.map((e) => e.include);
+    const { ops } = buildApplyExperiences(expFields, dupHits, choices, includeArr);
+    const postedExps = ops
+      .filter((op) => op.type !== "drop")
+      .map((op) => {
+        const f = op.exp;
+        return {
+          company: f.company,
+          title: f.title,
+          startDate: f.startDate ?? "",
+          endDate: f.endDate,
+          location: f.location || undefined,
+          description: f.description || undefined,
+          highlights: f.highlights ?? [],
+          ...(op.type === "update" ? { mergeIntoId: op.id } : {}),
+          ...(op.type === "create" && op.forceCreate ? { forceCreate: true } : {}),
+        };
+      });
+    const invalid = postedExps.find((e) => !e.company || !e.title || !e.startDate);
     if (invalid) {
       toast.error(t("review.invalidExp", { name: invalid.company || t("review.unnamed") }));
       return;
     }
     setApplying(true);
     const body = JSON.stringify({
-      experiences: included.map((e) => ({
-        company: e.company, title: e.title,
-        startDate: e.startDate, endDate: e.endDatePresent ? null : (e.endDate || null),
-        location: e.location || undefined, description: e.description || undefined,
-        highlights: e.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
-      })),
+      experiences: postedExps,
       projects: projs.filter((p) => p.include && p.name).map((p) => ({
         name: p.name, role: p.role || undefined,
         belongsToCompany: p.belongsToCompany || null,
@@ -300,6 +333,13 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     skills.filter((s) => s.include).length + achs.filter((a) => a.include).length +
     edus.filter((e) => e.include).length;
 
+  // 被查重命中（疑似重复）的经历下标：其 fate 由合并面板决定，单独 include 开关不再生效
+  const involved = new Set<number>();
+  dupHits.forEach((h) => {
+    involved.add(h.index);
+    if (typeof h.otherIndex === "number") involved.add(h.otherIndex);
+  });
+
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col gap-3">
       <div>
@@ -317,10 +357,16 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
         </Card>
 
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+          <DupMergeSection
+            hits={dupHits}
+            exps={exps}
+            choices={choices}
+            onChoice={(id, c) => setChoices((prev) => ({ ...prev, [id]: c }))}
+          />
           <Section title={t("review.sectionExperiences", { count: exps.length })}>
             {exps.map((e, i) => (
               <DraftCard key={i} include={e.include} onInclude={(v) => setExps(upd(exps, i, { include: v }))}
-                badge={<ConfBadge c={e.confidence} />} duplicate={e.duplicate}>
+                includeDisabled={involved.has(i)} badge={<ConfBadge c={e.confidence} />} duplicate={e.duplicate}>
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={e.company} placeholder={t("review.ph.company")} onChange={(ev) => setExps(upd(exps, i, { company: ev.target.value }))} />
                   <Input value={e.title} placeholder={t("review.ph.title")} onChange={(ev) => setExps(upd(exps, i, { title: ev.target.value }))} />
@@ -456,6 +502,19 @@ function padDate(value: string, precision: DatePrecision): string {
   return value.slice(0, 10);
 }
 
+/** ExpDraft → shared ExpFields（供 buildApplyExperiences 归约） */
+function toFields(d: ExpDraft): ExpFields {
+  return {
+    company: d.company,
+    title: d.title,
+    startDate: d.startDate || null,
+    endDate: d.endDatePresent ? null : (d.endDate || null),
+    location: d.location || null,
+    description: d.description || null,
+    highlights: d.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
+  };
+}
+
 function DateField({
   value,
   precision,
@@ -533,16 +592,17 @@ function ConfBadge({ c }: { c: Confidence }) {
 }
 
 function DraftCard({
-  include, onInclude, badge, duplicate, children,
+  include, onInclude, badge, duplicate, includeDisabled, children,
 }: {
   include: boolean; onInclude: (v: boolean) => void;
-  badge?: React.ReactNode; duplicate?: string; children: React.ReactNode;
+  badge?: React.ReactNode; duplicate?: string; includeDisabled?: boolean; children: React.ReactNode;
 }) {
   const t = useT();
   return (
     <Card
-      className={`${include ? "" : "opacity-55"} cursor-pointer transition-colors hover:border-primary/50`}
+      className={`${include ? "" : "opacity-55"} ${includeDisabled ? "cursor-default" : "cursor-pointer"} transition-colors hover:border-primary/50`}
       onClick={(ev) => {
+        if (includeDisabled) return;
         const target = ev.target as HTMLElement;
         // 点击输入框、按钮、开关、下拉、文本域等子元素时不切换卡片选中态，避免干扰编辑
         const interactive = target.closest(
@@ -561,11 +621,117 @@ function DraftCard({
                 {t("review.suspectedDuplicate", { name: duplicate })}
               </span>
             )}
+            {includeDisabled && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                {t("review.dupHandledByPanel")}
+              </span>
+            )}
           </div>
-          <Switch checked={include} onCheckedChange={onInclude} aria-label={t("review.include")} />
+          <Switch checked={include} disabled={includeDisabled} onCheckedChange={onInclude} aria-label={t("review.include")} />
         </div>
         {children}
       </CardContent>
     </Card>
+  );
+}
+
+// ===== 疑似重复 / 合并面板 =====
+// AI 已判定这些经历为「同一段真实工作」；玩家在此决定如何处理，归约逻辑见 shared.buildApplyExperiences。
+function DupMergeSection({
+  hits, exps, choices, onChoice,
+}: {
+  hits: DupHit[];
+  exps: ExpDraft[];
+  choices: Record<string, MergeChoice>;
+  onChoice: (id: string, c: MergeChoice) => void;
+}) {
+  const t = useT();
+  if (!hits.length) return null;
+
+  const sideLabel = (h: DupHit) =>
+    h.kind === "cross" ? t("review.dupSourceExisting") : t("review.dupSourceNewOther");
+
+  return (
+    <Section title={t("review.dupSectionTitle", { count: hits.length })}>
+      <p className="text-xs text-muted-foreground">{t("review.dupSectionHint")}</p>
+      {hits.map((h) => {
+        const a = exps[h.index];
+        const bFields: ExpFields =
+          h.kind === "intra"
+            ? toFields(exps[h.otherIndex!])
+            : (h.existing as ExpFields) ?? { company: "", title: "", startDate: null, endDate: null, highlights: [] };
+        const merged = mergeFields(toFields(a), bFields);
+        const choice: MergeChoice = choices[h.id] ?? "merge";
+        const choiceOpts: { value: MergeChoice; label: string }[] =
+          h.kind === "intra"
+            ? [
+                { value: "merge", label: t("review.dupChoiceMerge") },
+                { value: "keep_both", label: t("review.dupChoiceKeepBoth") },
+              ]
+            : [
+                { value: "merge", label: t("review.dupChoiceMerge") },
+                { value: "keep_existing", label: t("review.dupChoiceKeepExisting") },
+                { value: "keep_new", label: t("review.dupChoiceKeepNew") },
+                { value: "keep_both", label: t("review.dupChoiceKeepBoth") },
+              ];
+
+        const renderSide = (label: string, f: { company: string; title: string; startDate: string | null; endDate: string | null; description?: string | null }) => (
+          <div className="space-y-1 rounded-md border bg-muted/40 p-2 text-xs">
+            <p className="font-medium text-muted-foreground">{label}</p>
+            <p className="font-medium">{f.company} · {f.title}</p>
+            <p className="text-muted-foreground">
+              {f.startDate ?? "?"} ~ {f.endDate ?? t("common.present")}
+            </p>
+            {f.description && <p className="line-clamp-2 text-muted-foreground">{f.description}</p>}
+          </div>
+        );
+
+        return (
+          <Card key={h.id} className="border-amber-300">
+            <CardContent className="space-y-2 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                  {t("review.dupAiBadge", { confidence: t(`review.conf.${h.confidence}`) })}
+                </span>
+                {h.reason && <span className="truncate text-[11px] text-muted-foreground">{h.reason}</span>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {renderSide(t("review.dupSourceNew"), toFields(a))}
+                {renderSide(sideLabel(h), bFields)}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{t("review.dupChoiceLabel")}</span>
+                <Select value={choice} onValueChange={(v) => onChoice(h.id, v as MergeChoice)}>
+                  <SelectTrigger className="h-8 w-[10rem] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {choiceOpts.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {choice === "merge" && (
+                <div className="space-y-1 rounded-md border border-dashed bg-background p-2 text-xs">
+                  <p className="font-medium text-muted-foreground">{t("review.dupMergedPreview")}</p>
+                  <p className="font-medium">{merged.company} · {merged.title}</p>
+                  <p className="text-muted-foreground">
+                    {merged.startDate ?? "?"} ~ {merged.endDate ?? t("common.present")}
+                  </p>
+                  {merged.description && <p className="line-clamp-3 text-muted-foreground">{merged.description}</p>}
+                  {(merged.highlights ?? []).length > 0 && (
+                    <p className="text-muted-foreground">· {(merged.highlights ?? []).slice(0, 6).join(" / ")}</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </Section>
   );
 }

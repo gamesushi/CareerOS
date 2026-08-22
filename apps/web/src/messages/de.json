@@ -705,5 +705,18 @@
   "landing.region.jp.name": "Japan",
   "landing.region.jp.p1": "Lebenslauf + Berufsverlauf (Rirekisho + Shokumu Keirekisho) als Paar, mit strengen Formatregeln",
   "landing.region.jp.p2": "Meist erforderlich: Passfoto, Furigana und Geburtsdatum",
-  "landing.region.jp.p3": "Hauptquellen: Wantedly u. a."
+  "landing.region.jp.p3": "Hauptquellen: Wantedly u. a.",
+  "review.dupSectionTitle": "Suspected duplicate experiences (AI, {count})",
+  "review.dupSectionHint": "AI thinks these are the same real job. Choose how to handle them.",
+  "review.dupSourceNew": "This import",
+  "review.dupSourceExisting": "Existing profile",
+  "review.dupSourceNewOther": "This import (other)",
+  "review.dupAiBadge": "AI · confidence {confidence}",
+  "review.dupChoiceLabel": "Action",
+  "review.dupChoiceMerge": "Merge into one",
+  "review.dupChoiceKeepExisting": "Keep existing",
+  "review.dupChoiceKeepNew": "Overwrite with new",
+  "review.dupChoiceKeepBoth": "Keep both",
+  "review.dupMergedPreview": "Merged preview",
+  "review.dupHandledByPanel": "Handled by merge panel"
 }

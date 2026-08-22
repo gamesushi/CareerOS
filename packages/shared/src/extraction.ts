@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { experienceInput, projectInput, skillInput, achievementInput, educationInput } from "./entities";
+import { dupHitSchema } from "./dedup";
 
 // ===== resumeParse 任务的 LLM 输出契约（docs/design/04-ai-workflows.md §1） =====
 // 日期宽松收集（YYYY / YYYY-MM / YYYY-MM-DD），由 normalizeExtractedDate 统一补全，
@@ -120,7 +121,8 @@ export const extractedPayload = z.object({
   result: extractionResult,
   duplicates: z
     .object({
-      experiences: z.array(z.object({ index: z.number(), existingId: z.string(), existingLabel: z.string() })),
+      // 经历查重：每一条命中携带 AI 判定（same/confidence/reason）与合并所需的另一侧信息
+      experiences: z.array(dupHitSchema),
       skills: z.array(z.object({ index: z.number(), existingId: z.string(), existingLabel: z.string() })),
     })
     .default({ experiences: [], skills: [] }),

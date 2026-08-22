@@ -931,5 +931,18 @@
   "toolsPages.leaderboard.descRemote": "フィルタ済：リモートのみ",
   "toolsPages.leaderboard.descAll": "全求人",
   "toolsPages.leaderboard.empty": "データがありません。監視タスクがまだ求人を取得していないか、現在のフィルタ条件下に結果がありません。",
-  "toolsPages.leaderboard.updated": "更新："
+  "toolsPages.leaderboard.updated": "更新：",
+  "review.dupSectionTitle": "重複の可能性あり（AI 判定、{count}）",
+  "review.dupSectionHint": "AI がこれらを同一の職務と判定しました。対応を選択してください。",
+  "review.dupSourceNew": "今回の取り込み",
+  "review.dupSourceExisting": "既存のプロフィール",
+  "review.dupSourceNewOther": "今回の取り込み（別）",
+  "review.dupAiBadge": "AI 判定・確信度 {confidence}",
+  "review.dupChoiceLabel": "対応",
+  "review.dupChoiceMerge": "1つに統合",
+  "review.dupChoiceKeepExisting": "既存を保持",
+  "review.dupChoiceKeepNew": "新規で上書き",
+  "review.dupChoiceKeepBoth": "両方保持",
+  "review.dupMergedPreview": "統合プレビュー",
+  "review.dupHandledByPanel": "統合パネルで処理"
 }

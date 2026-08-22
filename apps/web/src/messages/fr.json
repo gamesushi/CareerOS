@@ -705,5 +705,18 @@
   "landing.region.jp.name": "Japon",
   "landing.region.jp.p1": "CV + histoire pro (rirekisho + shokumu keirekisho) en paire, avec règles de format strictes",
   "landing.region.jp.p2": "Nécessite généralement une photo d'identité, des furigana et la date de naissance",
-  "landing.region.jp.p3": "Sources principales : Wantedly, etc."
+  "landing.region.jp.p3": "Sources principales : Wantedly, etc.",
+  "review.dupSectionTitle": "Suspected duplicate experiences (AI, {count})",
+  "review.dupSectionHint": "AI thinks these are the same real job. Choose how to handle them.",
+  "review.dupSourceNew": "This import",
+  "review.dupSourceExisting": "Existing profile",
+  "review.dupSourceNewOther": "This import (other)",
+  "review.dupAiBadge": "AI · confidence {confidence}",
+  "review.dupChoiceLabel": "Action",
+  "review.dupChoiceMerge": "Merge into one",
+  "review.dupChoiceKeepExisting": "Keep existing",
+  "review.dupChoiceKeepNew": "Overwrite with new",
+  "review.dupChoiceKeepBoth": "Keep both",
+  "review.dupMergedPreview": "Merged preview",
+  "review.dupHandledByPanel": "Handled by merge panel"
 }

@@ -18,6 +18,9 @@ export const experienceInput = z
     highlights: z.array(z.string().max(500)).default([]),
     lang: langEnum.default("zh"),
     sortOrder: z.number().int().default(0),
+    // 查重合并：提供 mergeIntoId 则更新该已入库经历（enriched），forceCreate 则强制新建
+    mergeIntoId: z.string().uuid().nullable().optional(),
+    forceCreate: z.boolean().optional(),
   })
   .refine((v) => !v.endDate || v.endDate >= v.startDate, {
     message: "结束日期不能早于开始日期",
