@@ -118,10 +118,11 @@ export function AppSidebar({
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
       <div className="px-5 py-5">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-          {t("app.name")}
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <img src="/logo.png" alt={t("app.name")} className="h-8 w-auto" />
+          <span className="text-lg font-semibold tracking-tight">{t("app.name")}</span>
         </Link>
-        <p className="mt-0.5 text-xs text-muted-foreground">{t("app.tagline")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("app.tagline")}</p>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
         <div className="space-y-0.5 pb-3">

@@ -139,6 +139,7 @@ function LoginForm({
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5">
+            <img src="/logo.png" alt={t("app.name")} className="h-10 w-auto mb-1" />
             <CardTitle className="text-2xl">{t("app.name")}</CardTitle>
             <CardDescription>{t("login.description")}</CardDescription>
           </div>
