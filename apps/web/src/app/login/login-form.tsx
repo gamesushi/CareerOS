@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/i18n/provider";
@@ -140,7 +140,6 @@ function LoginForm({
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5">
             <img src="/logo.png" alt={t("app.name")} className="h-10 w-auto mb-1" />
-            <CardTitle className="text-2xl">{t("app.name")}</CardTitle>
             <CardDescription>{t("login.description")}</CardDescription>
           </div>
           <LocaleSwitcher className="w-auto shrink-0" />
