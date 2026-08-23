@@ -64,8 +64,8 @@ export default async function WelcomePage() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <Link href="/" className="font-semibold">
-            uCareerOS
+          <Link href="/" className="flex items-center">
+            <img src="/logo.png" alt="uCareerOS" className="h-8 w-auto" />
           </Link>
           <nav className="flex items-center gap-3 text-sm text-muted-foreground">
             <Link href="/tools" className="hover:text-foreground">
