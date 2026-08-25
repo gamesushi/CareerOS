@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -111,6 +112,8 @@ export default function MonitorPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [running, setRunning] = useState<string | null>(null);
+  const [runStart, setRunStart] = useState<number | null>(null);
+  const [runTick, setRunTick] = useState(0);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -236,15 +239,61 @@ export default function MonitorPage() {
     }
   }
 
-  async function runNow(id: string) {
-    setRunning(id);
-    const res = await api(`/watches/${id}/run`, { method: "POST" });
-    if (res) {
-      toast.success(t("monitor.fetchTriggered"));
-      setTimeout(() => { void load(); setRunning(null); }, 5000);
-    } else {
+  // 抓取进行时每秒 tick 一次，驱动进度条动画重渲染
+  useEffect(() => {
+    if (running === null) return;
+    const id = setInterval(() => setRunTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  async function runNow(w: Watch) {
+    const baseline = w.lastRunAt ?? null;
+    setRunning(w.id);
+    setRunStart(Date.now());
+    const res = await api(`/watches/${w.id}/run`, { method: "POST" });
+    if (!res) {
       setRunning(null);
+      setRunStart(null);
+      return;
     }
+    toast.success(t("monitor.fetchTriggered"));
+    const startedAt = Date.now();
+    const iv = setInterval(async () => {
+      try {
+        const wres = await api<{ data: Watch[] }>("/watches");
+        if (!wres) return;
+        const u = wres.data.find((x) => x.id === w.id);
+        const done =
+          !!u &&
+          (baseline == null
+            ? !!u.lastRunAt
+            : !!u.lastRunAt && new Date(u.lastRunAt).getTime() > new Date(baseline).getTime());
+        if (done || Date.now() - startedAt > 180_000) {
+          clearInterval(iv);
+          setRunning(null);
+          setRunStart(null);
+          void load();
+          if (done && u?.lastResult) {
+            try {
+              const r = JSON.parse(u.lastResult);
+              toast.success(
+                t("monitor.fetchDone", {
+                  created: r.created ?? 0,
+                  updated: r.updated ?? 0,
+                  found: r.found ?? 0,
+                }),
+              );
+              return;
+            } catch {
+              /* 解析失败则走兜底提示 */
+            }
+          }
+          toast.success(t("monitor.fetchDoneSimple"));
+        }
+      } catch {
+        /* 轮询瞬时失败忽略，下次继续 */
+      }
+    }, 3000);
   }
 
   async function toggleWatch(w: Watch) {
@@ -558,48 +607,63 @@ export default function MonitorPage() {
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {watches.map((w) => (
+          {watches.map((w) => {
+            const elapsed = runStart ? Date.now() - runStart : 0;
+            const pct = Math.min(90, Math.round((elapsed / 90_000) * 90));
+            return (
             <Card key={w.id}>
-              <CardContent className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{w.name}</p>
-                    {w.newJobCount > 0 && <Badge>{t("monitor.newBadge", { count: w.newJobCount })}</Badge>}
-                    {w.lastError && <Badge variant="destructive" title={w.lastError}>{t("monitor.fetchError")}</Badge>}
+              <CardContent className="space-y-2 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{w.name}</p>
+                      {w.newJobCount > 0 && <Badge>{t("monitor.newBadge", { count: w.newJobCount })}</Badge>}
+                      {w.lastError && <Badge variant="destructive" title={w.lastError}>{t("monitor.fetchError")}</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {w.keywords.join(" / ")} · {w.sources.map((s) => SOURCE_LABEL[s] ?? s).join("、")}
+                      {w.locations.length > 0 && ` · ${w.locations.join("/")}`}
+                      {(w.matchRoles?.length ?? 0) > 0 && ` · ${w.matchRoles!.map((r) => t(`role.${r}`)).join("/")}`}
+                      {(w.matchRegions?.length ?? 0) > 0 && ` · ${w.matchRegions!.map((r) => (PRESET_REGION_IDS.has(r) ? t(`region.${r}`) : r)).join("/")}`}
+                      {(w.matchLanguages?.length ?? 0) > 0 && ` · ${w.matchLanguages!.map((l) => t(`lang.${l}`)).join("/")}`}
+                      {(w.matchExperience?.length ?? 0) > 0 && ` · ${w.matchExperience!.map((x) => t(`exp.${x}`)).join("/")}`}
+                      {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
+                      {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
+                    </p>
+                    {w.lastResult && (() => {
+                      try {
+                        const r = JSON.parse(w.lastResult);
+                        return (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("monitor.lastResult", { created: r.created, updated: r.updated, closed: r.closed, deleted: r.deleted })}
+                          </p>
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {w.keywords.join(" / ")} · {w.sources.map((s) => SOURCE_LABEL[s] ?? s).join("、")}
-                    {w.locations.length > 0 && ` · ${w.locations.join("/")}`}
-                    {(w.matchRoles?.length ?? 0) > 0 && ` · ${w.matchRoles!.map((r) => t(`role.${r}`)).join("/")}`}
-                    {(w.matchRegions?.length ?? 0) > 0 && ` · ${w.matchRegions!.map((r) => (PRESET_REGION_IDS.has(r) ? t(`region.${r}`) : r)).join("/")}`}
-                    {(w.matchLanguages?.length ?? 0) > 0 && ` · ${w.matchLanguages!.map((l) => t(`lang.${l}`)).join("/")}`}
-                    {(w.matchExperience?.length ?? 0) > 0 && ` · ${w.matchExperience!.map((x) => t(`exp.${x}`)).join("/")}`}
-                    {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
-                    {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
-                  </p>
-                  {w.lastResult && (() => {
-                    try {
-                      const r = JSON.parse(w.lastResult);
-                      return (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {t("monitor.lastResult", { created: r.created, updated: r.updated, closed: r.closed, deleted: r.deleted })}
-                        </p>
-                      );
-                    } catch {
-                      return null;
-                    }
-                  })()}
+                  <Button variant="ghost" size="icon" className="size-8" title={t("monitor.runNow")} disabled={running !== null} onClick={() => runNow(w)}>
+                    {running === w.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                  </Button>
+                  <Switch checked={w.enabled} onCheckedChange={() => toggleWatch(w)} />
+                  <Button variant="ghost" size="icon" className="size-8" onClick={() => removeWatch(w.id)}>
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" className="size-8" title={t("monitor.runNow")} disabled={running === w.id} onClick={() => runNow(w.id)}>
-                  {running === w.id ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-                </Button>
-                <Switch checked={w.enabled} onCheckedChange={() => toggleWatch(w)} />
-                <Button variant="ghost" size="icon" className="size-8" onClick={() => removeWatch(w.id)}>
-                  <Trash2 className="size-4" />
-                </Button>
+                {running === w.id && (
+                  <div className="space-y-1">
+                    <Progress value={pct} className="h-1.5" />
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="size-3 animate-spin" />
+                      {t("monitor.fetchingHint")}（已等待 {Math.max(0, Math.round(elapsed / 1000))} 秒）
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
