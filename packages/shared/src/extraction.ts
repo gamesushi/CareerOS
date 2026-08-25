@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { experienceInput, projectInput, skillInput, achievementInput, educationInput } from "./entities";
+import { experienceInput, projectInput, skillInput, achievementInput, educationInput, honorInput } from "./entities";
 import { dupHitSchema } from "./dedup";
 
 // ===== resumeParse 任务的 LLM 输出契约（docs/design/04-ai-workflows.md §1） =====
@@ -70,6 +70,13 @@ export const extractedEducation = z.object({
   endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
 });
 
+export const extractedHonor = z.object({
+  title: z.string().min(1).max(200),
+  issuer: z.string().max(160).nullable().optional(),
+  date: looseDate,
+  description: z.string().max(2000).nullable().optional(),
+});
+
 export const extractionResult = z.object({
   basics: z
     .object({
@@ -86,6 +93,7 @@ export const extractionResult = z.object({
   skills: z.array(extractedSkill).default([]),
   achievements: z.array(extractedAchievement).default([]),
   educations: z.array(extractedEducation).default([]),
+  honors: z.array(extractedHonor).default([]),
 });
 
 export type ExtractionResult = z.infer<typeof extractionResult>;
@@ -112,6 +120,7 @@ export const applyImportInput = z.object({
   skills: z.array(skillInput).default([]),
   achievements: z.array(achievementInput).default([]),
   educations: z.array(educationInput).default([]),
+  honors: z.array(honorInput).default([]),
 });
 
 export type ApplyImportInput = z.infer<typeof applyImportInput>;
@@ -121,11 +130,15 @@ export const extractedPayload = z.object({
   result: extractionResult,
   duplicates: z
     .object({
-      // 经历查重：每一条命中携带 AI 判定（same/confidence/reason）与合并所需的另一侧信息
-      experiences: z.array(dupHitSchema),
+      // 各分栏查重：每一条命中携带 AI 判定（same/confidence/reason）与合并所需的另一侧信息
+      work: z.array(dupHitSchema),
+      project: z.array(dupHitSchema),
+      achievement: z.array(dupHitSchema),
+      education: z.array(dupHitSchema),
+      honor: z.array(dupHitSchema),
       skills: z.array(z.object({ index: z.number(), existingId: z.string(), existingLabel: z.string() })),
     })
-    .default({ experiences: [], skills: [] }),
+    .default({ work: [], project: [], achievement: [], education: [], honor: [], skills: [] }),
   promptVersion: z.string(),
   model: z.string(),
 });

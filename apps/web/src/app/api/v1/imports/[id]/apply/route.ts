@@ -1,9 +1,35 @@
 import { prisma } from "@careeros/db";
-import { applyImportInput, normalizeCompany, normalizeSkill, companyRelated, dateOverlap, mergeFields, type ExpFields } from "@careeros/shared";
+import {
+  applyImportInput,
+  normalizeCompany,
+  normalizeSkill,
+  sectionCandidate,
+  mergeItems,
+  toNewItems,
+  toExistingItems,
+  type SectionKind,
+  type MergeItem,
+} from "@careeros/shared";
 import { handler, ok, parseBody, requireUser, toDate, ApiError } from "@/lib/api";
 
-// 确认页提交：把用户勾选/修正后的实体集事务写入职业库（ADR-005：解析结果必须人工确认后入库）
+// 各分栏对应的 Prisma 表名
+const SECTION_TABLE: Record<SectionKind, "careerExperience" | "project" | "achievement" | "education" | "honor"> = {
+  work: "careerExperience",
+  project: "project",
+  achievement: "achievement",
+  education: "education",
+  honor: "honor",
+};
+// 是否带软删除字段（用于 where 过滤）
+const HAS_SOFT_DELETE: Record<SectionKind, boolean> = {
+  work: true,
+  project: true,
+  achievement: false,
+  education: false,
+  honor: false,
+};
 
+// 确认页提交：把用户勾选/修正后的实体集事务写入职业库（ADR-005：解析结果必须人工确认后入库）
 export const POST = handler(async (req, { params }) => {
   const { userId } = await requireUser();
   const { id } = await params;
@@ -17,138 +43,154 @@ export const POST = handler(async (req, { params }) => {
   const input = await parseBody(req, applyImportInput);
 
   const counts = await prisma.$transaction(async (tx) => {
-    // 1. 经历：company → id 映射，供项目挂靠
     const companyToExperienceId = new Map<string, string>();
 
-    // 活库已入库经历，用于入库时再查一次、堵住「两份都在 review 时入库」的竞态
-    const liveExps = await tx.careerExperience.findMany({
-      where: { userId, deletedAt: null },
-      select: {
-        id: true, company: true, title: true, startDate: true, endDate: true,
-        location: true, description: true, highlights: true,
-      },
+    const whereUserId = (kind: SectionKind) => ({
+      userId,
+      ...(HAS_SOFT_DELETE[kind] ? { deletedAt: null } : {}),
     });
-    const liveMatches = (company: string, start: string, end: string | null | undefined) =>
-      liveExps.filter(
-        (r) =>
-          companyRelated(company, r.company) &&
-          dateOverlap(
-            { startDate: start, endDate: end ?? null },
-            {
-              startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : null,
-              endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
-            },
-          ),
+
+    // 预载各分栏已有 id 集合，用于 mergeIntoId 越权校验
+    const ownedIds: Record<SectionKind, Set<string>> = {
+      work: new Set((await tx.careerExperience.findMany({ where: whereUserId("work"), select: { id: true } })).map((r) => r.id)),
+      project: new Set((await tx.project.findMany({ where: whereUserId("project"), select: { id: true } })).map((r) => r.id)),
+      achievement: new Set((await tx.achievement.findMany({ where: whereUserId("achievement"), select: { id: true } })).map((r) => r.id)),
+      education: new Set((await tx.education.findMany({ where: whereUserId("education"), select: { id: true } })).map((r) => r.id)),
+      honor: new Set((await tx.honor.findMany({ where: whereUserId("honor"), select: { id: true } })).map((r) => r.id)),
+    };
+
+    const resolveExperienceId = async (belongsToCompany?: string | null): Promise<string | null> => {
+      if (!belongsToCompany) return null;
+      const norm = normalizeCompany(belongsToCompany);
+      return (
+        companyToExperienceId.get(norm) ??
+        (await tx.careerExperience.findFirst({ where: { userId, companyNorm: norm, deletedAt: null }, select: { id: true } }))?.id ??
+        null
       );
-    const isOwned = (recordId: string) => liveExps.some((r) => r.id === recordId);
-    const rowToFields = (r: (typeof liveExps)[number]): ExpFields => ({
-      company: r.company,
-      title: r.title,
-      startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : null,
-      endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
-      location: (r.location as string | null) ?? null,
-      description: (r.description as string | null) ?? null,
-      highlights: Array.isArray(r.highlights) ? (r.highlights as string[]) : [],
-    });
+    };
 
-    for (const exp of input.experiences) {
-      const fields: ExpFields = {
-        company: exp.company,
-        title: exp.title,
-        startDate: exp.startDate,
-        endDate: exp.endDate ?? null,
-        location: exp.location ?? null,
-        description: exp.description ?? null,
-        highlights: exp.highlights,
-      };
-      const toData = (f: ExpFields) => ({
-        company: f.company,
-        companyNorm: normalizeCompany(f.company),
-        title: f.title,
-        employmentType: exp.employmentType,
-        startDate: toDate(f.startDate)!,
-        endDate: toDate(f.endDate),
-        location: f.location,
-        description: f.description,
-        highlights: f.highlights,
-        lang: exp.lang,
-      });
+    // 把 MergeItem.raw 映射为 Prisma 写库数据
+    const toData = (kind: SectionKind, item: MergeItem, extra: Record<string, unknown> = {}): Record<string, unknown> => {
+      const raw = item.raw as Record<string, unknown>;
+      switch (kind) {
+        case "work":
+          return {
+            company: raw.company,
+            companyNorm: normalizeCompany(String(raw.company)),
+            title: raw.title,
+            employmentType: extra.employmentType ?? null,
+            startDate: toDate(String(raw.startDate))!,
+            endDate: toDate(raw.endDate as string),
+            location: raw.location ?? null,
+            description: raw.description ?? null,
+            highlights: raw.highlights ?? [],
+            lang: extra.lang ?? "zh",
+          };
+        case "project":
+          return {
+            name: raw.name,
+            role: raw.role ?? null,
+            startDate: toDate(raw.startDate as string),
+            endDate: toDate(raw.endDate as string),
+            description: raw.description ?? null,
+            outcome: raw.outcome ?? null,
+            links: raw.links ?? [],
+            techStack: raw.techStack ?? [],
+            lang: extra.lang ?? "zh",
+            experienceId: (extra.experienceId as string) ?? null,
+          };
+        case "achievement":
+          return {
+            title: raw.title,
+            metricValue: raw.metricValue ?? null,
+            metricUnit: raw.metricUnit ?? null,
+            metricText: raw.metricText ?? null,
+            evidence: raw.evidence ?? null,
+            occurredAt: toDate(raw.occurredAt as string),
+          };
+        case "education":
+          return {
+            school: raw.school,
+            degree: raw.degree ?? null,
+            major: raw.major ?? null,
+            faculty: raw.faculty ?? null,
+            startDate: toDate(raw.startDate as string),
+            endDate: toDate(raw.endDate as string),
+            gpa: raw.gpa ?? null,
+            description: raw.description ?? null,
+          };
+        case "honor":
+          return {
+            title: raw.title,
+            issuer: raw.issuer ?? null,
+            date: toDate(raw.date as string),
+            description: raw.description ?? null,
+          };
+      }
+    };
 
-      // 合并到已有经历（玩家在确认页选择「合并 / 用新版覆盖」）
-      if (exp.mergeIntoId) {
-        if (isOwned(exp.mergeIntoId)) {
-          const updated = await tx.careerExperience.update({
-            where: { id: exp.mergeIntoId },
-            data: { ...toData(fields), source: "import", importId: id },
+    // 竞态合并：与活库已入库记录撞车（同身份+重叠）则合并更新，避免重复写入且不丢数据
+    const matchLive = async (kind: SectionKind, newItem: MergeItem): Promise<{ id: string } | null> => {
+      const full = (await (tx as Record<string, any>)[SECTION_TABLE[kind]].findMany({ where: whereUserId(kind) })) as Record<string, unknown>[];
+      const existingItems = toExistingItems(kind, full);
+      for (let i = 0; i < existingItems.length; i++) {
+        if (sectionCandidate(kind, newItem, existingItems[i])) return { id: String(full[i].id) };
+      }
+      return null;
+    };
+
+    const writeKind = async (
+      kind: SectionKind,
+      items: Record<string, any>[],
+      extraFor?: (item: any) => Record<string, unknown>,
+    ): Promise<void> => {
+      for (const item of items) {
+        const newItem = toNewItems(kind, [item])[0];
+        const extra = extraFor ? extraFor(item) : {};
+        // 合并到已有记录（玩家在确认页选择「合并 / 用新版覆盖」）
+        if (item.mergeIntoId && ownedIds[kind].has(item.mergeIntoId)) {
+          await (tx as Record<string, any>)[SECTION_TABLE[kind]].update({
+            where: { id: item.mergeIntoId },
+            data: toData(kind, newItem, extra),
           });
-          companyToExperienceId.set(normalizeCompany(fields.company), updated.id);
+          if (kind === "work") companyToExperienceId.set(normalizeCompany(String(newItem.raw.company)), item.mergeIntoId);
           continue;
         }
-        // mergeIntoId 不属于当前用户 → 降级为新建，避免越权
-      }
-
-      // 玩家显式选择「两者都保留」
-      if (exp.forceCreate) {
-        const created = await tx.careerExperience.create({
-          data: { userId, ...toData(fields), source: "import", importId: id },
+        // 玩家显式选择「两者都保留」
+        if (item.forceCreate) {
+          const created = await (tx as Record<string, any>)[SECTION_TABLE[kind]].create({
+            data: { userId, ...toData(kind, newItem, extra), source: "import", importId: id },
+          });
+          if (kind === "work") companyToExperienceId.set(normalizeCompany(String(newItem.raw.company)), created.id);
+          continue;
+        }
+        // 竞态兜底：与活库已入库记录撞车（同身份+重叠）则合并更新
+        const hit = await matchLive(kind, newItem);
+        if (hit) {
+          const full = await (tx as Record<string, any>)[SECTION_TABLE[kind]].findUnique({ where: { id: hit.id } });
+          const merged = mergeItems(kind, newItem, toExistingItems(kind, [full])[0]);
+          await (tx as Record<string, any>)[SECTION_TABLE[kind]].update({
+            where: { id: hit.id },
+            data: toData(kind, merged, extra),
+          });
+          if (kind === "work") companyToExperienceId.set(normalizeCompany(String(merged.raw.company)), hit.id);
+          continue;
+        }
+        const created = await (tx as Record<string, any>)[SECTION_TABLE[kind]].create({
+          data: { userId, ...toData(kind, newItem, extra), source: "import", importId: id },
         });
-        companyToExperienceId.set(normalizeCompany(fields.company), created.id);
-        continue;
+        if (kind === "work") companyToExperienceId.set(normalizeCompany(String(newItem.raw.company)), created.id);
       }
+    };
 
-      // 竞态兜底：与活库已入库记录撞车（同公司 + 时间重叠）则合并更新，避免重复写入且不丢数据
-      const hit = liveMatches(exp.company, exp.startDate, exp.endDate)[0];
-      if (hit) {
-        const merged = mergeFields(fields, rowToFields(hit));
-        const updated = await tx.careerExperience.update({
-          where: { id: hit.id },
-          data: { ...toData(merged), source: "import", importId: id },
-        });
-        companyToExperienceId.set(normalizeCompany(merged.company), updated.id);
-        continue;
-      }
-
-      const created = await tx.careerExperience.create({
-        data: { userId, ...toData(fields), source: "import", importId: id },
-      });
-      companyToExperienceId.set(normalizeCompany(fields.company), created.id);
-    }
+    // 1. 工作经历（先写，建立 company→experienceId 映射供项目挂靠）
+    await writeKind("work", input.experiences, (e) => ({ employmentType: e.employmentType, lang: e.lang }));
 
     // 2. 项目：belongsToCompany 先匹配本次创建的经历，再匹配库内已有经历
-    let projectCount = 0;
-    for (const proj of input.projects) {
-      let experienceId: string | null = null;
-      if (proj.belongsToCompany) {
-        const norm = normalizeCompany(proj.belongsToCompany);
-        experienceId =
-          companyToExperienceId.get(norm) ??
-          (
-            await tx.careerExperience.findFirst({
-              where: { userId, companyNorm: norm, deletedAt: null },
-              select: { id: true },
-            })
-          )?.id ??
-          null;
-      }
-      await tx.project.create({
-        data: {
-          userId,
-          experienceId,
-          name: proj.name,
-          role: proj.role,
-          startDate: toDate(proj.startDate),
-          endDate: toDate(proj.endDate),
-          description: proj.description,
-          outcome: proj.outcome,
-          links: proj.links,
-          techStack: proj.techStack,
-          lang: proj.lang,
-          source: "import",
-          importId: id,
-        },
-      });
-      projectCount++;
-    }
+    const projectsWithExp = await Promise.all(
+      input.projects.map(async (p) => ({ ...p, experienceId: await resolveExperienceId(p.belongsToCompany) })),
+    );
+    await writeKind("project", projectsWithExp, (p) => ({ experienceId: p.experienceId, lang: p.lang }));
 
     // 3. 技能：已存在（nameNorm 撞车）则跳过，不覆盖用户手工数据
     let skillCreated = 0;
@@ -163,61 +205,28 @@ export const POST = handler(async (req, { params }) => {
         continue;
       }
       await tx.skill.create({
-        data: {
-          userId,
-          name: skill.name,
-          nameNorm,
-          category: skill.category,
-          level: skill.level ?? 0,
-          levelSource: "ai",
-        },
+        data: { userId, name: skill.name, nameNorm, category: skill.category, level: skill.level ?? 0, levelSource: "ai" },
       });
       skillCreated++;
     }
 
-    // 4. 成果与教育
-    for (const ach of input.achievements) {
-      await tx.achievement.create({
-        data: {
-          userId,
-          title: ach.title,
-          metricValue: ach.metricValue,
-          metricUnit: ach.metricUnit,
-          metricText: ach.metricText,
-          evidence: ach.evidence,
-          occurredAt: toDate(ach.occurredAt),
-        },
-      });
-    }
-    for (const edu of input.educations) {
-      await tx.education.create({
-        data: {
-          userId,
-          school: edu.school,
-          degree: edu.degree,
-          major: edu.major,
-          startDate: toDate(edu.startDate),
-          endDate: toDate(edu.endDate),
-          gpa: edu.gpa,
-          description: edu.description,
-        },
-      });
-    }
+    // 4. 成果 / 教育 / 荣誉（均支持 AI 判重合并）
+    await writeKind("achievement", input.achievements);
+    await writeKind("education", input.educations);
+    await writeKind("honor", input.honors);
 
     const summary = {
       experiences: input.experiences.length,
-      projects: projectCount,
+      projects: input.projects.length,
       skills: skillCreated,
       skillsSkipped: skillSkipped,
       achievements: input.achievements.length,
       educations: input.educations.length,
+      honors: input.honors.length,
     };
 
     // 5. 导入记录归档 + 画像置脏
-    await tx.resumeImport.update({
-      where: { id },
-      data: { status: "applied", appliedDiff: summary },
-    });
+    await tx.resumeImport.update({ where: { id }, data: { status: "applied", appliedDiff: summary } });
     await tx.careerProfile.upsert({
       where: { userId },
       update: { isStale: true },

@@ -13,7 +13,8 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
 5. 项目若能从上下文判断所属公司，填 belongsToCompany（公司名原文），否则 null。
 6. 技能包括显式技能清单和正文中反复出现的专业能力；evidenceHint 填原文出处片段（≤50字）。
 7. 成果（achievements）指含量化指标或明确结果的表述，metricValue/metricUnit 拆出数字与单位，无法量化的填 metricText。
-8. 保留原文语言，不要翻译。
+8. 荣誉奖项（honors）指「获奖 / 奖学金 / 竞赛名次 / 认证证书 / 荣誉称号」等，title 为奖项名，issuer 为颁发机构，date 为获得时间（规则2），description 为补充说明。
+9. 保留原文语言，不要翻译。
 
 输出 JSON 结构（严格遵守，不要输出任何 JSON 之外的内容）：
 {
@@ -22,7 +23,8 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
   "projects": [{ "name": string, "role": string|null, "startDate": string|null, "endDate": string|null, "description": string|null, "outcome": string|null, "techStack": string[], "belongsToCompany": string|null, "confidence": "high"|"mid"|"low" }],
   "skills": [{ "name": string, "category": "language"|"framework"|"tool"|"domain"|"soft"|null, "evidenceHint": string|null }],
   "achievements": [{ "title": string, "metricValue": number|null, "metricUnit": string|null, "metricText": string|null, "context": string|null }],
-  "educations": [{ "school": string, "degree": string|null, "major": string|null, "startDate": string|null, "endDate": string|null }]
+  "educations": [{ "school": string, "degree": string|null, "major": string|null, "startDate": string|null, "endDate": string|null }],
+  "honors": [{ "title": string, "issuer": string|null, "date": string|null, "description": string|null }]
 }
 
 输出示例（experiences 和 projects 的每个元素必须是对象，不能是字符串、null 或数组）：
@@ -51,11 +53,26 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
       "belongsToCompany": "示例科技有限公司",
       "confidence": "mid"
     }
+  ],
+  "honors": [
+    {
+      "title": "校级优秀毕业生",
+      "issuer": "示例大学",
+      "date": "2020-06",
+      "description": "全年级前 5% 获得"
+    },
+    {
+      "title": "ACM-ICPC 区域赛金奖",
+      "issuer": "中国计算机学会",
+      "date": "2019",
+      "description": null
+    }
   ]
 }
 
 特别注意：
 - experiences 和 projects 必须是数组，且每个元素必须是对象，不能是字符串、null 或数组。如果原文经历信息不明确，可以输出空数组 []。
+- honors 必须是数组，每个元素为对象 { "title": string, "issuer": string|null, "date": string|null, "description": string|null }；找不到奖项时输出空数组 []。
 - confidence 只能取 "high"、"mid"、"low" 三者之一，不能用中文或空字符串。
 - 教育经历（educations）的 startDate/endDate 必须严格按规则2抽取：有日到日、只有月到月、只有年到年；"至今/现在/present" 的结束日期输出 null。找不到的字段输出 null，禁止推断。
 `;
@@ -75,7 +92,7 @@ export async function runResumeParse(
     const user =
       attempt === 0
         ? `简历原文：\n\n${input}`
-        : `简历原文：\n\n${input}\n\n上一次输出未通过校验，错误：${lastError}\n请按 system prompt 中的输出示例格式修正，特别注意 experiences/projects 每项必须是对象、confidence 必须是 "high"/"mid"/"low" 之一。重新输出完整 JSON。`;
+        : `简历原文：\n\n${input}\n\n上一次输出未通过校验，错误：${lastError}\n请按 system prompt 中的输出示例格式修正，特别注意 experiences/projects/honors 每项必须是对象、confidence 必须是 "high"/"mid"/"low" 之一。重新输出完整 JSON。`;
 
     const res = await chat({ system: SYSTEM_PROMPT, user, json: true });
     totals = {
@@ -102,6 +119,9 @@ export async function runResumeParse(
     const firstBadProject = (parsed as any)?.projects?.find(
       (x: unknown) => typeof x !== "object" || x === null || Array.isArray(x),
     );
+    const firstBadHonor = (parsed as any)?.honors?.find(
+      (x: unknown) => typeof x !== "object" || x === null || Array.isArray(x),
+    );
     const hints: string[] = [];
     if (firstBadExperience) {
       hints.push(
@@ -111,6 +131,11 @@ export async function runResumeParse(
     if (firstBadProject) {
       hints.push(
         `projects 出现非对象元素示例：${JSON.stringify(firstBadProject).slice(0, 120)}，必须改为对象`,
+      );
+    }
+    if (firstBadHonor) {
+      hints.push(
+        `honors 出现非对象元素示例：${JSON.stringify(firstBadHonor).slice(0, 120)}，必须改为对象`,
       );
     }
     lastError = JSON.stringify({ errors: flatErrors, hints }).slice(0, 500);

@@ -16,7 +16,10 @@ import { useT } from "@/lib/i18n/provider";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { buildApplyExperiences, mergeFields, type DatePrecision, type DupHit, type ExpFields, type MergeChoice } from "@careeros/shared";
+import {
+  toNewItems, mergeItems, buildApplySections,
+  type DatePrecision, type DupHit, type MergeItem, type SectionKind, type MergeChoice,
+} from "@careeros/shared";
 
 // ===== 抽取结果的本地编辑模型 =====
 type Confidence = "high" | "mid" | "low";
@@ -41,6 +44,13 @@ type EduDraft = {
   startDate: string; startDatePrecision: DatePrecision | null;
   endDate: string; endDatePrecision: DatePrecision | null; endDatePresent: boolean;
 };
+type HonDraft = {
+  include: boolean; title: string; issuer: string;
+  startDate: string; startDatePrecision: DatePrecision | null;
+  endDate: string; endDatePrecision: DatePrecision | null; endDatePresent: boolean;
+};
+
+const ALL_KINDS: SectionKind[] = ["work", "project", "achievement", "education", "honor"];
 
 type Status = "pending" | "parsing" | "extracting" | "review" | "applied" | "failed" | "loading";
 
@@ -72,14 +82,13 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
   const [skills, setSkills] = useState<SkillDraft[]>([]);
   const [achs, setAchs] = useState<AchDraft[]>([]);
   const [edus, setEdus] = useState<EduDraft[]>([]);
+  const [hons, setHons] = useState<HonDraft[]>([]);
 
-  // 查重合并：AI 判定的疑似重复命中 + 玩家对每条命中的处理选择
+  // 查重合并：AI 判定的疑似重复命中（全部 section）+ 玩家对每条命中的处理选择
   const [dupHits, setDupHits] = useState<DupHit[]>([]);
   const [choices, setChoices] = useState<Record<string, MergeChoice>>({});
 
   // 抽取结果只应加载一次：review 为终态，数据不会再变。
-  // SSE 到达终态会关闭连接并降级为轮询，若不做守卫，每次轮询都会
-  // 重新 setExps/setProjs，把用户手动打开的低置信度开关重置回关闭。
   const loadedRef = useRef(false);
   const loadExtracted = useCallback(async () => {
     if (loadedRef.current) return;
@@ -95,18 +104,10 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     setFileName(res.fileName);
     setRawText(res.rawText ?? "");
 
-    const hits: DupHit[] = (duplicates?.experiences ?? []).filter((d: DupHit) => d.same === true);
-    const dupLabel = new Map<number, string>();
-    const involved = new Set<number>();
-    for (const h of hits) {
-      involved.add(h.index);
-      if (typeof h.otherIndex === "number") involved.add(h.otherIndex);
-      const label =
-        h.otherLabel ??
-        (typeof h.otherIndex === "number" && result.experiences[h.otherIndex]
-          ? `${result.experiences[h.otherIndex].company} · ${result.experiences[h.otherIndex].title}`
-          : "");
-      if (label) dupLabel.set(h.index, label);
+    // 合并全部 section 的 AI 命中（仅 same=true）
+    const hits: DupHit[] = [];
+    for (const kind of ALL_KINDS) {
+      for (const d of (duplicates?.[kind] ?? [])) if (d.same === true) hits.push(d);
     }
     const dupSkill = new Map<number, string>(duplicates.skills.map((d: { index: number; existingLabel: string }) => [d.index, d.existingLabel]));
 
@@ -115,8 +116,7 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setExps(result.experiences.map((e: any, i: number): ExpDraft => ({
-      include: e.confidence !== "low" && !involved.has(i),
-      duplicate: dupLabel.get(i),
+      include: e.confidence !== "low" && !hits.some((h) => h.section === "work" && h.index === i),
       confidence: e.confidence,
       company: e.company ?? "", title: e.title ?? "",
       startDate: e.startDate ?? "", startDatePrecision: e.startDatePrecision ?? "day",
@@ -126,8 +126,8 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
       highlights: (e.highlights ?? []).join("\n"),
     })));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setProjs(result.projects.map((p: any): ProjDraft => ({
-      include: p.confidence !== "low",
+    setProjs(result.projects.map((p: any, i: number): ProjDraft => ({
+      include: p.confidence !== "low" && !hits.some((h) => h.section === "project" && h.index === i),
       confidence: p.confidence,
       name: p.name ?? "", role: p.role ?? "", belongsToCompany: p.belongsToCompany ?? "",
       startDate: p.startDate ?? "", startDatePrecision: p.startDatePrecision ?? "day",
@@ -143,17 +143,27 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
       name: s.name, category: s.category ?? null, evidenceHint: s.evidenceHint ?? null,
     })));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setAchs(result.achievements.map((a: any): AchDraft => ({
-      include: true, title: a.title ?? "",
+    setAchs(result.achievements.map((a: any, i: number): AchDraft => ({
+      include: !hits.some((h) => h.section === "achievement" && h.index === i),
+      title: a.title ?? "",
       metricValue: a.metricValue != null ? String(a.metricValue) : "",
       metricUnit: a.metricUnit ?? "", metricText: a.metricText ?? "",
     })));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setEdus(result.educations.map((e: any): EduDraft => ({
-      include: true, school: e.school ?? "", degree: e.degree ?? "", major: e.major ?? "",
+    setEdus(result.educations.map((e: any, i: number): EduDraft => ({
+      include: !hits.some((h) => h.section === "education" && h.index === i),
+      school: e.school ?? "", degree: e.degree ?? "", major: e.major ?? "",
       startDate: e.startDate ?? "", startDatePrecision: e.startDatePrecision ?? "day",
       endDate: e.endDate ?? "", endDatePrecision: e.endDatePrecision ?? "day",
       endDatePresent: !e.endDate,
+    })));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setHons((result.honors ?? []).map((h: any, i: number): HonDraft => ({
+      include: !hits.some((hh) => hh.section === "honor" && hh.index === i),
+      title: h.title ?? "", issuer: h.issuer ?? "",
+      startDate: h.date ?? "", startDatePrecision: "day" as DatePrecision,
+      endDate: h.date ?? "", endDatePrecision: "day" as DatePrecision,
+      endDatePresent: !h.date,
     })));
   }, [id]);
 
@@ -179,7 +189,6 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     const es = new EventSource(`/api/v1/imports/${id}/events`);
     es.onmessage = (ev) => applyUpdate(JSON.parse(ev.data) as { status: Status; error?: string | null });
     es.onerror = () => {
-      // SSE 断了（服务重启/网络中断）就切换轮询，避免页面永远卡在「正在处理」
       es.close();
       if (!closed && !pollTimer) pollTimer = setInterval(poll, 3000);
     };
@@ -208,54 +217,100 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  // 把某类分栏的编辑草稿转换为「合并框架」所需的原始字段袋（供 toNewItems）
+  function draftsToRaws(kind: SectionKind): Record<string, unknown>[] {
+    switch (kind) {
+      case "work":
+        return exps.map((e) => ({
+          company: e.company, title: e.title,
+          startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
+          location: e.location || null, description: e.description || null,
+          highlights: e.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
+        }));
+      case "project":
+        return projs.map((p) => ({
+          name: p.name, role: p.role || null, belongsToCompany: p.belongsToCompany || null,
+          startDate: p.startDate || null, endDate: p.endDatePresent ? null : (p.endDate || null),
+          description: p.description || null, outcome: p.outcome || null,
+          techStack: p.techStack.split(/[,，]/).map((s) => s.trim()).filter(Boolean), links: [],
+        }));
+      case "achievement":
+        return achs.map((a) => ({
+          title: a.title,
+          metricValue: a.metricValue ? Number(a.metricValue) : null,
+          metricUnit: a.metricUnit || null, metricText: a.metricText || null,
+          evidence: null, occurredAt: null,
+        }));
+      case "education":
+        return edus.map((e) => ({
+          school: e.school, degree: e.degree || null, major: e.major || null, faculty: null,
+          startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
+          gpa: null, description: null,
+        }));
+      case "honor":
+        return hons.map((h) => ({
+          title: h.title, issuer: h.issuer || null,
+          date: h.endDatePresent ? null : (h.endDate || null), description: null,
+        }));
+    }
+  }
+
+  function includesFor(kind: SectionKind): boolean[] {
+    switch (kind) {
+      case "work": return exps.map((e) => e.include);
+      case "project": return projs.map((p) => p.include);
+      case "achievement": return achs.map((a) => a.include);
+      case "education": return edus.map((e) => e.include);
+      case "honor": return hons.map((h) => h.include);
+    }
+  }
+
   async function apply() {
-    // 用纯函数归约查重命中 + 玩家选择 → 最终写操作（create / update / drop）
-    const expFields = exps.map(toFields);
-    const includeArr = exps.map((e) => e.include);
-    const { ops } = buildApplyExperiences(expFields, dupHits, choices, includeArr);
-    const postedExps = ops
-      .filter((op) => op.type !== "drop")
-      .map((op) => {
-        const f = op.exp;
-        return {
-          company: f.company,
-          title: f.title,
-          startDate: f.startDate ?? "",
-          endDate: f.endDate,
-          location: f.location || undefined,
-          description: f.description || undefined,
-          highlights: f.highlights ?? [],
-          ...(op.type === "update" ? { mergeIntoId: op.id } : {}),
-          ...(op.type === "create" && op.forceCreate ? { forceCreate: true } : {}),
-        };
-      });
-    const invalid = postedExps.find((e) => !e.company || !e.title || !e.startDate);
+    // 为每类分栏构建 MergeItem，并用纯函数归约查重命中 + 玩家选择 → 最终写操作
+    const sections = ALL_KINDS.map((kind) => {
+      const raws = draftsToRaws(kind);
+      const items = toNewItems(kind, raws);
+      const hits = dupHits.filter((h) => h.section === kind);
+      return { kind, items, hits, choices, include: includesFor(kind) };
+    });
+    const applied = buildApplySections(sections);
+
+    const opsToPosted = (kind: SectionKind) =>
+      applied[kind].ops
+        .filter((op) => op.type !== "drop")
+        .map((op) => {
+          const posted: Record<string, unknown> = { ...(op.item.raw as Record<string, unknown>) };
+          if (op.type === "update") posted.mergeIntoId = op.id;
+          if (op.type === "create" && op.forceCreate) posted.forceCreate = true;
+          return posted;
+        });
+
+    const postedWork = opsToPosted("work");
+    const invalid = postedWork.find((e) => !e.company || !e.title || !e.startDate);
     if (invalid) {
-      toast.error(t("review.invalidExp", { name: invalid.company || t("review.unnamed") }));
+      toast.error(t("review.invalidExp", { name: (invalid.company as string) || t("review.unnamed") }));
       return;
     }
+    const postedEdu = opsToPosted("education");
+    if (postedEdu.find((e) => !e.school)) {
+      toast.error(t("review.invalidEdu", { name: t("review.unnamed") }));
+      return;
+    }
+    const postedHon = opsToPosted("honor");
+    if (postedHon.find((h) => !h.title)) {
+      toast.error(t("review.invalidHon", { name: t("review.unnamed") }));
+      return;
+    }
+
     setApplying(true);
     const body = JSON.stringify({
-      experiences: postedExps,
-      projects: projs.filter((p) => p.include && p.name).map((p) => ({
-        name: p.name, role: p.role || undefined,
-        belongsToCompany: p.belongsToCompany || null,
-        startDate: p.startDate || null, endDate: p.endDatePresent ? null : (p.endDate || null),
-        description: p.description || undefined, outcome: p.outcome || undefined,
-        techStack: p.techStack.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
-      })),
+      experiences: postedWork,
+      projects: opsToPosted("project"),
+      achievements: opsToPosted("achievement"),
+      educations: postedEdu,
+      honors: postedHon,
       skills: skills.filter((s) => s.include && s.name).map((s) => ({
         name: s.name, category: s.category ?? undefined,
-      })),
-      achievements: achs.filter((a) => a.include && a.title).map((a) => ({
-        title: a.title,
-        metricValue: a.metricValue ? Number(a.metricValue) : null,
-        metricUnit: a.metricUnit || null,
-        metricText: a.metricText || null,
-      })),
-      educations: edus.filter((e) => e.include && e.school).map((e) => ({
-        school: e.school, degree: e.degree || undefined, major: e.major || undefined,
-        startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
       })),
     });
     const res = await api<{ applied: Record<string, number> }>(`/imports/${id}/apply`, { method: "POST", body });
@@ -331,13 +386,15 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
   const includedCount =
     exps.filter((e) => e.include).length + projs.filter((p) => p.include).length +
     skills.filter((s) => s.include).length + achs.filter((a) => a.include).length +
-    edus.filter((e) => e.include).length;
+    edus.filter((e) => e.include).length + hons.filter((h) => h.include).length;
 
-  // 被查重命中（疑似重复）的经历下标：其 fate 由合并面板决定，单独 include 开关不再生效
-  const involved = new Set<number>();
+  // 被查重命中（疑似重复）的分栏下标（按 section 归类）：其 fate 由合并面板决定，单独 include 开关不再生效
+  const involvedBySection: Record<SectionKind, Set<number>> = {
+    work: new Set(), project: new Set(), achievement: new Set(), education: new Set(), honor: new Set(),
+  };
   dupHits.forEach((h) => {
-    involved.add(h.index);
-    if (typeof h.otherIndex === "number") involved.add(h.otherIndex);
+    involvedBySection[h.section].add(h.index);
+    if (typeof h.otherIndex === "number") involvedBySection[h.section].add(h.otherIndex);
   });
 
   return (
@@ -359,14 +416,20 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
           <DupMergeSection
             hits={dupHits}
-            exps={exps}
+            itemsBySection={{
+              work: toNewItems("work", draftsToRaws("work")),
+              project: toNewItems("project", draftsToRaws("project")),
+              achievement: toNewItems("achievement", draftsToRaws("achievement")),
+              education: toNewItems("education", draftsToRaws("education")),
+              honor: toNewItems("honor", draftsToRaws("honor")),
+            }}
             choices={choices}
             onChoice={(id, c) => setChoices((prev) => ({ ...prev, [id]: c }))}
           />
           <Section title={t("review.sectionExperiences", { count: exps.length })}>
             {exps.map((e, i) => (
               <DraftCard key={i} include={e.include} onInclude={(v) => setExps(upd(exps, i, { include: v }))}
-                includeDisabled={involved.has(i)} badge={<ConfBadge c={e.confidence} />} duplicate={e.duplicate}>
+                includeDisabled={involvedBySection.work.has(i)} badge={<ConfBadge c={e.confidence} />}>
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={e.company} placeholder={t("review.ph.company")} onChange={(ev) => setExps(upd(exps, i, { company: ev.target.value }))} />
                   <Input value={e.title} placeholder={t("review.ph.title")} onChange={(ev) => setExps(upd(exps, i, { title: ev.target.value }))} />
@@ -392,7 +455,7 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
           <Section title={t("review.sectionProjects", { count: projs.length })}>
             {projs.map((p, i) => (
               <DraftCard key={i} include={p.include} onInclude={(v) => setProjs(upd(projs, i, { include: v }))}
-                badge={<ConfBadge c={p.confidence} />}>
+                includeDisabled={involvedBySection.project.has(i)} badge={<ConfBadge c={p.confidence} />}>
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={p.name} placeholder={t("review.ph.projectName")} onChange={(ev) => setProjs(upd(projs, i, { name: ev.target.value }))} />
                   <Input value={p.role} placeholder={t("review.ph.role")} onChange={(ev) => setProjs(upd(projs, i, { role: ev.target.value }))} />
@@ -440,7 +503,8 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
 
           <Section title={t("review.sectionAchievements", { count: achs.length })}>
             {achs.map((a, i) => (
-              <DraftCard key={i} include={a.include} onInclude={(v) => setAchs(upd(achs, i, { include: v }))}>
+              <DraftCard key={i} include={a.include} onInclude={(v) => setAchs(upd(achs, i, { include: v }))}
+                includeDisabled={involvedBySection.achievement.has(i)}>
                 <div className="grid grid-cols-4 gap-2">
                   <Input value={a.title} placeholder={t("review.ph.achievement")} className="col-span-2" onChange={(ev) => setAchs(upd(achs, i, { title: ev.target.value }))} />
                   <Input value={a.metricValue} placeholder={t("review.ph.metricValue")} type="number" onChange={(ev) => setAchs(upd(achs, i, { metricValue: ev.target.value }))} />
@@ -452,7 +516,8 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
 
           <Section title={t("review.sectionEducations", { count: edus.length })}>
             {edus.map((e, i) => (
-              <DraftCard key={i} include={e.include} onInclude={(v) => setEdus(upd(edus, i, { include: v }))}>
+              <DraftCard key={i} include={e.include} onInclude={(v) => setEdus(upd(edus, i, { include: v }))}
+                includeDisabled={involvedBySection.education.has(i)}>
                 <div className="grid grid-cols-3 gap-2">
                   <Input value={e.school} placeholder={t("review.ph.school")} onChange={(ev) => setEdus(upd(edus, i, { school: ev.target.value }))} />
                   <Input value={e.degree} placeholder={t("review.ph.degree")} onChange={(ev) => setEdus(upd(edus, i, { degree: ev.target.value }))} />
@@ -471,6 +536,18 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
                     onPresentChange={(present) => setEdus(upd(edus, i, { endDatePresent: present }))}
                     placeholder={t("review.ph.endDate")}
                   />
+                </div>
+              </DraftCard>
+            ))}
+          </Section>
+
+          <Section title={t("review.sectionHonors", { count: hons.length })}>
+            {hons.map((h, i) => (
+              <DraftCard key={i} include={h.include} onInclude={(v) => setHons(upd(hons, i, { include: v }))}
+                includeDisabled={involvedBySection.honor.has(i)}>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={h.title} placeholder={t("review.ph.honorTitle")} onChange={(ev) => setHons(upd(hons, i, { title: ev.target.value }))} />
+                  <Input value={h.issuer} placeholder={t("review.ph.issuer")} onChange={(ev) => setHons(upd(hons, i, { issuer: ev.target.value }))} />
                 </div>
               </DraftCard>
             ))}
@@ -500,19 +577,6 @@ function padDate(value: string, precision: DatePrecision): string {
   if (precision === "year") return `${value.slice(0, 4)}-01-01`;
   if (precision === "month") return `${value.slice(0, 7)}-01`;
   return value.slice(0, 10);
-}
-
-/** ExpDraft → shared ExpFields（供 buildApplyExperiences 归约） */
-function toFields(d: ExpDraft): ExpFields {
-  return {
-    company: d.company,
-    title: d.title,
-    startDate: d.startDate || null,
-    endDate: d.endDatePresent ? null : (d.endDate || null),
-    location: d.location || null,
-    description: d.description || null,
-    highlights: d.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
-  };
 }
 
 function DateField({
@@ -604,7 +668,6 @@ function DraftCard({
       onClick={(ev) => {
         if (includeDisabled) return;
         const target = ev.target as HTMLElement;
-        // 点击输入框、按钮、开关、下拉、文本域等子元素时不切换卡片选中态，避免干扰编辑
         const interactive = target.closest(
           "input, textarea, button, select, [role='switch'], [data-radix-popper-content-wrapper], [data-radix-select-viewport]"
         );
@@ -635,13 +698,13 @@ function DraftCard({
   );
 }
 
-// ===== 疑似重复 / 合并面板 =====
-// AI 已判定这些经历为「同一段真实工作」；玩家在此决定如何处理，归约逻辑见 shared.buildApplyExperiences。
+// ===== 疑似重复 / 合并面板（全部分栏通用） =====
+// AI 已判定这些分栏为「同一实体」；玩家在此决定如何处理，归约逻辑见 shared.buildApplySections。
 function DupMergeSection({
-  hits, exps, choices, onChoice,
+  hits, itemsBySection, choices, onChoice,
 }: {
   hits: DupHit[];
-  exps: ExpDraft[];
+  itemsBySection: Record<SectionKind, MergeItem[]>;
   choices: Record<string, MergeChoice>;
   onChoice: (id: string, c: MergeChoice) => void;
 }) {
@@ -655,12 +718,14 @@ function DupMergeSection({
     <Section title={t("review.dupSectionTitle", { count: hits.length })}>
       <p className="text-xs text-muted-foreground">{t("review.dupSectionHint")}</p>
       {hits.map((h) => {
-        const a = exps[h.index];
-        const bFields: ExpFields =
+        const items = itemsBySection[h.section];
+        const a = items[h.index];
+        const b: MergeItem =
           h.kind === "intra"
-            ? toFields(exps[h.otherIndex!])
-            : (h.existing as ExpFields) ?? { company: "", title: "", startDate: null, endDate: null, highlights: [] };
-        const merged = mergeFields(toFields(a), bFields);
+            ? items[h.otherIndex!]
+            : (h.existing as MergeItem) ?? ({ label: "", startDate: null, endDate: null, raw: {} } as MergeItem);
+        if (!a) return null;
+        const merged = mergeItems(h.section, a, b);
         const choice: MergeChoice = choices[h.id] ?? "merge";
         const choiceOpts: { value: MergeChoice; label: string }[] =
           h.kind === "intra"
@@ -675,14 +740,17 @@ function DupMergeSection({
                 { value: "keep_both", label: t("review.dupChoiceKeepBoth") },
               ];
 
-        const renderSide = (label: string, f: { company: string; title: string; startDate: string | null; endDate: string | null; description?: string | null }) => (
+        const renderSide = (label: string, f: MergeItem) => (
           <div className="space-y-1 rounded-md border bg-muted/40 p-2 text-xs">
             <p className="font-medium text-muted-foreground">{label}</p>
-            <p className="font-medium">{f.company} · {f.title}</p>
+            <p className="font-medium">{f.label}</p>
             <p className="text-muted-foreground">
               {f.startDate ?? "?"} ~ {f.endDate ?? t("common.present")}
             </p>
-            {f.description && <p className="line-clamp-2 text-muted-foreground">{f.description}</p>}
+            {Boolean(f.raw.description) && <p className="line-clamp-2 text-muted-foreground">{String(f.raw.description)}</p>}
+            {(Array.isArray(f.raw.highlights) && (f.raw.highlights as string[]).length > 0) && (
+              <p className="text-muted-foreground">· {(f.raw.highlights as string[]).slice(0, 6).join(" / ")}</p>
+            )}
           </div>
         );
 
@@ -697,8 +765,8 @@ function DupMergeSection({
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {renderSide(t("review.dupSourceNew"), toFields(a))}
-                {renderSide(sideLabel(h), bFields)}
+                {renderSide(t("review.dupSourceNew"), a)}
+                {renderSide(sideLabel(h), b)}
               </div>
 
               <div className="flex items-center gap-2">
@@ -718,13 +786,13 @@ function DupMergeSection({
               {choice === "merge" && (
                 <div className="space-y-1 rounded-md border border-dashed bg-background p-2 text-xs">
                   <p className="font-medium text-muted-foreground">{t("review.dupMergedPreview")}</p>
-                  <p className="font-medium">{merged.company} · {merged.title}</p>
+                  <p className="font-medium">{merged.label}</p>
                   <p className="text-muted-foreground">
                     {merged.startDate ?? "?"} ~ {merged.endDate ?? t("common.present")}
                   </p>
-                  {merged.description && <p className="line-clamp-3 text-muted-foreground">{merged.description}</p>}
-                  {(merged.highlights ?? []).length > 0 && (
-                    <p className="text-muted-foreground">· {(merged.highlights ?? []).slice(0, 6).join(" / ")}</p>
+                  {Boolean(merged.raw.description) && <p className="line-clamp-3 text-muted-foreground">{String(merged.raw.description)}</p>}
+                  {(Array.isArray(merged.raw.highlights) && (merged.raw.highlights as string[]).length > 0) && (
+                    <p className="text-muted-foreground">· {(merged.raw.highlights as string[]).slice(0, 6).join(" / ")}</p>
                   )}
                 </div>
               )}

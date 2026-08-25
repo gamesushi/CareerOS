@@ -40,6 +40,9 @@ export const projectInput = z.object({
   lang: langEnum.default("zh"),
   skillIds: z.array(z.string().uuid()).default([]),
   sortOrder: z.number().int().default(0),
+  // 查重合并：提供 mergeIntoId 则更新该已入库项目，forceCreate 则强制新建
+  mergeIntoId: z.string().uuid().nullable().optional(),
+  forceCreate: z.boolean().optional(),
 });
 
 export const skillInput = z.object({
@@ -65,6 +68,9 @@ export const achievementInput = z.object({
   experienceId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
   occurredAt: dateStr.nullable().optional(),
+  // 查重合并：提供 mergeIntoId 则更新该已入库成果，forceCreate 则强制新建
+  mergeIntoId: z.string().uuid().nullable().optional(),
+  forceCreate: z.boolean().optional(),
 });
 
 export const educationInput = z.object({
@@ -77,6 +83,9 @@ export const educationInput = z.object({
   gpa: z.string().max(16).optional(),
   description: z.string().max(4000).optional(),
   sortOrder: z.number().int().default(0),
+  // 查重合并：提供 mergeIntoId 则更新该已入库教育，forceCreate 则强制新建
+  mergeIntoId: z.string().uuid().nullable().optional(),
+  forceCreate: z.boolean().optional(),
 });
 
 export const honorInput = z.object({
@@ -85,6 +94,9 @@ export const honorInput = z.object({
   date: dateStr.nullable().optional(),
   description: z.string().max(2000).optional(),
   sortOrder: z.number().int().default(0),
+  // 查重合并：提供 mergeIntoId 则更新该已入库荣誉，forceCreate 则强制新建
+  mergeIntoId: z.string().uuid().nullable().optional(),
+  forceCreate: z.boolean().optional(),
 });
 
 export const workLogInput = z.object({
