@@ -32,6 +32,31 @@ describe("jsonResume · x-jis 日本扩展段", () => {
   });
 });
 
+describe("jsonResume · skills 模型输出形状容错", () => {
+  // 回归：生成时模型受事实包「熟练度80」影响，偶发把 level 写成数字，
+  // 须按 mock 约定归一成中文文字，否则 11 条技能全部「Expected string, received number」。
+  it("skill.level 为数字时归一成中文（≥80 精通 / ≥60 熟练 / 其余 掌握）", () => {
+    const r = jsonResume.parse({
+      basics: { name: "x" },
+      skills: [
+        { name: "Go", level: 95 },
+        { name: "Rust", level: 70 },
+        { name: "SQL", level: 40 },
+      ],
+    });
+    expect(r.skills.map((s) => s.level)).toEqual(["精通", "熟练", "掌握"]);
+  });
+
+  it("skill.level 为字符串原样保留，数字 keywords 转字符串", () => {
+    const r = jsonResume.parse({
+      basics: { name: "x" },
+      skills: [{ name: "React", level: "熟练", keywords: ["TS", 80] }],
+    });
+    expect(r.skills[0].level).toBe("熟练");
+    expect(r.skills[0].keywords).toEqual(["TS", "80"]);
+  });
+});
+
 describe("resumeGenerateInput · 多地区 ResumeType 契约", () => {
   it("默认 resumeType=zh、templateId=classic", () => {
     const r = resumeGenerateInput.parse({});

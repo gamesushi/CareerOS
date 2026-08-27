@@ -44,8 +44,15 @@ export const resumeProject = z.object({
 
 export const resumeSkill = z.object({
   name: z.string().max(80),
-  level: z.string().max(32).optional(), // 展示用文字（熟练/精通）
-  keywords: z.array(z.string().max(80)).default([]),
+  // 模型偶发把熟练度写成数字（受事实包「熟练度80」影响），按 mock 约定归一成中文文字
+  level: z
+    .union([z.string(), z.number()])
+    .nullable()
+    .transform((v) =>
+      v == null ? undefined : typeof v === "number" ? (v >= 80 ? "精通" : v >= 60 ? "熟练" : "掌握") : v,
+    )
+    .optional(),
+  keywords: z.array(z.union([z.string(), z.number()]).transform(String)).default([]),
 });
 
 export const resumeEducation = z.object({

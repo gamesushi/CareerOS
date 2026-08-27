@@ -23,7 +23,7 @@ const SYSTEM_PROMPT = `你是简历撰写专家。基于「事实包」生成一
 { "basics": {"name","label","email","phone","location","summary"},
   "work": [{"name","position","startDate","endDate","location","summary","highlights":[]}],
   "projects": [{"name","description","highlights":[],"keywords":[],"roles":[],"startDate","endDate"}],
-  "skills": [{"name","level","keywords":[]}],
+  "skills": [{"name":"技能名（字符串）","level":"熟练度文字（精通/熟练/了解，字符串，禁止填数字）","keywords":["相关技术（字符串）"]}],
   "education": [{"institution","studyType","area","startDate","endDate","score"}],
   "awards": [{"title","date","summary"}]{JIS_SHAPE} }`;
 
@@ -211,7 +211,25 @@ async function generateWithLlm(factPack: FactPack, lang: string, resumeType: str
     const res = await chat({ system, user, json: true });
     totals = { tokensIn: totals.tokensIn + res.tokensIn, tokensOut: totals.tokensOut + res.tokensOut, model: res.model };
     try {
-      const parsed = jsonResume.safeParse(JSON.parse(res.content));
+      const raw = JSON.parse(res.content) as Record<string, unknown>;
+      // 模型偶发把 skills 输出成字符串/数字数组（而非对象数组），或把 level/keywords 写成数字，
+      // 这里归一成 resumeSkill 形状，避免「两次校验均失败」。
+      if (Array.isArray(raw.skills)) {
+        raw.skills = raw.skills.map((s: unknown) => {
+          if (typeof s === "string") return { name: s };
+          if (typeof s === "number") return { name: String(s) };
+          if (s && typeof s === "object") {
+            const o = s as Record<string, unknown>;
+            return {
+              name: typeof o.name === "string" || typeof o.name === "number" ? String(o.name) : "",
+              level: o.level,
+              keywords: Array.isArray(o.keywords) ? o.keywords : [],
+            };
+          }
+          return { name: String(s) };
+        });
+      }
+      const parsed = jsonResume.safeParse(raw);
       if (parsed.success) return { result: parsed.data, ...totals };
       lastError = JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 400);
     } catch {
