@@ -168,6 +168,10 @@ export const POST = handler(async (req, { params }) => {
       items: Record<string, any>[],
       extraFor?: (item: any) => Record<string, unknown>,
     ): Promise<void> => {
+      // 仅 CareerExperience / Project 模型带 source + import_id 字段；
+      // achievement / education / honor 没有这些字段，强塞会触发 PrismaClientValidationError。
+      // 按 kind 决定是否附加入库来源标记。
+      const importMeta = kind === "work" || kind === "project" ? { source: "import", importId: id } : {};
       for (const item of items) {
         const newItem = toNewItems(kind, [item])[0];
         const extra = extraFor ? extraFor(item) : {};
@@ -183,7 +187,7 @@ export const POST = handler(async (req, { params }) => {
         // 玩家显式选择「两者都保留」
         if (item.forceCreate) {
           const created = await (tx as Record<string, any>)[SECTION_TABLE[kind]].create({
-            data: { userId, ...toData(kind, newItem, extra), source: "import", importId: id },
+            data: { userId, ...toData(kind, newItem, extra), ...importMeta },
           });
           if (kind === "work") companyToExperienceId.set(normalizeCompany(String(newItem.raw.company)), created.id);
           continue;
@@ -201,7 +205,7 @@ export const POST = handler(async (req, { params }) => {
           continue;
         }
         const created = await (tx as Record<string, any>)[SECTION_TABLE[kind]].create({
-          data: { userId, ...toData(kind, newItem, extra), source: "import", importId: id },
+          data: { userId, ...toData(kind, newItem, extra), ...importMeta },
         });
         if (kind === "work") companyToExperienceId.set(normalizeCompany(String(newItem.raw.company)), created.id);
       }
