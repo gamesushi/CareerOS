@@ -224,33 +224,33 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
         return exps.map((e) => ({
           company: e.company, title: e.title,
           startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
-          location: e.location || null, description: e.description || null,
+          location: e.location || undefined, description: e.description || undefined,
           highlights: e.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
         }));
       case "project":
         return projs.map((p) => ({
-          name: p.name, role: p.role || null, belongsToCompany: p.belongsToCompany || null,
+          name: p.name, role: p.role || undefined, belongsToCompany: p.belongsToCompany || undefined,
           startDate: p.startDate || null, endDate: p.endDatePresent ? null : (p.endDate || null),
-          description: p.description || null, outcome: p.outcome || null,
+          description: p.description || undefined, outcome: p.outcome || undefined,
           techStack: p.techStack.split(/[,，]/).map((s) => s.trim()).filter(Boolean), links: [],
         }));
       case "achievement":
         return achs.map((a) => ({
           title: a.title,
           metricValue: a.metricValue ? Number(a.metricValue) : null,
-          metricUnit: a.metricUnit || null, metricText: a.metricText || null,
-          evidence: null, occurredAt: null,
+          metricUnit: a.metricUnit || undefined, metricText: a.metricText || undefined,
+          evidence: undefined, occurredAt: undefined,
         }));
       case "education":
         return edus.map((e) => ({
-          school: e.school, degree: e.degree || null, major: e.major || null, faculty: null,
+          school: e.school, degree: e.degree || undefined, major: e.major || undefined, faculty: undefined,
           startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
-          gpa: null, description: null,
+          gpa: undefined, description: undefined,
         }));
       case "honor":
         return hons.map((h) => ({
-          title: h.title, issuer: h.issuer || null,
-          date: h.endDatePresent ? null : (h.endDate || null), description: null,
+          title: h.title, issuer: h.issuer || undefined,
+          date: h.endDatePresent ? null : (h.endDate || null), description: undefined,
         }));
     }
   }

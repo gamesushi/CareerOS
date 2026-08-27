@@ -10,7 +10,7 @@ import {
   type SectionKind,
   type MergeItem,
 } from "@careeros/shared";
-import { handler, ok, parseBody, requireUser, toDate, ApiError } from "@/lib/api";
+import { handler, ok, requireUser, toDate, ApiError } from "@/lib/api";
 
 // 各分栏对应的 Prisma 表名
 const SECTION_TABLE: Record<SectionKind, "careerExperience" | "project" | "achievement" | "education" | "honor"> = {
@@ -29,6 +29,21 @@ const HAS_SOFT_DELETE: Record<SectionKind, boolean> = {
   honor: false,
 };
 
+// 复核页对空可选字段会发 null（如 education.faculty、achievement.evidence 恒为 null），
+// 而 applyImportInput 的标量可选字段用 z.string().optional() 不接受 null。
+// 服务端写库路径（toData）本身对 null 安全（统一 ?? null），这里在 parse 前把 null 归一成 undefined，
+// 既兼容旧版前端，也防御其它调用方误传 null。
+function nullsToUndefined(v: unknown): unknown {
+  if (v === null) return undefined;
+  if (Array.isArray(v)) return v.map(nullsToUndefined);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = nullsToUndefined(val);
+    return out;
+  }
+  return v;
+}
+
 // 确认页提交：把用户勾选/修正后的实体集事务写入职业库（ADR-005：解析结果必须人工确认后入库）
 export const POST = handler(async (req, { params }) => {
   const { userId } = await requireUser();
@@ -40,7 +55,16 @@ export const POST = handler(async (req, { params }) => {
     throw new ApiError(409, "invalid_status", `当前状态为 ${imp.status}，只有 review 状态可入库`);
   }
 
-  const input = await parseBody(req, applyImportInput);
+  const json = await req
+    .json()
+    .catch(() => {
+      throw new ApiError(400, "invalid_json", "请求体不是合法 JSON");
+    });
+  const parsed = applyImportInput.safeParse(nullsToUndefined(json));
+  if (!parsed.success) {
+    throw new ApiError(400, "validation_error", "参数校验失败", parsed.error.flatten());
+  }
+  const input = parsed.data;
 
   const counts = await prisma.$transaction(async (tx) => {
     const companyToExperienceId = new Map<string, string>();
