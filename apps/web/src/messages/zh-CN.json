@@ -1155,4 +1155,13 @@
   "review.dupChoiceKeepBoth": "两者都保留",
   "review.dupMergedPreview": "合并预览",
   "review.dupHandledByPanel": "由合并面板处理"
+,
+  "company.notFound": "公司不存在 · uCareerOS",
+  "company.metaTitle": "{name} 在招职位 · uCareerOS",
+  "company.metaDescriptionCount": "{name} 在 uCareerOS 发布了 {count} 个在招职位。",
+  "company.openRoles": "在招职位（{count}）",
+  "company.noOpenRoles": "暂无在招职位",
+  "company.referralCode": "内推码 {code}",
+  "company.publishedOn": "发布于 {date}",
+  "company.poweredBy": "由 uCareerOS 提供"
 }

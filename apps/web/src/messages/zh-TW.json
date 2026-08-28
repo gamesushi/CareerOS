@@ -733,4 +733,18 @@
   "review.dupChoiceKeepBoth": "兩者都保留",
   "review.dupMergedPreview": "合併預覽",
   "review.dupHandledByPanel": "由合併面板處理"
+,
+  "orgType.individual_hr": "HR 個人",
+  "orgType.startup": "新創公司",
+  "orgType.non_company_team": "創業團隊",
+  "orgType.enterprise": "企業",
+  "company.verified": "已認證",
+  "company.notFound": "公司不存在 · uCareerOS",
+  "company.metaTitle": "{name} 在招職位 · uCareerOS",
+  "company.metaDescriptionCount": "{name} 在 uCareerOS 發布了 {count} 個在招職位。",
+  "company.openRoles": "在招職位（{count}）",
+  "company.noOpenRoles": "暫無在招職位",
+  "company.referralCode": "內推碼 {code}",
+  "company.publishedOn": "發佈於 {date}",
+  "company.poweredBy": "由 uCareerOS 提供"
 }

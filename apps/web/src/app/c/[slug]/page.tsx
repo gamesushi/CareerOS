@@ -2,20 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPublicOrganization } from "@/lib/organizations";
-import { CATEGORY_LABEL } from "@careeros/shared";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
 // 公开公司主页。免登录访问（middleware 的 PUBLIC_PATHS 已放行 /c），
 // 范式照 app/tools/leaderboard：server component 直查 DB，不额外开 API。
 // 岗位列表复用候选端同一套可见性闸门（open + approved + 未下架），见 lib/organizations.ts。
-
-const ORG_TYPE_LABEL: Record<string, string> = {
-  individual_hr: "HR 个人",
-  startup: "创业公司",
-  non_company_team: "创业团队",
-  enterprise: "企业",
-};
+// 文案全部走 i18n（服务端 getT），不再硬编码中文，公开页随 cookie / Accept-Language 切换语言。
 
 export async function generateMetadata({
   params,
@@ -24,12 +18,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const data = await getPublicOrganization(slug);
-  if (!data) return { title: "公司不存在 · uCareerOS" };
+  const t = await getT();
+  if (!data) return { title: t("company.notFound") };
   return {
-    title: `${data.org.name} 招聘中的职位 · uCareerOS`,
+    title: t("company.metaTitle", { name: data.org.name }),
     description:
       data.org.description?.slice(0, 150) ??
-      `${data.org.name}在 uCareerOS 发布的 ${data.postings.length} 个在招职位。`,
+      t("company.metaDescriptionCount", { name: data.org.name, count: data.postings.length }),
   };
 }
 
@@ -38,6 +33,18 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
   const data = await getPublicOrganization(slug);
   if (!data) notFound();
   const { org, postings } = data;
+  const t = await getT();
+  const locale = await getLocale();
+
+  // orgType / category 走 i18n；若某 locale 漏翻则回退到原始值（slug），不出现中文、也不出现原始 key。
+  const orgTypeLabel = (() => {
+    const k = t(`orgType.${org.orgType}`);
+    return k === `orgType.${org.orgType}` ? org.orgType : k;
+  })();
+  const catLabel = (id: string) => {
+    const k = t(`category.${id}`);
+    return k === `category.${id}` ? id : k;
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -59,14 +66,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             {org.name}
             {org.verified && (
               <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs font-normal text-emerald-600">
-                已认证
+                {t("company.verified")}
               </span>
             )}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {[ORG_TYPE_LABEL[org.orgType] ?? org.orgType, org.industry, org.size, org.location]
-              .filter(Boolean)
-              .join(" · ")}
+            {[orgTypeLabel, org.industry, org.size, org.location].filter(Boolean).join(" · ")}
           </p>
           {org.website && (
             <a
@@ -88,12 +93,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       )}
 
       <h2 className="mt-8 mb-3 text-sm font-medium text-muted-foreground">
-        在招职位（{postings.length}）
+        {t("company.openRoles", { count: postings.length })}
       </h2>
 
       {postings.length === 0 ? (
         <p className="rounded-lg border py-10 text-center text-sm text-muted-foreground">
-          暂无在招职位
+          {t("company.noOpenRoles")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -117,18 +122,24 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                     key={c}
                     className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
                   >
-                    {CATEGORY_LABEL[c] ?? c}
+                    {catLabel(c)}
                   </span>
                 ))}
                 {p.referralCode && (
                   <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
-                    内推码 {p.referralCode}
+                    {t("company.referralCode", { code: p.referralCode })}
                   </span>
                 )}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {[p.location, p.salary].filter(Boolean).join(" · ")}
-                {` · 发布于 ${new Date(p.createdAt).toLocaleDateString("zh-CN")}`}
+                {[
+                  [p.location, p.salary].filter(Boolean).join(" · "),
+                  t("company.publishedOn", {
+                    date: new Date(p.createdAt).toLocaleDateString(locale),
+                  }),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
               <p className="mt-1 line-clamp-3 text-xs text-muted-foreground/90">{p.description}</p>
             </li>
@@ -137,7 +148,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       )}
 
       <footer className="mt-10 border-t pt-4 text-center text-xs text-muted-foreground">
-        由 <Link href="/" className="text-primary hover:underline">uCareerOS</Link> 提供
+        {t("company.poweredBy")}
       </footer>
     </div>
   );

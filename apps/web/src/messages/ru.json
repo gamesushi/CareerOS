@@ -725,4 +725,18 @@
   "review.dupChoiceKeepBoth": "Keep both",
   "review.dupMergedPreview": "Merged preview",
   "review.dupHandledByPanel": "Handled by merge panel"
+,
+  "orgType.individual_hr": "Частный рекрутер",
+  "orgType.startup": "Стартап",
+  "orgType.non_company_team": "Команда (без юрлица)",
+  "orgType.enterprise": "Предприятие",
+  "company.verified": "Подтверждено",
+  "company.notFound": "Компания не найдена · uCareerOS",
+  "company.metaTitle": "{name} · Открытые вакансии · uCareerOS",
+  "company.metaDescriptionCount": "{name} опубликовал(а) {count} открытых вакансий на uCareerOS.",
+  "company.openRoles": "Открытые вакансии ({count})",
+  "company.noOpenRoles": "Сейчас нет открытых вакансий",
+  "company.referralCode": "Реферальный код {code}",
+  "company.publishedOn": "Опубликовано {date}",
+  "company.poweredBy": "Работает на uCareerOS"
 }

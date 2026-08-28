@@ -1146,4 +1146,13 @@
   "review.dupChoiceKeepBoth": "Keep both",
   "review.dupMergedPreview": "Merged preview",
   "review.dupHandledByPanel": "Handled by merge panel"
+,
+  "company.notFound": "Company not found · uCareerOS",
+  "company.metaTitle": "{name} · Open Roles · uCareerOS",
+  "company.metaDescriptionCount": "{name} has published {count} open roles on uCareerOS.",
+  "company.openRoles": "Open Roles ({count})",
+  "company.noOpenRoles": "No open roles right now",
+  "company.referralCode": "Referral code {code}",
+  "company.publishedOn": "Posted on {date}",
+  "company.poweredBy": "Powered by uCareerOS"
 }

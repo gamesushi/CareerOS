@@ -951,4 +951,18 @@
   "review.dupChoiceKeepBoth": "両方保持",
   "review.dupMergedPreview": "統合プレビュー",
   "review.dupHandledByPanel": "統合パネルで処理"
+,
+  "orgType.individual_hr": "個人リクルーター",
+  "orgType.startup": "スタートアップ",
+  "orgType.non_company_team": "チーム（法人なし）",
+  "orgType.enterprise": "企業",
+  "company.verified": "認証済み",
+  "company.notFound": "会社が見つかりません · uCareerOS",
+  "company.metaTitle": "{name} · 採用中の求人 · uCareerOS",
+  "company.metaDescriptionCount": "{name} は uCareerOS で {count} 件の採用中求人を掲載しています。",
+  "company.openRoles": "採用中の求人（{count}）",
+  "company.noOpenRoles": "現在採用中求人はありません",
+  "company.referralCode": "紹介コード {code}",
+  "company.publishedOn": "投稿日 {date}",
+  "company.poweredBy": "uCareerOS が提供"
 }

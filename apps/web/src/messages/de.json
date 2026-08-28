@@ -725,4 +725,18 @@
   "review.dupChoiceKeepBoth": "Keep both",
   "review.dupMergedPreview": "Merged preview",
   "review.dupHandledByPanel": "Handled by merge panel"
+,
+  "orgType.individual_hr": "Einzelner Recruiter",
+  "orgType.startup": "Startup",
+  "orgType.non_company_team": "Team (ohne Firma)",
+  "orgType.enterprise": "Unternehmen",
+  "company.verified": "Verifiziert",
+  "company.notFound": "Unternehmen nicht gefunden · uCareerOS",
+  "company.metaTitle": "{name} · Offene Stellen · uCareerOS",
+  "company.metaDescriptionCount": "{name} hat {count} offene Stellen auf uCareerOS veröffentlicht.",
+  "company.openRoles": "Offene Stellen ({count})",
+  "company.noOpenRoles": "Derzeit keine offenen Stellen",
+  "company.referralCode": "Empfehlungscode {code}",
+  "company.publishedOn": "Veröffentlicht am {date}",
+  "company.poweredBy": "Bereitgestellt von uCareerOS"
 }
