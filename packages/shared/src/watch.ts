@@ -142,7 +142,8 @@ export const WATCH_SOURCES = [
   { id: "jumptrading", label: "Jump Trading", region: "other", industries: ["finance"] },
   { id: "flowtraders", label: "Flow Traders", region: "other", industries: ["finance"] },
   // 全球综合 / 科技招聘平台
-  { id: "indeed", label: "Indeed", region: "japan", industries: ["general"] },
+  { id: "indeed", label: "Indeed 日本", region: "japan", industries: ["general"] },
+  { id: "indeed-global", label: "Indeed 国际", region: "other", industries: ["general"] },
   { id: "remoteok", label: "RemoteOK", region: "usa", industries: ["tech"] },
   { id: "hackernews", label: "Hacker News", region: "usa", industries: ["tech"] },
   // 美国科技 / AI / 社交 / 出行 / 电商 / 教育 / 旅游 / 加密（Greenhouse 官方招聘板，实网验证 2026-07-27）

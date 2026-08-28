@@ -6,6 +6,7 @@ import { liepinSource } from "./liepin";
 import { bossSource } from "./boss";
 import { greenSource } from "./green";
 import { indeedSource } from "./indeed";
+import { indeedGlobalSource } from "./indeedGlobal";
 import { wantedlySource } from "./wantedly";
 import { remoteokSource } from "./remoteok";
 import { hackernewsSource } from "./hackernews";
@@ -59,6 +60,7 @@ export const SOURCES: Record<string, JobSource> = {
   [bossSource.id]: bossSource,
   [greenSource.id]: greenSource,
   [indeedSource.id]: indeedSource,
+  [indeedGlobalSource.id]: indeedGlobalSource,
   [wantedlySource.id]: wantedlySource,
   [remoteokSource.id]: remoteokSource,
   [hackernewsSource.id]: hackernewsSource,
