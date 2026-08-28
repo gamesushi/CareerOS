@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "Couverture sectorielle (×0.2)",
   "jobDetail.rematchHint": "Ajoutez des preuves puis réévaluez pour comparer les scores",
   "jobDetail.missingSkills": "Compétences manquantes ({count})",
+  "jobDetail.suggestionRequired": "Compétence requise non satisfaite — si vous avez une expérience liée, ajoutez-la à votre Centre de compétences avec une preuve.",
+  "jobDetail.suggestionBonus": "Atout — consignez les expériences liées dans votre journal de travail.",
   "jobDetail.matchedEvidence": "Preuves correspondantes ({count})",
   "jobDetail.similarity": "Similarité {percent} %",
   "resumes.title": "Centre de CV",

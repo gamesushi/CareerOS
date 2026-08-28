@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "Cobertura setorial (×0.2)",
   "jobDetail.rematchHint": "Adicione mais evidências e compare novamente para ver a mudança na pontuação",
   "jobDetail.missingSkills": "Habilidades faltantes ({count})",
+  "jobDetail.suggestionRequired": "Requisito obrigatório não atendido — se tiver experiência relacionada, adicione ao seu Centro de Habilidades com comprovação.",
+  "jobDetail.suggestionBonus": "Diferencial — acumule registros relacionados nos logs de trabalho.",
   "jobDetail.matchedEvidence": "Evidências correspondentes ({count})",
   "jobDetail.similarity": "Similaridade {percent}%",
   "resumes.title": "Central de Currículos",

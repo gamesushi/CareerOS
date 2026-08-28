@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "Покрытие отрасли (×0.2)",
   "jobDetail.rematchHint": "Добавьте доказательства и пересопоставьте, чтобы сравнить изменение балла",
   "jobDetail.missingSkills": "Недостающие навыки ({count})",
+  "jobDetail.suggestionRequired": "Обязательный навык не покрыт: при наличии опыта добавьте его в Центр навыков с подтверждением.",
+  "jobDetail.suggestionBonus": "Бонус: накапливайте связанные записи в рабочем журнале.",
   "jobDetail.matchedEvidence": "Совпавшие доказательства ({count})",
   "jobDetail.similarity": "Сходство {percent}%",
   "resumes.title": "Центр резюме",

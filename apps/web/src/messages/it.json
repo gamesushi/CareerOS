@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "Copertura settore (×0.2)",
   "jobDetail.rematchHint": "Aggiungi prove e riesegui il confronto per vedere le variazioni di punteggio",
   "jobDetail.missingSkills": "Competenze mancanti ({count})",
+  "jobDetail.suggestionRequired": "Requisito obbligatorio non soddisfatto — se hai esperienza pertinente, aggiungila al Centro competenze con prova.",
+  "jobDetail.suggestionBonus": "Plus — accumula record pertinenti nei log di lavoro.",
   "jobDetail.matchedEvidence": "Prove corrispondenti ({count})",
   "jobDetail.similarity": "Somiglianza {percent}%",
   "resumes.title": "Centro CV",

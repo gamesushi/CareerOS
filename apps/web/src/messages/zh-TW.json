@@ -291,6 +291,8 @@
   "jobDetail.industryCoverage": "行業覆蓋（×0.2）",
   "jobDetail.rematchHint": "補充證據後可重新匹配對比分數變化",
   "jobDetail.missingSkills": "缺失技能（{count}）",
+  "jobDetail.suggestionRequired": "硬性要求未命中：如有相關經驗，請在技能中心補錄並掛證據",
+  "jobDetail.suggestionBonus": "加分項：可在工作日誌中累積相關記錄",
   "jobDetail.matchedEvidence": "命中證據（{count}）",
   "jobDetail.similarity": "相似度 {percent}%",
   "resumes.title": "履歷中心",

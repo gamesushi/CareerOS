@@ -39,7 +39,7 @@ type MatchDetail = {
   skillCoverage: string | number;
   experienceCoverage: string | number;
   industryCoverage: string | number;
-  missingSkills: { name: string; required: boolean; suggestion: string }[];
+  missingSkills: { name: string; required: boolean; reason?: "required_unmet" | "bonus_unmet"; suggestion?: string }[];
   matchedEvidence: { jdItem: string; entityType: string; entityId: string; entityLabel: string; similarity: number }[];
   createdAt: string;
 };
@@ -253,7 +253,7 @@ function JdDetailInner({ id }: { id: string }) {
                         <Badge variant={s.required ? "destructive" : "outline"} className="shrink-0 font-normal">
                           {s.name}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">{s.suggestion}</span>
+                        <span className="text-xs text-muted-foreground">{missingSkillSuggestion(s, t)}</span>
                       </div>
                     ))}
                   </CardContent>
@@ -297,6 +297,23 @@ function JdDetailInner({ id }: { id: string }) {
       </div>
     </div>
   );
+}
+
+type MissingSkillItem = { name: string; required: boolean; reason?: "required_unmet" | "bonus_unmet"; suggestion?: string };
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+// 缺失技能建议文案：优先按 reason 走当前 UI 语言的 i18n；若某 locale 漏翻则回退到旧字段 suggestion。
+const MISSING_SUGGESTION_KEY: Record<NonNullable<MissingSkillItem["reason"]>, string> = {
+  required_unmet: "jobDetail.suggestionRequired",
+  bonus_unmet: "jobDetail.suggestionBonus",
+};
+function missingSkillSuggestion(s: MissingSkillItem, t: TFn): string {
+  if (s.reason) {
+    const key = MISSING_SUGGESTION_KEY[s.reason];
+    const tr = t(key);
+    if (tr !== key) return tr;
+  }
+  return s.suggestion ?? "";
 }
 
 function ScoreRow({ label, value }: { label: string; value: number }) {

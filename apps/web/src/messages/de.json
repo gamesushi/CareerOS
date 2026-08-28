@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "Branchenabdeckung (×0.2)",
   "jobDetail.rematchHint": "Fügen Sie Belege hinzu und gleichen Sie erneut ab, um Score-Änderungen zu vergleichen",
   "jobDetail.missingSkills": "Fehlende Skills ({count})",
+  "jobDetail.suggestionRequired": "Erforderliche Qualifikation nicht erfüllt – falls passende Erfahrung vorhanden, mit Nachweis im Skill-Center ergänzen.",
+  "jobDetail.suggestionBonus": "Nice-to-have – entsprechende Einträge im Arbeitslog sammeln.",
   "jobDetail.matchedEvidence": "Passende Belege ({count})",
   "jobDetail.similarity": "Ähnlichkeit {percent} %",
   "resumes.title": "Lebenslauf-Center",

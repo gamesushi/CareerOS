@@ -402,6 +402,8 @@
   "jobDetail.industryCoverage": "行业覆盖（×0.2）",
   "jobDetail.rematchHint": "补充证据后可重新匹配对比分数变化",
   "jobDetail.missingSkills": "缺失技能（{count}）",
+  "jobDetail.suggestionRequired": "硬性要求未命中：如有相关经验，请在技能中心补录并挂证据",
+  "jobDetail.suggestionBonus": "加分项：可在工作日志中积累相关记录",
   "jobDetail.matchedEvidence": "命中证据（{count}）",
   "jobDetail.similarity": "相似度 {percent}%",
   "resumes.title": "简历中心",

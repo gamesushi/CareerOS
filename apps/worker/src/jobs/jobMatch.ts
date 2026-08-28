@@ -17,7 +17,10 @@ import { startRun, finishRun } from "../ai/audit";
 // 匹配本身不调 LLM，快且免费（缺口建议属于展示层，后续增量）。
 
 type Evidence = { jdItem: string; entityType: string; entityId: string; similarity: number };
-type MissingSkill = { name: string; required: boolean; suggestion: string };
+// reason 是结构化枚举，前端按当前 UI locale 渲染成对应语言的建议文案（见 jobDetail.suggestion*）。
+// 不再在此硬编码中文，避免英文界面下出现中文提示。
+type MissingSkillReason = "required_unmet" | "bonus_unmet";
+type MissingSkill = { name: string; required: boolean; reason: MissingSkillReason };
 
 export async function handleJobMatchJob(matchId: string): Promise<void> {
   const match = await prisma.jobMatch.findUnique({ where: { id: matchId }, include: { jd: true } });
@@ -83,9 +86,7 @@ export async function handleJobMatchJob(matchId: string): Promise<void> {
           missingSkills.push({
             name: jdSkill.name,
             required: jdSkill.required,
-            suggestion: jdSkill.required
-              ? "硬性要求未命中：如有相关经验，请在技能中心补录并挂证据"
-              : "加分项：可在工作日志中积累相关记录",
+            reason: jdSkill.required ? "required_unmet" : "bonus_unmet",
           });
         }
       }

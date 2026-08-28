@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES, CATEGORY_LABEL } from "@careeros/shared";
+import { WATCH_SOURCES, JOB_CATEGORIES, JOB_ROLES } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -303,7 +303,7 @@ export default function ActiveJobsPage() {
         </button>
         {JOB_CATEGORIES.map((c) => (
           <button key={c.id} type="button" onClick={() => changeCategory(c.id)}>
-            <Badge variant={(mounted ? categoryFilter : "all") === c.id ? "default" : "outline"}>{CATEGORY_LABEL[c.id] ?? c.id}</Badge>
+            <Badge variant={(mounted ? categoryFilter : "all") === c.id ? "default" : "outline"}>{t(`category.${c.id}`)}</Badge>
           </button>
         ))}
       </div>
@@ -382,7 +382,7 @@ export default function ActiveJobsPage() {
                         )}
                         {closedFlag && <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">{t("jobs.closed")}</Badge>}
                         {j.categories?.map((c) => (
-                          <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{CATEGORY_LABEL[c] ?? c}</Badge>
+                          <Badge key={c} variant="secondary" className="px-1.5 py-0 text-[10px]">{t(`category.${c}`)}</Badge>
                         ))}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">

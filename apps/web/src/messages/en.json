@@ -397,6 +397,8 @@
   "jobDetail.industryCoverage": "Industry coverage (×0.2)",
   "jobDetail.rematchHint": "Add more evidence, then re-match to compare score changes",
   "jobDetail.missingSkills": "Missing skills ({count})",
+  "jobDetail.suggestionRequired": "Required skill not met — if you have related experience, add it to your Skill Center with evidence.",
+  "jobDetail.suggestionBonus": "Nice-to-have — build related records in your work logs.",
   "jobDetail.matchedEvidence": "Matched evidence ({count})",
   "jobDetail.similarity": "Similarity {percent}%",
   "resumes.title": "Resume Center",

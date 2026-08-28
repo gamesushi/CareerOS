@@ -53,9 +53,10 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     labelKey: "nav.group.jobs",
     items: [
-      { href: "/jobs", key: "nav.jobs", icon: Target },
-      { href: "/jobs/active", key: "nav.activeJobs", icon: ListChecks },
+      // 流程顺序：先监测（岗位监测）→ 出现在招岗位 → 再做岗位匹配，避免用户误读。
       { href: "/monitor", key: "nav.monitor", icon: Radar },
+      { href: "/jobs/active", key: "nav.activeJobs", icon: ListChecks },
+      { href: "/jobs", key: "nav.jobs", icon: Target },
       { href: "/applications", key: "nav.applications", icon: KanbanSquare },
       { href: "/insights", key: "nav.insights", icon: BarChart3 },
     ],

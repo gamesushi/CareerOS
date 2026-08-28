@@ -285,6 +285,8 @@
   "jobDetail.industryCoverage": "업종 커버리지 (×0.2)",
   "jobDetail.rematchHint": "증거를 추가한 뒤 다시 매칭하면 점수 변화를 비교할 수 있습니다",
   "jobDetail.missingSkills": "부족한 스킬 ({count})",
+  "jobDetail.suggestionRequired": "필수 스킬 미충족: 관련 경험이 있다면 스킬 센터에 증빙과 함께 추가하세요.",
+  "jobDetail.suggestionBonus": "우대 사항: 작업 로그에 관련 기록을 쌓아두세요.",
   "jobDetail.matchedEvidence": "일치한 증거 ({count})",
   "jobDetail.similarity": "유사도 {percent}%",
   "resumes.title": "이력서 센터",

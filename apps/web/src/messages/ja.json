@@ -314,6 +314,8 @@
   "jobDetail.industryCoverage": "業界カバレッジ（×0.2）",
   "jobDetail.rematchHint": "証拠を追加して再マッチするとスコアの変化を比較できます",
   "jobDetail.missingSkills": "不足スキル（{count}）",
+  "jobDetail.suggestionRequired": "必須スキルが未充足：関連する経験がある場合はスキルセンターに証拠を添えて登録してください",
+  "jobDetail.suggestionBonus": "歓迎スキル：作業ログで関連する記録を蓄積できます",
   "jobDetail.matchedEvidence": "一致した証拠（{count}）",
   "jobDetail.similarity": "類似度 {percent}%",
   "resumes.title": "履歴書センター",
