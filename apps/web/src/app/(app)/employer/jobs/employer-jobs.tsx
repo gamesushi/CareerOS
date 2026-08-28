@@ -9,7 +9,6 @@ import {
   POSTER_ROLES,
   COMPANY_STAGES,
   JOB_CATEGORIES,
-  CATEGORY_LABEL,
   SUBCATEGORY_IDS_BY_PARENT,
 } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
@@ -246,7 +245,7 @@ export function EmployerJobs() {
                       on ? "bg-primary text-primary-foreground" : "hover:bg-accent"
                     }`}
                   >
-                    {CATEGORY_LABEL[c.id] ?? c.label}
+                    {t(`category.${c.id}`) ?? c.label}
                   </button>
                 );
               })}
@@ -273,7 +272,7 @@ export function EmployerJobs() {
                           : "hover:bg-accent"
                       }`}
                     >
-                      {CATEGORY_LABEL[s.id] ?? s.label}
+                      {t(`category.${s.id}`) ?? s.label}
                     </button>
                   );
                 })}
