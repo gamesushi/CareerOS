@@ -426,6 +426,7 @@
   "resumeDetail.generatingHint": "選定 → 表現 → ファクトチェック、通常 10〜60 秒",
   "resumeDetail.accent": "アクセントカラー",
   "resumeDetail.warningPrefix": "ファクトチェックの注意：",
+  "resumeDetail.pageWarn": "履歴書は約{pages}ページです。2ページ以内に収めることをお勧めします（CVはページ数制限なし）",
   "resumeDetail.warningMore": "など {count} 件",
   "resumeDetail.basicInfo": "基本情報",
   "resumeDetail.position": "職業ポジション",

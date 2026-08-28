@@ -3,6 +3,8 @@ import { z } from "zod";
 // JD 解析结果契约（job_descriptions.parsed，docs/design/01 §2）
 
 export const jdParsed = z.object({
+  // 解析时判定的 JD 原文语言，供生成简历时自动选择目标语言（英文 JD → 英文简历）。
+  lang: z.enum(["zh", "en", "ja"]).optional(),
   company: z.string().max(128).nullable().optional(),
   title: z.string().max(160).nullable().optional(),
   skills: z

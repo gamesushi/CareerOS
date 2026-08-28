@@ -61,6 +61,7 @@ export type BrowserCtx = {
  */
 export async function withBrowser<T>(
   fn: (ctx: BrowserCtx) => Promise<T>,
+  opts?: { locale?: string },
 ): Promise<T> {
   const browser = await launchBrowser();
   try {
@@ -68,7 +69,7 @@ export async function withBrowser<T>(
       userAgent: UA,
       viewport: { width: 1366, height: 900 },
       ignoreHTTPSErrors: true,
-      locale: "zh-CN",
+      locale: opts?.locale ?? "zh-CN",
     });
     const page = await context.newPage();
     // 覆盖最常见的无头检测指纹

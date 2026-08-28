@@ -400,6 +400,7 @@
   "resumeDetail.generatingHint": "選材 → 措辭 → 事實校驗，通常 10-60 秒",
   "resumeDetail.accent": "強調色",
   "resumeDetail.warningPrefix": "事實校驗提醒：",
+  "resumeDetail.pageWarn": "履歷約 {pages} 頁，超出兩頁建議精簡（CV 不限制頁數）",
   "resumeDetail.warningMore": "等 {count} 條",
   "resumeDetail.basicInfo": "基本資訊",
   "resumeDetail.position": "職業定位",

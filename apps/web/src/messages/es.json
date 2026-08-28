@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "Selección → redacción → verificación, normalmente 10-60 s",
   "resumeDetail.accent": "Color de acento",
   "resumeDetail.warningPrefix": "Aviso de verificación: ",
+  "resumeDetail.pageWarn": "El currículum tiene aproximadamente {pages} páginas; considere reducirlo a dos (el CV no tiene límite)",
   "resumeDetail.warningMore": "y {count} en total",
   "resumeDetail.basicInfo": "Información básica",
   "resumeDetail.position": "Perfil profesional",

@@ -127,9 +127,34 @@ export const jsonResume = z.object({
 
 export type JsonResume = z.infer<typeof jsonResume>;
 
+/**
+ * 估算简历页数（启发式，非精确排版）：用于编辑器中「超过两页」预警。
+ * 仅按文本体量粗算，CV 不限制页数由调用方判断。
+ */
+export function estimateResumePages(r: JsonResume): number {
+  const bulletLines = (s: string) => Math.max(1, Math.ceil(s.length / 95));
+  let lines = 3; // 头部 + 联系方式
+  if (r.basics?.summary) lines += Math.ceil(r.basics.summary.length / 110) + 1;
+  for (const w of r.work ?? []) {
+    lines += 2;
+    lines += w.summary ? bulletLines(w.summary) : 0;
+    lines += (w.highlights ?? []).reduce((a, h) => a + bulletLines(h), 0);
+  }
+  for (const p of r.projects ?? []) {
+    lines += 2;
+    lines += p.description ? bulletLines(p.description) : 0;
+    lines += (p.highlights ?? []).reduce((a, h) => a + bulletLines(h), 0);
+  }
+  lines += (r.education ?? []).length * 2;
+  lines += Math.ceil((r.skills ?? []).length / 5); // 约 5 个/行
+  lines += (r.awards ?? []).length;
+  const LINES_PER_PAGE = 46; // 紧凑 A4 单页约 46 行（9~10pt）
+  return Math.max(1, Math.ceil(lines / LINES_PER_PAGE));
+}
+
 export const resumeGenerateInput = z.object({
   jdId: z.string().uuid().nullable().optional(),
-  resumeType: z.enum(["zh", "en", "ja_shokumu", "ja_rirekisho"]).default("zh"),
+  resumeType: z.enum(["zh", "en", "ja_shokumu", "ja_rirekisho", "cv"]).default("zh"),
   templateId: z.string().max(64).default("classic"),
   emphasis: z.array(z.string().max(64)).default([]), // 用户希望突出的方向
 });

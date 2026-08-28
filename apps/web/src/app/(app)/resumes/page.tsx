@@ -132,6 +132,7 @@ export default function ResumesPage() {
                     <SelectItem value="en">{t("resumes.lang.en")}</SelectItem>
                     <SelectItem value="ja_shokumu">{t("resumes.lang.ja_shokumu")}</SelectItem>
                     <SelectItem value="ja_rirekisho">{t("resumes.lang.ja_rirekisho")}</SelectItem>
+                    <SelectItem value="cv">CV（英文长版）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -179,7 +180,9 @@ export default function ResumesPage() {
                   v{r.version} · {new Date(r.generatedAt).toLocaleString("zh-CN")}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <Badge variant="secondary" className="font-normal">{t(`resumes.type.${r.resumeType}`)}</Badge>
+                  <Badge variant="secondary" className="font-normal">
+                    {r.resumeType === "cv" ? "CV" : t(`resumes.type.${r.resumeType}`)}
+                  </Badge>
                   <Badge variant="outline" className="font-normal">{r.status === "final" ? t("resumes.final") : t("resumes.draft")}</Badge>
                   {r.sourceResumeId && (
                     <Badge variant="outline" className="border-primary/40 text-primary font-normal text-[10px]">派生版本</Badge>

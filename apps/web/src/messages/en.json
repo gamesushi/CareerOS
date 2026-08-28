@@ -548,6 +548,7 @@
   "resumeDetail.generatingHint": "Selecting → phrasing → fact-checking, usually 10-60s",
   "resumeDetail.accent": "Accent color",
   "resumeDetail.warningPrefix": "Fact-check notice: ",
+  "resumeDetail.pageWarn": "Resume is about {pages} pages; consider trimming to two (CV has no page limit)",
   "resumeDetail.warningMore": "and {count} in total",
   "resumeDetail.basicInfo": "Basic info",
   "resumeDetail.position": "Professional title",

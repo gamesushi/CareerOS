@@ -64,6 +64,7 @@ enum ResumeType {
   ja_rirekisho
   linkedin
   cover_letter
+  cv
 
   @@map("resume_type")
 }

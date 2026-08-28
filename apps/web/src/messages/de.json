@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "Auswahl → Formulierung → Faktencheck, meist 10-60 s",
   "resumeDetail.accent": "Akzentfarbe",
   "resumeDetail.warningPrefix": "Faktencheck-Hinweis: ",
+  "resumeDetail.pageWarn": "Der Lebenslauf hat etwa {pages} Seiten; kürzen Sie ihn auf zwei Seiten (CV hat kein Limit)",
   "resumeDetail.warningMore": "und insgesamt {count}",
   "resumeDetail.basicInfo": "Grunddaten",
   "resumeDetail.position": "Berufliche Position",

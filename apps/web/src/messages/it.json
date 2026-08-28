@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "Selezione → formulazione → verifica, di solito 10-60 s",
   "resumeDetail.accent": "Colore d'accento",
   "resumeDetail.warningPrefix": "Avviso di verifica: ",
+  "resumeDetail.pageWarn": "Il CV è di circa {pages} pagine; considera di ridurlo a due (il CV non ha limite)",
   "resumeDetail.warningMore": "e {count} in totale",
   "resumeDetail.basicInfo": "Informazioni di base",
   "resumeDetail.position": "Profilo professionale",

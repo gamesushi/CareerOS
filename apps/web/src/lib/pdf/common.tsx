@@ -11,13 +11,9 @@ export type TemplateProps = {
   accent?: string;
 };
 
-export const SECTION_TITLES: Record<string, Record<string, string>> = {
-  zh: { work: "工作经历", projects: "项目经历", skills: "技能", education: "教育经历", awards: "主要成果", summary: "个人综述" },
-  en: { work: "Experience", projects: "Projects", skills: "Skills", education: "Education", awards: "Achievements", summary: "Summary" },
-  ja_shokumu: { work: "職務経歴", projects: "プロジェクト", skills: "スキル", education: "学歴", awards: "主な実績", summary: "職務要約" },
-};
-
-export const titlesFor = (lang?: string) => SECTION_TITLES[lang ?? "zh"] ?? SECTION_TITLES.zh;
+// 分区标题与内联文案的本地化字典集中在 lib/pdf/titles.ts（PDF / Markdown / Doc / Docx 共用），
+// 此处重新导出以保持模板对 common 的既有导入路径不变。
+export { SECTION_TITLES, titlesFor } from "./titles";
 
 export const range = (start?: string, end?: string, presentLabel?: string, lang?: string) => {
   if (!start && !end) return "";

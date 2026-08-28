@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import type { JsonResume } from "@careeros/shared";
+import { estimateResumePages, type JsonResume } from "@careeros/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -356,7 +356,12 @@ export default function ResumeEditorPage({ params }: { params: Promise<{ id: str
   }
 
   if (!doc) return null;
-  const warnings = doc["x-warnings"] ?? [];
+  // 两页预警：普通简历（非 CV）超出两页只提醒、不强制截断（由用户自行精简）。
+  const pageWarn =
+    detail.resumeType !== "cv" && estimateResumePages(doc) > 2
+      ? [t("resumeDetail.pageWarn", { pages: estimateResumePages(doc) })]
+      : [];
+  const warnings = [...(doc["x-warnings"] ?? []), ...pageWarn];
   const familyList = detail.familyResumes ?? [{ id: detail.id, title: detail.title, resumeType: detail.resumeType }];
 
   return (

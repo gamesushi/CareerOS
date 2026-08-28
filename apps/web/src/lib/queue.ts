@@ -1,4 +1,4 @@
-import { Queue } from "bullmq";
+import { Queue, QueueEvents } from "bullmq";
 
 // web 侧只入队，处理器在 apps/worker（docs/design/00 ADR-002）
 
@@ -27,6 +27,27 @@ if (process.env.NODE_ENV !== "production") {
   globalForQueue.aiQueue = aiQueue;
   globalForQueue.watchQueue = watchQueue;
   globalForQueue.notifyQueue = notifyQueue;
+}
+
+/**
+ * 阻塞等待某条 ai 队列任务完成并取回其返回值（worker 在独立进程/BullMQ 消费）。
+ * 用于 import-url 等需要「同步」拿到 worker 处理结果的接口（如 Workday 无头抓取）。
+ * 超时或任务失败时 reject（调用方据此转成友好错误）。
+ */
+export async function awaitJobResult(jobId: string, timeoutMs = 75_000): Promise<unknown> {
+  const qe = new QueueEvents("ai", conn);
+  await qe.waitUntilReady();
+  try {
+    const job = await aiQueue.getJob(jobId);
+    if (!job) throw new Error("job_not_found");
+    const resultP = job.waitUntilFinished(qe);
+    const timeoutP = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("job_timeout")), timeoutMs),
+    );
+    return await Promise.race([resultP, timeoutP]);
+  } finally {
+    await qe.close().catch(() => {});
+  }
 }
 
 /**

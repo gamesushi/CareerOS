@@ -11,6 +11,7 @@ import { handleWatchPollJob } from "./jobs/watchPoll";
 import { handleCostAlertJob } from "./jobs/costAlertCheck";
 import { handleScoreDiscoveredJob } from "./jobs/scoreDiscovered";
 import { handleNotifyJob } from "./jobs/notify";
+import { handleFetchWorkdayJob } from "./jobs/fetchWorkdayJob";
 import { type NotifyKind } from "@careeros/db";
 
 // AI 任务 worker：队列拓扑见 docs/design/04-ai-workflows.md §5
@@ -28,7 +29,7 @@ export const AI_QUEUE = "ai";
 export const WATCH_QUEUE = "watch";
 export const NOTIFY_QUEUE = "notify";
 
-type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "resume_derive" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered";
+type AiJobName = "resume_parse" | "jd_parse" | "resume_generate" | "resume_derive" | "profile_generate" | "worklog_summarize" | "job_match" | "score_discovered" | "fetch_workday_job";
 
 const worker = new Worker(
   AI_QUEUE,
@@ -50,6 +51,8 @@ const worker = new Worker(
         return handleResumeDeriveJob(job.data.resumeId as string, job.data.sourceResumeId as string, job.data.targetType as ResumeType);
       case "score_discovered":
         return handleScoreDiscoveredJob(job.data.userId as string);
+      case "fetch_workday_job":
+        return handleFetchWorkdayJob(job.data.url as string);
       default:
         throw new Error(`unknown job: ${job.name}`);
     }

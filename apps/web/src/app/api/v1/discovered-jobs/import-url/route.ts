@@ -5,6 +5,7 @@ import { z } from "zod";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 import { chat } from "@/lib/ai";
 import { findDuplicateByUrl } from "@/lib/user-jobs";
+import { aiQueue, awaitJobResult } from "@/lib/queue";
 
 const importInput = z.object({
   url: z.string().trim().url("请填写合法的岗位链接").max(2000),
@@ -20,6 +21,37 @@ export const POST = handler(async (req) => {
   // 先查重：已在库中就不必浪费一次抓取 + AI 调用
   const duplicate = await findDuplicateByUrl(url);
 
+  // Workday 等纯 fetch 拿不到的 JS 重渲染岗位页：交给 worker 无头浏览器抓取。
+  // 该分支同步等待 worker 返回抽取结果，复用同一套 draft 结构。
+  const ats = detectAts(url);
+  if (ats === "workday") {
+    const job = await aiQueue.add(
+      "fetch_workday_job",
+      { url },
+      {
+        jobId: `wd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        removeOnComplete: true,
+        removeOnFail: 50,
+      },
+    );
+    let draft: JobDraft;
+    try {
+      draft = (await awaitJobResult(job.id!)) as JobDraft;
+    } catch {
+      throw new ApiError(
+        400,
+        "fetch_empty",
+        "Workday 职位页由前端 JS 渲染且有反爬，自动抓取仍失败。请打开该职位页后按 Ctrl/Cmd+A 全选复制正文，或使用「手动录入」粘贴 JD 文本。",
+      );
+    }
+    return ok({
+      draft: { ...draft, url },
+      duplicate: duplicate
+        ? { id: duplicate.id, title: duplicate.title, company: duplicate.company, source: duplicate.source }
+        : null,
+    });
+  }
+
   const text = await fetchUrlText(url);
   const draft = await extractJobFields(text, url);
 
@@ -31,20 +63,25 @@ export const POST = handler(async (req) => {
   });
 });
 
-async function fetchUrlText(url: string): Promise<string> {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7",
-    },
-    signal: AbortSignal.timeout(20_000),
-  }).catch((e) => {
-    throw new ApiError(400, "fetch_failed", `抓取链接失败：${(e as Error).message}`);
-  });
-  if (!res.ok) throw new ApiError(400, "fetch_failed", `抓取链接失败：HTTP ${res.status}`);
-  const html = await res.text();
-  const text = html
+const CHROME_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+const GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+
+/** 识别链接所属 ATS / 招聘平台，便于给出针对性的抓取出错提示。 */
+function detectAts(url: string): string | null {
+  const u = url.toLowerCase();
+  if (u.includes("myworkdayjobs.com") || u.includes("workday.com")) return "workday";
+  if (u.includes("greenhouse.io")) return "greenhouse";
+  if (u.includes("lever.co")) return "lever";
+  if (u.includes("ashbyhq.com")) return "ashby";
+  if (u.includes("smartrecruiters.com")) return "smartrecruiters";
+  if (u.includes("taleo")) return "taleo";
+  return null;
+}
+
+/** HTML → 纯文本（去脚本/样式/标签）。 */
+function htmlToText(html: string): string {
+  return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -56,14 +93,58 @@ async function fetchUrlText(url: string): Promise<string> {
     .replace(/&gt;/g, ">")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  if (text.length < 80) {
-    throw new ApiError(
-      400,
-      "fetch_empty",
-      "链接正文过短（页面可能是纯前端渲染或被反爬拦截），请改用「手动录入」粘贴岗位信息",
-    );
+}
+
+/** 从页面内联的 JSON-LD 中抽取 JobPosting 的结构化正文（部分站点把职位描述塞在这里）。 */
+function extractJobPostingLd(html: string): string {
+  const blocks = [
+    ...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
+  ];
+  for (const m of blocks) {
+    try {
+      const json = JSON.parse(m[1].trim());
+      const nodes = Array.isArray(json) ? json : [json];
+      for (const node of nodes) {
+        const post =
+          node?.["@type"] === "JobPosting"
+            ? node
+            : node?.graph?.find?.((g: { "@type"?: string }) => g?.["@type"] === "JobPosting");
+        const desc = post?.description ?? post?.jobLocation?.description;
+        if (typeof desc === "string" && desc.length > 80) return htmlToText(desc);
+      }
+    } catch {
+      /* 单个 JSON-LD 解析失败不影响其它来源 */
+    }
   }
-  return text.slice(0, 60_000);
+  return "";
+}
+
+async function fetchUrlText(url: string): Promise<string> {
+  const ats = detectAts(url);
+  const fetchHtml = async (ua: string) => {
+    const res = await fetch(url, {
+      headers: { "User-Agent": ua, "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7" },
+      signal: AbortSignal.timeout(20_000),
+    }).catch(() => null);
+    return res && res.ok ? await res.text().catch(() => "") : "";
+  };
+
+  let html = await fetchHtml(CHROME_UA);
+  // 反爬墙常放行 Googlebot，二次尝试
+  if (html.length < 400) html = await fetchHtml(GOOGLEBOT_UA);
+
+  const text = htmlToText(html);
+  const ld = extractJobPostingLd(html);
+  const combined = [text, ld].filter(Boolean).join("\n\n").trim();
+
+  if (combined.length < 80) {
+    const msg =
+      ats === "workday"
+        ? "Workday 职位页由前端 JS 渲染且有反爬，自动抓取通常失败。请打开该职位页后按 Ctrl/Cmd+A 全选复制正文，或使用「手动录入」粘贴 JD 文本。"
+        : "链接正文过短（页面可能是纯前端渲染或被反爬拦截），请改用「手动录入」粘贴岗位信息";
+    throw new ApiError(400, "fetch_empty", msg);
+  }
+  return combined.slice(0, 60_000);
 }
 
 type JobDraft = {

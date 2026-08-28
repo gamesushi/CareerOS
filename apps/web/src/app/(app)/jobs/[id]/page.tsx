@@ -20,6 +20,7 @@ type JdDetail = {
   status: string;
   rawContent: string;
   parsed?: {
+    lang?: string | null;
     skills: { name: string; required: boolean; weight: number }[];
     experience: { desc: string; yearsMin?: number | null }[];
     industry: string[];
@@ -50,6 +51,19 @@ function JdDetailInner({ id }: { id: string }) {
   const [jd, setJd] = useState<JdDetail | null>(null);
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [matchId, setMatchId] = useState<string | null>(searchParams.get("match"));
+
+  // 根据 JD 解析出的语言，推断生成简历的目标类型（英文 JD → 英文简历，而非写死中文）。
+  function resumeTypeForJd(): string {
+    const lang = jd?.parsed?.lang;
+    if (lang === "en") return "en";
+    if (lang === "ja") return "ja_shokumu";
+    if (lang === "zh") return "zh";
+    // 无解析语言时按标题/公司字符粗判：含假名→日文，中文占比高→中文，否则默认英文。
+    const text = `${jd?.title ?? ""} ${jd?.company ?? ""}`;
+    if (/[ぁ-んァ-ヶ]/.test(text)) return "ja_shokumu";
+    const cjk = (text.match(/[一-鿿]/g) ?? []).length;
+    return cjk > 2 ? "zh" : "en";
+  }
 
 
   useEffect(() => {
@@ -270,7 +284,7 @@ function JdDetailInner({ id }: { id: string }) {
                 onClick={async () => {
                   const res = await api<{ resumeId: string }>("/resumes/generate", {
                     method: "POST",
-                    body: JSON.stringify({ jdId: id, resumeType: "zh" }),
+                    body: JSON.stringify({ jdId: id, resumeType: resumeTypeForJd() }),
                   });
                   if (res) router.push(`/resumes/${res.resumeId}`);
                 }}

@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "Отбор → формулировки → проверка фактов, обычно 10-60 с",
   "resumeDetail.accent": "Акцентный цвет",
   "resumeDetail.warningPrefix": "Проверка фактов: ",
+  "resumeDetail.pageWarn": "Резюме примерно из {pages} страниц; рекомендуется сократить до двух (CV без ограничений)",
   "resumeDetail.warningMore": "и ещё, всего {count}",
   "resumeDetail.basicInfo": "Основные данные",
   "resumeDetail.position": "Профессиональная позиция",

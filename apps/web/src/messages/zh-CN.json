@@ -563,6 +563,7 @@
   "resumeDetail.generatingHint": "选材 → 措辞 → 事实校验，通常 10-60 秒",
   "resumeDetail.accent": "强调色",
   "resumeDetail.warningPrefix": "事实校验提醒：",
+  "resumeDetail.pageWarn": "简历约 {pages} 页，超出两页建议精简（CV 不限制页数）",
   "resumeDetail.warningMore": "等 {count} 条",
   "resumeDetail.basicInfo": "基本信息",
   "resumeDetail.position": "职业定位",

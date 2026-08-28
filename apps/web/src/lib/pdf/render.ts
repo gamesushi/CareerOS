@@ -64,6 +64,8 @@ export async function renderResumePdf(
   opts: { templateId?: string | null; accent?: string | null } = {},
 ): Promise<Buffer> {
   const merged = await mergedResumeOf(resume);
+  // CV（长版学术/欧洲简历）不限制页数；普通 resume 由用户自行精简，
+  // 超出两页仅在使用侧预警，不在此强制缩放/截断。
   const visible = applySectionVisibility(merged);
   const template = resolveTemplate(opts.templateId ?? resume.templateId);
   const accent =

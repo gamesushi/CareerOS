@@ -32,6 +32,7 @@ const LANG_LABEL: Record<string, string> = {
   en: "English",
   ja_shokumu: "日本語（職務経歴書）",
   ja_rirekisho: "日本語（履歴書）",
+  cv: "English (CV)",
 };
 
 // 日文文书的追加指令与 x-jis 输出形状（docs/design/00 ADR-004：JIS 扩展段）
@@ -80,7 +81,7 @@ export async function handleResumeGenerateJob(resumeId: string): Promise<void> {
     let tokens = { tokensIn: 0, tokensOut: 0 };
 
     if (isMock()) {
-      result = programmaticResume(factPack);
+      result = programmaticResume(factPack, resume.resumeType);
     } else {
       const out = await generateWithLlm(factPack, lang, resume.resumeType);
       result = out.result;
@@ -201,7 +202,7 @@ async function generateWithLlm(factPack: FactPack, lang: string, resumeType: str
   let lastError = "";
   let totals = { tokensIn: 0, tokensOut: 0, model: "" };
   const system = SYSTEM_PROMPT.replace("{LANG}", lang)
-    .replace("{EXTRA}", JA_EXTRA[resumeType] ? `${JA_EXTRA[resumeType]}\n` : (resumeType === "en" ? `${EN_EXTRA}\n` : ""))
+    .replace("{EXTRA}", JA_EXTRA[resumeType] ? `${JA_EXTRA[resumeType]}\n` : (resumeType === "en" || resumeType === "cv" ? `${EN_EXTRA}\n` : ""))
     .replace("{JIS_SHAPE}", JA_EXTRA[resumeType] ? JIS_SHAPE : "");
   for (let attempt = 0; attempt < 2; attempt++) {
     const user =
@@ -241,7 +242,7 @@ async function generateWithLlm(factPack: FactPack, lang: string, resumeType: str
 
 // ===== mock 路径：程序化映射（零幻觉，无 key 时的可靠兜底） =====
 
-function programmaticResume(fp: FactPack): JsonResume {
+function programmaticResume(fp: FactPack, resumeType: string): JsonResume {
   const fmtM = (d: Date | null) => (d ? d.toISOString().slice(0, 7) : undefined);
   const relevanceSort = <T extends { id: string }>(items: T[]) =>
     fp.relevantIds.size === 0
@@ -286,7 +287,18 @@ function programmaticResume(fp: FactPack): JsonResume {
     })),
     skills: fp.skills.map((s) => ({
       name: s.name,
-      level: s.level >= 80 ? "精通" : s.level >= 60 ? "熟练" : "掌握",
+      level:
+        resumeType === "en" || resumeType === "cv"
+          ? s.level >= 80
+            ? "Expert"
+            : s.level >= 60
+              ? "Proficient"
+              : "Familiar"
+          : s.level >= 80
+            ? "精通"
+            : s.level >= 60
+              ? "熟练"
+              : "掌握",
       keywords: [],
     })),
     education: fp.educations.map((e) => ({

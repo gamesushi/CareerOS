@@ -42,6 +42,7 @@ export function DeriveResumeDialog({
     { value: "en", label: "English" },
     { value: "ja_shokumu", label: "職務経歴書" },
     { value: "ja_rirekisho", label: "履歴書" },
+    { value: "cv", label: "CV（英文长版）" },
   ];
 
   const availableLangs = ALL_LANGS.filter((l) => l.value !== sourceResume.resumeType);

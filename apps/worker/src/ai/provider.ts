@@ -134,7 +134,9 @@ function mockChat(opts: ChatOptions): ChatResult {
     const skills = [...new Set([...zhSkills, ...enSkills])].slice(0, 8);
     // 经验要求：任职要求段落中含"经验"的行
     const expLines = text.split("\n").filter((l) => l.includes("经验")).map((l) => l.replace(/^[-•\s]+/, "").trim());
+    const mockLang = /[A-Za-z]/.test(text) && (text.match(/[一-鿿]/g)?.length ?? 0) < 8 ? "en" : "zh";
     result = {
+      lang: mockLang,
       company: text.match(/【(.{2,30}?)】/)?.[1] ?? null,
       title: null,
       skills: skills.map((name, i) => ({ name, required: i < 4, weight: i < 4 ? 4 : 2 })),

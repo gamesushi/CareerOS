@@ -49,6 +49,20 @@ function trigramEmbed(text: string): number[] {
   return vec.map((v) => v / norm);
 }
 
+/** 余弦相似度（用于跨语言行业/标签匹配；无 key 的 trigram 向量也能真实反映文本重叠度）。 */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 type EntityText = { sourceType: "experience" | "project" | "skill"; sourceId: string; text: string };

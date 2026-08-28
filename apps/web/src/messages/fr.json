@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "Sélection → formulation → vérification, généralement 10-60 s",
   "resumeDetail.accent": "Couleur d'accent",
   "resumeDetail.warningPrefix": "Avis de vérification : ",
+  "resumeDetail.pageWarn": "Le CV fait environ {pages} pages ; envisagez de le réduire à deux (le CV n'a pas de limite)",
   "resumeDetail.warningMore": "et {count} au total",
   "resumeDetail.basicInfo": "Informations de base",
   "resumeDetail.position": "Positionnement professionnel",

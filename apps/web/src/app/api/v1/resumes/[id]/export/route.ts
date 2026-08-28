@@ -57,7 +57,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     try {
       if (format === "md") {
         const { resumeToMarkdown } = await import("@/lib/export/markdown");
-        const md = resumeToMarkdown(visibleMerged as JsonResume);
+        const md = resumeToMarkdown(visibleMerged as JsonResume, resume.resumeType);
         return new Response(md, {
           headers: {
             "Content-Type": "text/markdown; charset=utf-8",
@@ -68,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
       if (format === "doc") {
         const { resumeToDoc } = await import("@/lib/export/doc");
-        const html = resumeToDoc(visibleMerged as JsonResume);
+        const html = resumeToDoc(visibleMerged as JsonResume, resume.resumeType);
         return new Response(html, {
           headers: {
             "Content-Type": "application/msword; charset=utf-8",
@@ -78,7 +78,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         });
       }
       const { resumeToDocx } = await import("@/lib/export/docx");
-      const buf = await resumeToDocx(visibleMerged as JsonResume);
+      const buf = await resumeToDocx(visibleMerged as JsonResume, resume.resumeType);
       return new Response(new Uint8Array(buf), {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

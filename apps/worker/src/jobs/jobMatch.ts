@@ -7,7 +7,7 @@ import {
   EXP_SIM_FULL,
   EXP_SIM_ZERO,
 } from "@careeros/shared";
-import { ensureEntityEmbeddings, embedTexts, topSimilar } from "../ai/embedding";
+import { ensureEntityEmbeddings, embedTexts, topSimilar, cosineSimilarity } from "../ai/embedding";
 import { startRun, finishRun } from "../ai/audit";
 
 // 三路打分（docs/design/01 §3.2）：
@@ -119,13 +119,25 @@ export async function handleJobMatchJob(matchId: string): Promise<void> {
       experienceCoverage = (sum / p.experience.length) * 100;
     }
 
-    // ---- 行业覆盖 ----
+    // ---- 行业覆盖（跨语言：用向量相似度，而非精确字符串相等，避免英文 JD ↔ 中文行业标签零命中） ----
     let industryCoverage: number | null = null;
     if (p.industry.length > 0) {
       const profile = await prisma.careerProfile.findUnique({ where: { userId } });
-      const userTags = new Set((profile?.industryTags ?? []).map((t) => t.toLowerCase()));
-      const hits = p.industry.filter((tag) => userTags.has(tag.toLowerCase())).length;
-      industryCoverage = (hits / p.industry.length) * 100;
+      const userTags = (profile?.industryTags ?? []).filter(Boolean) as string[];
+      if (userTags.length > 0) {
+        const jdVectors = await embedTexts(p.industry);
+        const userVectors = await embedTexts(userTags);
+        const THRESH = 0.72;
+        let hits = 0;
+        for (const jv of jdVectors) {
+          let best = 0;
+          for (const uv of userVectors) best = Math.max(best, cosineSimilarity(jv, uv));
+          if (best >= THRESH) hits++;
+        }
+        industryCoverage = (hits / p.industry.length) * 100;
+      } else {
+        industryCoverage = 0;
+      }
     }
 
     // ---- 加权汇总（空维度剔除重归一化） ----

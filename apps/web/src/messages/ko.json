@@ -394,6 +394,7 @@
   "resumeDetail.generatingHint": "선별 → 표현 → 사실 확인, 보통 10-60초",
   "resumeDetail.accent": "강조 색상",
   "resumeDetail.warningPrefix": "사실 확인 알림: ",
+  "resumeDetail.pageWarn": "이력서는 약 {pages}쪽입니다. 2쪽 이내로 줄이기를 권장합니다(CV는 쪽수 제한 없음)",
   "resumeDetail.warningMore": "외 {count}건",
   "resumeDetail.basicInfo": "기본 정보",
   "resumeDetail.position": "직무 포지션",
