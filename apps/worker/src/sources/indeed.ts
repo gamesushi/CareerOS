@@ -1,3 +1,4 @@
+import type { Page } from "playwright";
 import type { JobSource, SourceJob } from "./types";
 import { withBrowser, waitForAny } from "./lib/headless";
 
@@ -31,7 +32,21 @@ type RawCard = {
 
 /** 反爬挑战页 / 拦截页的可见文案特征 */
 const BLOCK_PATTERN =
-  "checking if you are a human|just a moment|enable javascript and cookies|are you a human|verify you are human";
+  "checking if you are a human|just a moment|enable javascript and cookies|are you a human|verify you are human|additional verification required";
+
+/**
+ * 是否命中拦截页。
+ * 注意：evaluate 回调内不能定义任何函数（esbuild keepNames 会注入 __name 导致
+ * ReferenceError），这里直接内联表达式。
+ */
+async function isBlocked(page: Page): Promise<boolean> {
+  return page
+    .evaluate(
+      (p) => new RegExp(p, "i").test(document.body?.innerText || ""),
+      BLOCK_PATTERN,
+    )
+    .catch(() => false);
+}
 
 /** 等待渲染的候选选择器（新旧版 DOM 都覆盖） */
 const CARD_SELECTORS = [
@@ -91,15 +106,21 @@ export async function scrapeIndeed(
     return await withBrowser(
       async ({ page }) => {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+        // 被 Cloudflare 拦截时（如国际站常见的 "Additional Verification Required"）
+        // 页面永远不会渲染职位卡片，干等到 15s 超时是浪费。先短暂等待后快速探一次，
+        // 命中就立即返回，省下每个关键词约 19s 的无效等待。
+        await page.waitForTimeout(2_000).catch(() => {});
+        if (await isBlocked(page)) {
+          console.warn(
+            `[indeed:${opts.label}] anti-bot challenge detected (early), returning empty`,
+          );
+          return [];
+        }
+
         const hit = await waitForAny(page, CARD_SELECTORS, 15_000).catch(() => null);
 
-        const blocked = await page
-          .evaluate((p) => {
-            const re = new RegExp(p, "i");
-            return re.test(document.body?.innerText || "");
-          }, BLOCK_PATTERN)
-          .catch(() => false);
-        if (blocked) {
+        if (await isBlocked(page)) {
           console.warn(`[indeed:${opts.label}] anti-bot challenge detected, returning empty`);
           return [];
         }
