@@ -8,6 +8,9 @@ import { withBrowser, waitForAny } from "./lib/headless";
 //
 // 失败语义（graceful，不污染监测）：
 // - 命中反爬拦截页 / 无卡片 / 浏览器异常 → 返回空数组 + console.warn，不抛错。
+//
+// 翻页：scrapeIndeed 在单个浏览器会话内循环 start=0,10,20…，跨页按 jk 去重，
+// 命中反爬或末页无新卡片即提前停止。单关键词覆盖从 1 页 ≤25 条 → 最多 ~INDEED_MAX_PAGES 页。
 
 export interface IndeedScrapeOpts {
   /** 站点主机，如 "jp.indeed.com"（日本）或 "www.indeed.com"（国际/美国） */
@@ -20,6 +23,11 @@ export interface IndeedScrapeOpts {
   prefix: string;
 }
 
+export interface IndeedScrapeExtra {
+  /** 翻页上限（每页 ~10-15 条），默认 INDEED_MAX_PAGES */
+  maxPages?: number;
+}
+
 type RawCard = {
   jk: string;
   title: string;
@@ -29,6 +37,15 @@ type RawCard = {
   snippet: string;
   href: string;
 };
+
+/** 翻页上限：单关键词最多抓多少页（≈ 覆盖量 = 页数 × 每页条数）。可调。 */
+const INDEED_MAX_PAGES = 8;
+/** 单次抓取总量硬上限，避免极端情况下失控入库。 */
+const INDEED_MAX_TOTAL = 200;
+/** 翻页之间的礼貌间隔，降低被反爬的概率。 */
+const INDEED_PAGE_DELAY_MS = 1500;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** 反爬挑战页 / 拦截页的可见文案特征 */
 const BLOCK_PATTERN =
@@ -94,138 +111,167 @@ function isTemplateJk(jk: string): boolean {
 }
 
 /**
- * 用 worker 侧 Playwright headless 渲染 Indeed 搜索结果页，抽取职位卡片。
- * 命中拦截页、无结果或浏览器异常时返回空数组。
+ * 用 worker 侧 Playwright headless 渲染 Indeed 搜索结果页，翻页抽取职位卡片。
+ * 命中拦截页、无结果或浏览器异常时返回已累积的部分结果（或空数组）。
  */
 export async function scrapeIndeed(
   opts: IndeedScrapeOpts,
   keyword: string,
+  extra: IndeedScrapeExtra = {},
 ): Promise<SourceJob[]> {
-  const url = `https://${opts.host}/jobs?q=${encodeURIComponent(keyword)}&l=`;
+  const maxPages = extra.maxPages ?? INDEED_MAX_PAGES;
+  const url0 = `https://${opts.host}/jobs?q=${encodeURIComponent(keyword)}&l=`;
   try {
     return await withBrowser(
       async ({ page }) => {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        // 跨页去重：jk → 原始卡片。保证翻页不重复入库同一岗位。
+        const collected = new Map<string, RawCard>();
+        let pagesFetched = 0;
 
-        // 被 Cloudflare 拦截时（如国际站常见的 "Additional Verification Required"）
-        // 页面永远不会渲染职位卡片，干等到 15s 超时是浪费。先短暂等待后快速探一次，
-        // 命中就立即返回，省下每个关键词约 19s 的无效等待。
-        await page.waitForTimeout(2_000).catch(() => {});
-        if (await isBlocked(page)) {
-          console.warn(
-            `[indeed:${opts.label}] anti-bot challenge detected (early), returning empty`,
-          );
-          return [];
-        }
+        for (let pageNum = 0; pageNum < maxPages; pageNum++) {
+          const url = pageNum === 0 ? url0 : `${url0}&start=${pageNum * 10}`;
+          try {
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+          } catch (e) {
+            console.warn(`[indeed:${opts.label}] page ${pageNum} goto failed: ${(e as Error).message}`);
+            break;
+          }
 
-        const hit = await waitForAny(page, CARD_SELECTORS, 15_000).catch(() => null);
+          // 命中反爬：第 0 页提前探一次立即返回；其余页命中则停止翻页，保留已抓部分。
+          await page.waitForTimeout(2_000).catch(() => {});
+          if (await isBlocked(page)) {
+            console.warn(`[indeed:${opts.label}] anti-bot challenge on page ${pageNum}, stopping pagination`);
+            break;
+          }
 
-        if (await isBlocked(page)) {
-          console.warn(`[indeed:${opts.label}] anti-bot challenge detected, returning empty`);
-          return [];
-        }
-        if (!hit) {
-          console.warn(`[indeed:${opts.label}] no job cards rendered, returning empty`);
-          return [];
-        }
+          const hit = await waitForAny(page, CARD_SELECTORS, 15_000).catch(() => null);
+          if (await isBlocked(page)) {
+            console.warn(`[indeed:${opts.label}] anti-bot challenge on page ${pageNum}, stopping pagination`);
+            break;
+          }
+          if (!hit) {
+            console.warn(`[indeed:${opts.label}] no job cards on page ${pageNum}, stopping`);
+            break;
+          }
 
-        // 卡片骨架出现后稍等，让公司/地点等惰性内容补齐
-        await page.waitForTimeout(800).catch(() => {});
+          // 卡片骨架出现后稍等，让公司/地点等惰性内容补齐
+          await page.waitForTimeout(800).catch(() => {});
 
-        // 注意：page.evaluate 的回调会被序列化成字符串在浏览器里执行。
-        // 切勿在回调内部定义函数/箭头函数——tsx(esbuild) 的 keepNames 会给它们注入
-        // __name 辅助函数，而浏览器上下文没有 __name，整个回调会抛
-        // "ReferenceError: __name is not defined" 并被下面的 catch 静默吞成空数组。
-        // 因此这里所有取值逻辑一律内联展开，不抽取任何辅助函数。
-        const raw = await page
-          .evaluate((placeholderJk) => {
-            const out: RawCard[] = [];
-            const seen = new Set<string>();
-            // 卡片根优先用整块职位容器（含公司/地点/摘要），
-            // 只有连容器都找不到时才退化到 a[data-jk] 标题链接本身。
-            const slider = document.querySelectorAll("div[data-testid='slider_item']");
-            const listing = document.querySelectorAll("div[data-testid='jobListing']");
-            let cards: HTMLElement[];
-            if (slider.length > 0) cards = Array.from(slider) as HTMLElement[];
-            else if (listing.length > 0) cards = Array.from(listing) as HTMLElement[];
-            else cards = Array.from(document.querySelectorAll("a[data-jk]")) as HTMLElement[];
+          // 注意：page.evaluate 的回调会被序列化成字符串在浏览器里执行。
+          // 切勿在回调内部定义函数/箭头函数——tsx(esbuild) 的 keepNames 会给它们注入
+          // __name 辅助函数，而浏览器上下文没有 __name，整个回调会抛
+          // "ReferenceError: __name is not defined" 并被下面的 catch 静默吞成空数组。
+          // 因此这里所有取值逻辑一律内联展开，不抽取任何辅助函数。
+          const raw = await page
+            .evaluate(() => {
+              const out: RawCard[] = [];
+              const seen = new Set<string>();
+              // 卡片根优先用整块职位容器（含公司/地点/摘要），
+              // 只有连容器都找不到时才退化到 a[data-jk] 标题链接本身。
+              const slider = document.querySelectorAll("div[data-testid='slider_item']");
+              const listing = document.querySelectorAll("div[data-testid='jobListing']");
+              let cards: HTMLElement[];
+              if (slider.length > 0) cards = Array.from(slider) as HTMLElement[];
+              else if (listing.length > 0) cards = Array.from(listing) as HTMLElement[];
+              else cards = Array.from(document.querySelectorAll("a[data-jk]")) as HTMLElement[];
 
-            for (const el of cards) {
-              const link = (
-                el.matches("a[data-jk]") ? el : el.querySelector("a[data-jk]")
-              ) as HTMLAnchorElement | null;
-              if (!link) continue;
-              const jk = link.getAttribute("data-jk") || "";
-              if (!jk || seen.has(jk)) continue;
-              // 标题优先取 span 的 title 属性（干净），否则回退文本
-              const titleSpan = link.querySelector("span[title]") || link.querySelector("span");
-              const title = (
-                (titleSpan && titleSpan.getAttribute("title")) ||
-                (titleSpan && titleSpan.textContent) ||
-                link.textContent ||
-                ""
-              ).trim();
-              if (!title) continue;
+              for (const el of cards) {
+                const link = (
+                  el.matches("a[data-jk]") ? el : el.querySelector("a[data-jk]")
+                ) as HTMLAnchorElement | null;
+                if (!link) continue;
+                const jk = link.getAttribute("data-jk") || "";
+                if (!jk || seen.has(jk)) continue;
+                // 标题优先取 span 的 title 属性（干净），否则回退文本
+                const titleSpan = link.querySelector("span[title]") || link.querySelector("span");
+                const title = (
+                  (titleSpan && titleSpan.getAttribute("title")) ||
+                  (titleSpan && titleSpan.textContent) ||
+                  link.textContent ||
+                  ""
+                ).trim();
+                if (!title) continue;
 
-              const root = (el.matches("a[data-jk]")
-                ? el.closest("li") || el.parentElement
-                : el) as HTMLElement | null;
-              const scope = (root || el) as HTMLElement;
+                const root = (el.matches("a[data-jk]")
+                  ? el.closest("li") || el.parentElement
+                  : el) as HTMLElement | null;
+                const scope = (root || el) as HTMLElement;
 
-              const companyEl = scope.querySelector(
-                "[data-testid='company-name'], [data-testid='companyName'], span.companyName",
-              );
-              const locEl = scope.querySelector(
-                "[data-testid='text-location'], div.companyLocation, [data-testid='inlineHeader-companyLocation']",
-              );
-              const company = ((companyEl && companyEl.textContent) || "").trim();
-              const loc = ((locEl && locEl.textContent) || "").trim();
+                const companyEl = scope.querySelector(
+                  "[data-testid='company-name'], [data-testid='companyName'], span.companyName",
+                );
+                const locEl = scope.querySelector(
+                  "[data-testid='text-location'], div.companyLocation, [data-testid='inlineHeader-companyLocation']",
+                );
+                const company = ((companyEl && companyEl.textContent) || "").trim();
+                const loc = ((locEl && locEl.textContent) || "").trim();
 
-              // 薪资：JP/国际站都落在 attribute_snippet_testid 里，可能有多段
-              let salary = "";
-              const salaryEls = scope.querySelectorAll("[data-testid='attribute_snippet_testid']");
-              for (const s of Array.from(salaryEls)) {
-                const t = ((s as HTMLElement).textContent || "").trim();
-                if (t) salary += salary ? " / " + t : t;
+                // 薪资：JP/国际站都落在 attribute_snippet_testid 里，可能有多段
+                let salary = "";
+                const salaryEls = scope.querySelectorAll("[data-testid='attribute_snippet_testid']");
+                for (const s of Array.from(salaryEls)) {
+                  const t = ((s as HTMLElement).textContent || "").trim();
+                  if (t) salary += salary ? " / " + t : t;
+                }
+
+                const snipEl = scope.querySelector(
+                  "[data-testid='belowJobSnippet'], div.job-snippet, ul[class*='job-snippet']",
+                );
+                const snippet = ((snipEl && snipEl.textContent) || "").trim();
+
+                seen.add(jk);
+                out.push({
+                  jk,
+                  title,
+                  company,
+                  loc,
+                  salary,
+                  snippet,
+                  href: link.getAttribute("href") || "",
+                });
+                if (out.length >= 60) break;
               }
+              return out;
+            })
+            .catch((e) => {
+              console.warn(`[indeed:${opts.label}] extract failed on page ${pageNum}: ${(e as Error).message}`);
+              return [] as RawCard[];
+            });
 
-              const snipEl = scope.querySelector(
-                "[data-testid='belowJobSnippet'], div.job-snippet, ul[class*='job-snippet']",
-              );
-              const snippet = ((snipEl && snipEl.textContent) || "").trim();
+          // 跨页累积：只加入未见过的 jk，并受总量上限约束
+          let newOnPage = 0;
+          for (const r of raw) {
+            if (collected.has(r.jk)) continue;
+            collected.set(r.jk, r);
+            newOnPage++;
+            if (collected.size >= INDEED_MAX_TOTAL) break;
+          }
+          pagesFetched++;
 
-              seen.add(jk);
-              out.push({
-                jk,
-                title,
-                company,
-                loc,
-                salary,
-                snippet,
-                href: link.getAttribute("href") || "",
-              });
-              if (out.length >= 25) break;
-            }
-            return out;
-          })
-          .catch((e) => {
-            console.warn(`[indeed:${opts.label}] extract failed: ${(e as Error).message}`);
-            return [] as RawCard[];
-          });
+          // 整页都是已见过的卡片（翻到末页/重复页）→ 停止翻页
+          if (newOnPage === 0) {
+            console.warn(`[indeed:${opts.label}] page ${pageNum} returned no new cards, stopping`);
+            break;
+          }
+          if (pageNum < maxPages - 1) await sleep(INDEED_PAGE_DELAY_MS);
+        }
 
         // 剔除模板卡片，并对同批次内完全重复的岗位去重（同标题+公司+地点只留一条）
         const seenRow = new Set<string>();
-        const kept = raw.filter((r) => {
+        const kept = [...collected.values()].filter((r) => {
           if (isTemplateJk(r.jk)) return false;
           const key = `${r.title}|${r.company}|${r.loc}`;
           if (seenRow.has(key)) return false;
           seenRow.add(key);
           return true;
         });
-        const dropped = raw.length - kept.length;
+        const dropped = collected.size - kept.length;
         if (dropped > 0) {
           console.warn(`[indeed:${opts.label}] dropped ${dropped} template/duplicate card(s)`);
         }
+        console.warn(
+          `[indeed:${opts.label}] '${keyword}': fetched ${pagesFetched} page(s), ${kept.length} unique job(s)`,
+        );
 
         return kept.map((r) => ({
           externalId: `${opts.prefix}-${r.jk}`,
@@ -248,6 +294,23 @@ export async function scrapeIndeed(
   }
 }
 
+/**
+ * 多关键词展开抓取：逐关键词翻页，按 externalId 去重合并。
+ * 供 JobSource.searchMany 使用。
+ */
+async function scrapeIndeedMany(
+  opts: IndeedScrapeOpts,
+  keywords: string[],
+): Promise<SourceJob[]> {
+  const merged = new Map<string, SourceJob>();
+  for (const kw of keywords) {
+    const jobs = await scrapeIndeed(opts, kw, { maxPages: INDEED_MAX_PAGES });
+    for (const j of jobs) merged.set(j.externalId, j);
+    await sleep(INDEED_PAGE_DELAY_MS);
+  }
+  return [...merged.values()];
+}
+
 // Indeed 日本站（jp.indeed.com）
 export const indeedSource: JobSource = {
   id: "indeed",
@@ -256,6 +319,12 @@ export const indeedSource: JobSource = {
     return scrapeIndeed(
       { host: "jp.indeed.com", locale: "ja-JP", label: "jp", prefix: "indeed" },
       keyword,
+    );
+  },
+  async searchMany(keywords: string[]): Promise<SourceJob[]> {
+    return scrapeIndeedMany(
+      { host: "jp.indeed.com", locale: "ja-JP", label: "jp", prefix: "indeed" },
+      keywords,
     );
   },
 };

@@ -126,40 +126,62 @@ export async function handleWatchPollJob(
         errors.push(`未知来源 ${sourceId}`);
         continue;
       }
-      for (const keyword of watch.keywords) {
-        let jobs: SourceJob[];
-        let didFetch = false;
-        try {
-          if (source.fetchAll) {
-            // 整板抓取型：一次轮询内按来源缓存，避免 (来源 × 关键词) 组合重复抓同一板块
-            if (!boardCache.has(sourceId)) {
-              boardCache.set(
-                sourceId,
-                await withRetry(() => source.fetchAll!(), {
-                  retries: 2,
-                  delayMs: 1000,
-                  label: `${sourceId}/fetchAll`,
-                }),
-              );
-              didFetch = true;
-            }
-            jobs = boardCache.get(sourceId)!;
-          } else {
-            // 真按关键词查询的来源（如腾讯/字节/猎聘）：逐关键词调用
-            jobs = await withRetry(
-              () => source.search(keyword),
-              { retries: 2, delayMs: 1000, label: `${sourceId}/${keyword}` },
+    for (const keyword of watch.keywords) {
+      let jobs: SourceJob[];
+      let didFetch = false;
+      let skipKwFilter = false;
+      try {
+        if (source.fetchAll) {
+          // 整板抓取型：一次轮询内按来源缓存，避免 (来源 × 关键词) 组合重复抓同一板块
+          if (!boardCache.has(sourceId)) {
+            boardCache.set(
+              sourceId,
+              await withRetry(() => source.fetchAll!(), {
+                retries: 2,
+                delayMs: 1000,
+                label: `${sourceId}/fetchAll`,
+              }),
             );
             didFetch = true;
           }
+          jobs = boardCache.get(sourceId)!;
+        } else if (source.searchMany) {
+          // 多关键词展开型（如 Indeed 国际/日本）：一次轮询按 sourceId 缓存一次，
+          // 覆盖所有 watch 关键词（含翻页）。watch 信任其相关性、跳过逐关键词文本过滤，
+          // 否则源内部的关键词/同义词展开会被 "title 必须含 watch 关键词" 误删。
+          const manyKey = `many:${sourceId}`;
+          if (!boardCache.has(manyKey)) {
+            boardCache.set(
+              manyKey,
+              await withRetry(() => source.searchMany!(watch.keywords), {
+                retries: 2,
+                delayMs: 1000,
+                label: `${sourceId}/searchMany`,
+              }),
+            );
+            didFetch = true;
+          }
+          jobs = boardCache.get(manyKey)!;
+          skipKwFilter = true;
+        } else {
+          // 真按关键词查询的来源（如腾讯/字节/猎聘）：逐关键词调用
+          jobs = await withRetry(
+            () => source.search(keyword),
+            { retries: 2, delayMs: 1000, label: `${sourceId}/${keyword}` },
+          );
+          didFetch = true;
+        }
           // 通用兜底：部分适配器（如米哈游 Playwright DOM 抓取）无法按 keyword 过滤，
           // 返回全量岗位。worker 层必须保证岗位 title/snippet 命中监测关键词才入库。
+          // searchMany 来源已按关键词返回相关结果，跳过文本过滤（skipKwFilter）。
           const kw = keyword.trim().toLowerCase();
-          const keywordMatched = kw
-            ? jobs.filter((j) =>
-                `${j.title ?? ""} ${j.snippet ?? ""}`.toLowerCase().includes(kw),
-              )
-            : jobs;
+          const keywordMatched = skipKwFilter
+            ? jobs
+            : kw
+              ? jobs.filter((j) =>
+                  `${j.title ?? ""} ${j.snippet ?? ""}`.toLowerCase().includes(kw),
+                )
+              : jobs;
           let filtered =
             watch.locations.length === 0
               ? keywordMatched
@@ -249,6 +271,8 @@ export async function handleWatchPollJob(
         // 仅在实际发起网络请求时礼貌延迟；缓存命中的关键词迭代（复用整板结果）跳过延迟，
         // 避免多关键词 watch 被无谓的 sleep 拖慢（如 14 关键词 watch 的 ~3700 次空等）。
         if (didFetch) await politeDelay();
+        // searchMany 来源已对全部 watch 关键词结果处理一次，无需逐关键词重复
+        if (skipKwFilter) break;
       }
     }
 
