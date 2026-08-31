@@ -25,7 +25,7 @@ import {
 type Confidence = "high" | "mid" | "low";
 type ExpDraft = {
   include: boolean; duplicate?: string; confidence: Confidence;
-  company: string; title: string;
+  company: string; department: string; title: string;
   startDate: string; startDatePrecision: DatePrecision | null;
   endDate: string; endDatePrecision: DatePrecision | null; endDatePresent: boolean;
   location: string; description: string; highlights: string;
@@ -118,7 +118,7 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     setExps(result.experiences.map((e: any, i: number): ExpDraft => ({
       include: e.confidence !== "low" && !hits.some((h) => h.section === "work" && h.index === i),
       confidence: e.confidence,
-      company: e.company ?? "", title: e.title ?? "",
+      company: e.company ?? "", department: e.department ?? "", title: e.title ?? "",
       startDate: e.startDate ?? "", startDatePrecision: e.startDatePrecision ?? "day",
       endDate: e.endDate ?? "", endDatePrecision: e.endDatePrecision ?? "day",
       endDatePresent: !e.endDate,
@@ -222,7 +222,7 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
     switch (kind) {
       case "work":
         return exps.map((e) => ({
-          company: e.company, title: e.title,
+          company: e.company, department: e.department || undefined, title: e.title,
           startDate: e.startDate || null, endDate: e.endDatePresent ? null : (e.endDate || null),
           location: e.location || undefined, description: e.description || undefined,
           highlights: e.highlights.split("\n").map((s) => s.trim()).filter(Boolean),
@@ -433,6 +433,9 @@ export default function ImportReviewPage({ params }: { params: Promise<{ id: str
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={e.company} placeholder={t("review.ph.company")} onChange={(ev) => setExps(upd(exps, i, { company: ev.target.value }))} />
                   <Input value={e.title} placeholder={t("review.ph.title")} onChange={(ev) => setExps(upd(exps, i, { title: ev.target.value }))} />
+                </div>
+                <Input value={e.department} placeholder={t("experience.department")} onChange={(ev) => setExps(upd(exps, i, { department: ev.target.value }))} />
+                <div className="grid grid-cols-2 gap-2">
                   <DateField
                     value={e.startDate} precision={e.startDatePrecision}
                     onChange={(date, precision) => setExps(upd(exps, i, { startDate: date, startDatePrecision: precision }))}

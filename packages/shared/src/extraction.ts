@@ -22,6 +22,7 @@ export const confidence = z.preprocess((v) => {
 export const extractedExperience = z.object({
   company: z.string().min(1).max(128),
   title: z.string().min(1).max(128),
+  department: z.string().max(128).nullable().optional(),
   startDate: looseDate,
   startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
   endDate: looseDate,

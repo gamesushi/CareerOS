@@ -207,6 +207,7 @@ const SECTION_DEFS: Record<SectionKind, KindDef> = {
     fromNew: (r, index) => {
       const raw = {
         company: r.company ?? "",
+        department: r.department ?? null,
         title: r.title ?? "",
         startDate: toStr(r.startDate) ?? null,
         endDate: toStr(r.endDate) ?? null,
@@ -228,6 +229,7 @@ const SECTION_DEFS: Record<SectionKind, KindDef> = {
     fromExisting: (row) => {
       const raw = {
         company: row.company as string,
+        department: (row.department as string) ?? null,
         title: row.title as string,
         startDate: toStr(row.startDate) ?? null,
         endDate: toStr(row.endDate) ?? null,
@@ -251,6 +253,7 @@ const SECTION_DEFS: Record<SectionKind, KindDef> = {
     merge: (a, b) => {
       const raw = {
         company: longer(a.raw.company as string, b.raw.company as string),
+        department: longer(a.raw.department as string, b.raw.department as string) || null,
         title: longer(a.raw.title as string, b.raw.title as string),
         startDate: a.raw.startDate ?? null,
         endDate: a.raw.endDate ?? null,

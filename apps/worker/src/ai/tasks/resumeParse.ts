@@ -15,11 +15,12 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
 7. 成果（achievements）指含量化指标或明确结果的表述，metricValue/metricUnit 拆出数字与单位，无法量化的填 metricText。
 8. 荣誉奖项（honors）指「获奖 / 奖学金 / 竞赛名次 / 认证证书 / 荣誉称号」等，title 为奖项名，issuer 为颁发机构，date 为获得时间（规则2），description 为补充说明。
 9. 保留原文语言，不要翻译。
+10. 工作经历如有明确的部门 / 事业部 / 团队（如「支付事业部」「基础架构组」「Data Platform Team」），填 department（保留原文语言），否则 null。department 与 company/title 相互独立，不可合并。
 
 输出 JSON 结构（严格遵守，不要输出任何 JSON 之外的内容）：
 {
   "basics": { "name": string|null, "email": string|null, "phone": string|null, "location": string|null, "links": string[], "summary": string|null },
-  "experiences": [{ "company": string, "title": string, "startDate": string|null, "endDate": string|null, "location": string|null, "description": string|null, "highlights": string[], "confidence": "high"|"mid"|"low" }],
+  "experiences": [{ "company": string, "title": string, "department": string|null, "startDate": string|null, "endDate": string|null, "location": string|null, "description": string|null, "highlights": string[], "confidence": "high"|"mid"|"low" }],
   "projects": [{ "name": string, "role": string|null, "startDate": string|null, "endDate": string|null, "description": string|null, "outcome": string|null, "techStack": string[], "belongsToCompany": string|null, "confidence": "high"|"mid"|"low" }],
   "skills": [{ "name": string, "category": "language"|"framework"|"tool"|"domain"|"soft"|null, "evidenceHint": string|null }],
   "achievements": [{ "title": string, "metricValue": number|null, "metricUnit": string|null, "metricText": string|null, "context": string|null }],
@@ -33,6 +34,7 @@ const SYSTEM_PROMPT = `你是一个简历结构化抽取引擎。从用户提供
     {
       "company": "示例科技有限公司",
       "title": "高级后端工程师",
+      "department": "支付事业部",
       "startDate": "2021-03",
       "endDate": null,
       "location": "上海",

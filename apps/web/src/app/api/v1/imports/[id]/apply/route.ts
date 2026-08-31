@@ -102,6 +102,7 @@ export const POST = handler(async (req, { params }) => {
             company: raw.company,
             companyNorm: normalizeCompany(String(raw.company)),
             title: raw.title,
+            department: raw.department ?? null,
             employmentType: extra.employmentType ?? null,
             startDate: toDate(String(raw.startDate))!,
             endDate: toDate(raw.endDate as string),
