@@ -83,6 +83,7 @@
   "experience.editTitle": "경력 편집",
   "experience.addTitle": "경력 추가",
   "experience.company": "회사 *",
+  "experience.department": "부서",
   "experience.titleField": "직함 *",
   "experience.startDate": "시작일 *",
   "experience.endDate": "종료일 (현재 재직 중이면 비워두세요)",

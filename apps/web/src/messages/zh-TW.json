@@ -84,6 +84,7 @@
   "experience.editTitle": "編輯經歷",
   "experience.addTitle": "新增經歷",
   "experience.company": "公司 *",
+  "experience.department": "部門",
   "experience.titleField": "職位 *",
   "experience.startDate": "開始日期 *",
   "experience.endDate": "結束日期（在職留空）",

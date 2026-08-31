@@ -32,6 +32,7 @@ export const PUT = handler(async (req, { params }) => {
     data: {
       company: input.company,
       companyNorm: normalizeCompany(input.company),
+      department: input.department,
       title: input.title,
       employmentType: input.employmentType,
       startDate: toDate(input.startDate)!,

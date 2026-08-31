@@ -83,6 +83,7 @@
   "experience.editTitle": "Modifier l'expérience",
   "experience.addTitle": "Ajouter une expérience",
   "experience.company": "Entreprise *",
+  "experience.department": "Département",
   "experience.titleField": "Poste *",
   "experience.startDate": "Date de début *",
   "experience.endDate": "Date de fin (laisser vide si actuel)",

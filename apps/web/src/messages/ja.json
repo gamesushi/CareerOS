@@ -103,6 +103,7 @@
   "experience.editTitle": "経験を編集",
   "experience.addTitle": "経験を追加",
   "experience.company": "会社 *",
+  "experience.department": "部署",
   "experience.titleField": "役職 *",
   "experience.startDate": "開始日 *",
   "experience.endDate": "終了日（在籍中は空白）",

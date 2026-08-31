@@ -314,6 +314,7 @@ model CareerExperience {
   userId         String       @map("user_id") @db.Uuid
   company        String       @db.VarChar(128)
   companyNorm    String       @map("company_norm") @db.VarChar(128)
+  department     String?      @db.VarChar(128)
   title          String       @db.VarChar(128)
   employmentType String?      @map("employment_type") @db.VarChar(32)
   startDate      DateTime     @map("start_date") @db.Date

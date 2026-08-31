@@ -9,6 +9,7 @@ export const langEnum = z.enum(["zh", "en", "ja"]);
 export const experienceInput = z
   .object({
     company: z.string().min(1).max(128),
+    department: z.string().max(128).optional(),
     title: z.string().min(1).max(128),
     employmentType: z.enum(["fulltime", "contract", "intern", "freelance"]).optional(),
     startDate: dateStr,

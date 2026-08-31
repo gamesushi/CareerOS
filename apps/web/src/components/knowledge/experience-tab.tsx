@@ -27,6 +27,7 @@ import { useT } from "@/lib/i18n/provider";
 type Experience = {
   id: string;
   company: string;
+  department?: string | null;
   title: string;
   employmentType?: string | null;
   startDate: string;
@@ -39,7 +40,7 @@ type Experience = {
 };
 
 const EMPTY_FORM = {
-  company: "", title: "", employmentType: "", startDate: "", endDate: "",
+  company: "", department: "", title: "", employmentType: "", startDate: "", endDate: "",
   location: "", description: "", highlights: "",
 };
 
@@ -75,6 +76,7 @@ export function ExperienceTab() {
     setEditing(exp);
     setForm({
       company: exp.company,
+      department: exp.department ?? "",
       title: exp.title,
       employmentType: exp.employmentType ?? "",
       startDate: fmtDate(exp.startDate),
@@ -94,6 +96,7 @@ export function ExperienceTab() {
     setSaving(true);
     const body = JSON.stringify({
       company: form.company,
+      department: form.department || undefined,
       title: form.title,
       employmentType: form.employmentType || undefined,
       startDate: form.startDate,
@@ -149,6 +152,7 @@ export function ExperienceTab() {
                   <div>
                     <p className="font-medium">
                       {exp.company}
+                      {exp.department && <span className="ml-2 text-sm font-normal text-muted-foreground">{exp.department}</span>}
                       <span className="ml-2 text-sm font-normal text-muted-foreground">{exp.title}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -210,6 +214,10 @@ export function ExperienceTab() {
             <div className="space-y-1.5">
               <Label>{t("experience.company")}</Label>
               <Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("experience.department")}</Label>
+              <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <Label>{t("experience.titleField")}</Label>

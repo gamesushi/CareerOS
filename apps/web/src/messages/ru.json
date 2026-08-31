@@ -83,6 +83,7 @@
   "experience.editTitle": "Изменить опыт",
   "experience.addTitle": "Добавить опыт",
   "experience.company": "Компания *",
+  "experience.department": "Отдел",
   "experience.titleField": "Должность *",
   "experience.startDate": "Дата начала *",
   "experience.endDate": "Дата окончания (оставьте пустым, если текущая)",
