@@ -1,8 +1,6 @@
 import { prisma } from "@careeros/db";
 
 export type PublicStats = {
-  /** 累计注册用户数 */
-  users: number;
   /** 已收录在招公司数（按 DiscoveredJob.company 去重） */
   companies: number;
   /** 已收录岗位总数 */
@@ -13,7 +11,11 @@ export type PublicStats = {
 
 /**
  * 公开展示页用的聚合统计。
- * - 用户数：User 表总行数
+ *
+ * 注意：这里不再返回注册用户数。注册用户是需求侧敏感指标，早期绝对值偏低，
+ * 对外暴露既不必要也有害（投资人/竞品可据此推算转化与规模），故从公开展示中移除。
+ * 内部分析请直接查库，不要重新加回 PublicStats。
+ *
  * - 岗位数：DiscoveredJob 表总行数
  * - 公司数：DiscoveredJob.company 去重计数（company 为 null 的记 1 个"未知"桶）
  *
@@ -24,8 +26,7 @@ export type PublicStats = {
 export async function getPublicStats(): Promise<PublicStats> {
   // 公开口径：只计过审（用户录入需管理员通过）且未被下架的岗位
   const visible = { reviewStatus: "approved" as const, takenDownAt: null };
-  const [users, jobs, companyGroups] = await Promise.all([
-    prisma.user.count(),
+  const [jobs, companyGroups] = await Promise.all([
     prisma.discoveredJob.count({ where: visible }),
     prisma.discoveredJob.groupBy({
       by: ["company"],
@@ -34,7 +35,6 @@ export async function getPublicStats(): Promise<PublicStats> {
   ]);
 
   return {
-    users,
     jobs,
     companies: companyGroups.length,
     generatedAt: new Date().toISOString(),

@@ -101,16 +101,9 @@ export default async function WelcomePage() {
           </div>
         </section>
 
-        {/* 统计 */}
-        <section className="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
-          <Card>
-            <CardContent className="space-y-1 p-6 text-center">
-              <div className="text-4xl font-bold tabular-nums">
-                <StatsCounter value={stats.users} />
-              </div>
-              <p className="text-sm text-muted-foreground">{t("landing.statUsers")}</p>
-            </CardContent>
-          </Card>
+        {/* 统计 — 只展示供给侧（收录企业 / 在招岗位）。
+            注册用户数已从 PublicStats 移除，勿再加回：需求侧绝对值早期偏低，对外暴露无益。 */}
+        <section className="mx-auto grid max-w-3xl grid-cols-1 gap-4 py-8 sm:grid-cols-2">
           <Card>
             <CardContent className="space-y-1 p-6 text-center">
               <div className="text-4xl font-bold tabular-nums">
