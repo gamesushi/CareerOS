@@ -1,5 +1,6 @@
 import { handler, ok, parseBody, requireUser } from "@/lib/api";
 import { chat } from "@/lib/ai";
+import { startAiRun, finishAiRun } from "@/lib/ai-log";
 import { z } from "zod";
 
 const translateInput = z.object({
@@ -11,7 +12,7 @@ const translateInput = z.object({
 });
 
 export const POST = handler(async (req) => {
-  await requireUser();
+  const { userId } = await requireUser();
   const input = await parseBody(req, translateInput);
 
   const system = `你是一个专业的求职简历多语言翻译专家。请将用户提供的个人基本信息（姓名、职业头衔/Headline、个人简介/Summary、意向工作城市、联系地址）翻译地道并符合当地职场习惯，分别翻译为英文 (en) 和日文 (ja)。
@@ -33,12 +34,14 @@ export const POST = handler(async (req) => {
   }
 }`;
 
+  const runId = await startAiRun(userId, "translate");
   const res = await chat({
     system,
     user: JSON.stringify(input),
     json: true,
     temperature: 0.2,
   });
+  await finishAiRun(runId, { status: "succeeded", model: res.model, tokensIn: res.tokensIn, tokensOut: res.tokensOut });
 
   try {
     const data = JSON.parse(res.content);

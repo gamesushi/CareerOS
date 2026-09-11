@@ -7,6 +7,7 @@
 // 这些错误会被 BullMQ 任务抛出，web 侧 awaitJobResult 捕获后给出友好提示，不污染数据库。
 
 import { chat } from "../ai/provider";
+import { startRun, finishRun } from "../ai/audit";
 import { withBrowser, waitForAny } from "../sources/lib/headless";
 
 export type WorkdayDraft = {
@@ -55,7 +56,7 @@ async function renderWorkday(url: string): Promise<string> {
 }
 
 /** 从正文抽取单条岗位草稿（与 web 侧 JobDraft 字段对齐）。 */
-async function extractDraft(text: string, url: string): Promise<WorkdayDraft> {
+async function extractDraft(text: string, url: string): Promise<{ draft: WorkdayDraft; model: string; tokensIn: number; tokensOut: number }> {
   const system = [
     "You are a job-posting parser. Extract ONE job posting from the page text and output JSON with fields:",
     'title (string, required; "" if not found), company (string|null), location (string|null),',
@@ -86,7 +87,7 @@ async function extractDraft(text: string, url: string): Promise<WorkdayDraft> {
     const d = new Date(parsed.publishedAt);
     if (!Number.isNaN(d.getTime())) publishedAt = d.toISOString();
   }
-  return {
+  const draft: WorkdayDraft = {
     title,
     company: clean(parsed.company, 128),
     location: clean(parsed.location, 128),
@@ -94,12 +95,24 @@ async function extractDraft(text: string, url: string): Promise<WorkdayDraft> {
     snippet: clean(parsed.snippet, 2000),
     publishedAt,
   };
+  return { draft, model: result.model, tokensIn: result.tokensIn, tokensOut: result.tokensOut };
 }
 
-export async function handleFetchWorkdayJob(url: string): Promise<WorkdayDraft> {
+export async function handleFetchWorkdayJob(url: string, userId?: string): Promise<WorkdayDraft> {
   const text = await renderWorkday(url);
   if (!text || text.trim().length < 120) {
     throw new Error("workday_render_empty");
   }
-  return extractDraft(text, url);
+  // 无 userId（历史调用路径）不计量，保持兼容；正常 P0 流程会带 userId 并走额度扣费。
+  if (!userId) return extractDraft(text, url);
+  const run = await startRun({ userId, kind: "jd_parse", inputRef: { url }, promptVersion: "workday-v1" });
+  let out: { draft: WorkdayDraft; model: string; tokensIn: number; tokensOut: number };
+  try {
+    out = await extractDraft(text, url);
+  } catch (e) {
+    await finishRun(run.id, { ok: false, error: String(e), latencyMs: 0 });
+    throw e;
+  }
+  await finishRun(run.id, { ok: true, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, latencyMs: 0 });
+  return out.draft;
 }

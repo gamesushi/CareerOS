@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
-import { chat } from "@/lib/ai";
+import { chat, type ChatResult } from "@/lib/ai";
+import { startAiRun, finishAiRun } from "@/lib/ai-log";
 
 const translateSectionInput = z.object({
   section: z.enum(["work", "projects", "basics", "skills", "education", "awards", "all"]),
@@ -34,7 +35,7 @@ Strict requirements:
 4. Return ONLY a valid JSON object representing the translated resume (with keys basics, work, projects, education, skills, awards, etc.).`;
 
 export const POST = handler(async (req) => {
-  await requireUser();
+  const { userId } = await requireUser();
   const input = await parseBody(req, translateSectionInput);
   const { section, data, targetLang } = input;
 
@@ -42,37 +43,31 @@ export const POST = handler(async (req) => {
     throw new ApiError(400, "invalid_input", "待翻译的数据为空");
   }
 
-  if (section === "all") {
-    const system = SYSTEM_PROMPT_ALL.replace(/\{TARGET_LANG\}/g, targetLang);
-    const userMsg = `请将以下整份简历 JSON 完整翻译为 ${targetLang}：\n\n${JSON.stringify(data, null, 2)}`;
-    try {
-      const res = await chat({
-        system,
-        user: userMsg,
-        json: true,
-        temperature: 0.2,
-      });
-      const raw = res.content.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      return ok({ resume: parsed });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "全篇翻译异常";
-      throw new ApiError(500, "translation_failed", `翻译失败: ${msg}`);
-    }
-  }
+  // 预检 token 额度（余额 + 每日上限），不足抛 402；落 AiRun 计入在途请求。
+  const runId = await startAiRun(userId, "translate");
+  const system = (section === "all" ? SYSTEM_PROMPT_ALL : SYSTEM_PROMPT_SECTION).replace(/\{TARGET_LANG\}/g, targetLang);
+  const userMsg =
+    section === "all"
+      ? `请将以下整份简历 JSON 完整翻译为 ${targetLang}：\n\n${JSON.stringify(data, null, 2)}`
+      : `请将以下 ${section} 模块的数据精准翻译为 ${targetLang}：\n\n${JSON.stringify(data, null, 2)}`;
 
-  const system = SYSTEM_PROMPT_SECTION.replace(/\{TARGET_LANG\}/g, targetLang);
-  const userMsg = `请将以下 ${section} 模块的数据精准翻译为 ${targetLang}：\n\n${JSON.stringify(data, null, 2)}`;
+  let res: ChatResult;
+  try {
+    res = await chat({ system, user: userMsg, json: true, temperature: 0.2 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "翻译服务异常";
+    await finishAiRun(runId, { status: "failed", error: msg });
+    throw new ApiError(500, "translation_failed", `翻译失败: ${msg}`);
+  }
+  // AI 调用成功即记账扣费（解析失败只影响返回格式，不退回已消耗的 token）。
+  await finishAiRun(runId, { status: "succeeded", model: res.model, tokensIn: res.tokensIn, tokensOut: res.tokensOut });
 
   try {
-    const res = await chat({
-      system,
-      user: userMsg,
-      json: true,
-      temperature: 0.2,
-    });
-
     const raw = res.content.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+    if (section === "all") {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return ok({ resume: parsed });
+    }
     const parsed = JSON.parse(raw) as { items?: unknown[] } | unknown[];
     const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed.items) ? parsed.items : null;
 

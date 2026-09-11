@@ -52,7 +52,7 @@ const worker = new Worker(
       case "score_discovered":
         return handleScoreDiscoveredJob(job.data.userId as string);
       case "fetch_workday_job":
-        return handleFetchWorkdayJob(job.data.url as string);
+        return handleFetchWorkdayJob(job.data.url as string, job.data.userId as string | undefined);
       default:
         throw new Error(`unknown job: ${job.name}`);
     }

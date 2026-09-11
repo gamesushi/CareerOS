@@ -7,6 +7,8 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { AccountDanger } from "./account-danger";
 import { AccountExport } from "./account-export";
 import { EmployerRole } from "./employer-role";
+import { TokenCard } from "./token-card";
+import { getTokenStatus, TIERS } from "@/lib/tokens";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -21,7 +23,7 @@ export default async function SettingsPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const [recent, me] = await Promise.all([
+  const [recent, me, tokStatus, prices, transactions] = await Promise.all([
     prisma.loginLog.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -29,6 +31,23 @@ export default async function SettingsPage() {
     }),
     // 角色查 DB：session 里的 role 是登录快照，切换后不重登会显示过期状态
     prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    // Token 额度：首次访问惰性创建并发放免费额度（getTokenStatus 内部 upsert）
+    getTokenStatus(userId),
+    prisma.tokenPrice.findMany({ orderBy: { model: "asc" } }),
+    prisma.tokenTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        delta: true,
+        kind: true,
+        refType: true,
+        balanceAfter: true,
+        note: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   return (
@@ -71,6 +90,32 @@ export default async function SettingsPage() {
       </section>
 
       <EmployerRole role={me?.role ?? "user"} />
+
+      <TokenCard
+        balance={tokStatus.balance}
+        tier={tokStatus.tier}
+        tierLabel={TIERS[tokStatus.tier].label}
+        freeQuota={tokStatus.freeQuota}
+        dailyCap={tokStatus.dailyCap}
+        dailyUsed={tokStatus.dailyUsed}
+        dailyRemaining={Math.max(tokStatus.dailyCap - tokStatus.dailyUsed, 0)}
+        prices={prices.map((p) => ({
+          model: p.model,
+          label: p.label,
+          inPer1k: Number(p.inPer1k),
+          outPer1k: Number(p.outPer1k),
+          currency: p.currency,
+        }))}
+        transactions={transactions.map((t) => ({
+          id: t.id,
+          delta: t.delta,
+          kind: t.kind,
+          refType: t.refType,
+          balanceAfter: t.balanceAfter,
+          note: t.note,
+          createdAt: t.createdAt.toISOString(),
+        }))}
+      />
 
       <AccountExport />
 

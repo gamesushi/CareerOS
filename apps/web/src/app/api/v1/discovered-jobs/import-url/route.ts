@@ -4,6 +4,8 @@
 import { z } from "zod";
 import { handler, ok, parseBody, requireUser, ApiError } from "@/lib/api";
 import { chat } from "@/lib/ai";
+import { startAiRun, finishAiRun } from "@/lib/ai-log";
+import { assertAiQuota } from "@/lib/tokens";
 import { findDuplicateByUrl } from "@/lib/user-jobs";
 import { aiQueue, awaitJobResult } from "@/lib/queue";
 
@@ -12,7 +14,7 @@ const importInput = z.object({
 });
 
 export const POST = handler(async (req) => {
-  await requireUser();
+  const { userId } = await requireUser();
   const { url } = await parseBody(req, importInput);
   if (!/^https?:\/\//i.test(url)) {
     throw new ApiError(400, "invalid_url", "岗位链接必须以 http(s):// 开头");
@@ -25,9 +27,11 @@ export const POST = handler(async (req) => {
   // 该分支同步等待 worker 返回抽取结果，复用同一套 draft 结构。
   const ats = detectAts(url);
   if (ats === "workday") {
+    // 预检 token 额度（抽取在 worker 侧真实执行并扣费，这里先拦截余额/每日不足）
+    await assertAiQuota(userId, "jd_parse");
     const job = await aiQueue.add(
       "fetch_workday_job",
-      { url },
+      { url, userId },
       {
         jobId: `wd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         removeOnComplete: true,
@@ -52,8 +56,17 @@ export const POST = handler(async (req) => {
     });
   }
 
-  const text = await fetchUrlText(url);
-  const draft = await extractJobFields(text, url);
+  const text = await fetchUrlText(url); // 抓不到页面抛 fetch_empty，不计量
+  const runId = await startAiRun(userId, "jd_parse");
+  let extracted: { draft: JobDraft; model: string; tokensIn: number; tokensOut: number };
+  try {
+    extracted = await extractJobFields(text, url);
+  } catch (e) {
+    await finishAiRun(runId, { status: "failed", error: e instanceof Error ? e.message : "extract failed" });
+    throw e;
+  }
+  await finishAiRun(runId, { status: "succeeded", model: extracted.model, tokensIn: extracted.tokensIn, tokensOut: extracted.tokensOut });
+  const draft = extracted.draft;
 
   return ok({
     draft: { ...draft, url },
@@ -156,7 +169,7 @@ type JobDraft = {
   publishedAt: string | null;
 };
 
-async function extractJobFields(text: string, url: string): Promise<JobDraft> {
+async function extractJobFields(text: string, url: string): Promise<{ draft: JobDraft; model: string; tokensIn: number; tokensOut: number }> {
   const system = [
     "你是招聘信息结构化助手。从给定的网页正文中抽取一条岗位信息，输出 JSON 对象，字段：",
     'title（职位名称，必填，找不到时给 ""）、company（公司名或 null）、location（工作地点或 null）、',
@@ -193,7 +206,7 @@ async function extractJobFields(text: string, url: string): Promise<JobDraft> {
     const d = new Date(parsed.publishedAt);
     if (!Number.isNaN(d.getTime())) publishedAt = d.toISOString();
   }
-  return {
+  const draft: JobDraft = {
     title,
     company: clean(parsed.company, 128),
     location: clean(parsed.location, 128),
@@ -201,4 +214,5 @@ async function extractJobFields(text: string, url: string): Promise<JobDraft> {
     snippet: clean(parsed.snippet, 2000),
     publishedAt,
   };
+  return { draft, model: result.model, tokensIn: result.tokensIn, tokensOut: result.tokensOut };
 }

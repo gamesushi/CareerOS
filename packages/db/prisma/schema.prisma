@@ -214,6 +214,7 @@ model User {
   adminActions        AdminAuditLog[]      @relation("AdminActor")
   applications        Application[]
   passwordResetTokens PasswordResetToken[]
+  tokenBalance        TokenBalance?
 
   @@map("users")
 }
@@ -961,6 +962,7 @@ model AiRun {
   costUsd       Decimal?    @map("cost_usd") @db.Decimal(10, 6)
   latencyMs     Int?        @map("latency_ms")
   error         String?
+  costTokens    Int?       @map("cost_tokens") // 本次消耗的内部 token（tokensIn+tokensOut），供成本看板
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz()
   finishedAt    DateTime?   @map("finished_at") @db.Timestamptz()
 
@@ -969,6 +971,65 @@ model AiRun {
   @@index([userId, createdAt(sort: Desc)])
   @@index([kind, status])
   @@map("ai_runs")
+}
+
+// ============ Token 额度系统（docs/token-system-plan.md） ============
+// 内部 token 与 AI token 1:1：一次 AI 操作扣 tokensIn + tokensOut。
+// 免费额度按角色分档、一次性赠送、不自动刷新（耗尽需管理员 grant/充值）。
+
+enum TokenTxKind {
+  consume // 消费（AI 操作）
+  grant // 管理员发放/模拟充值（+）
+  deduct // 管理员扣减校正（-）
+  expire // 过期回收
+
+  @@map("token_tx_kind")
+}
+
+// 每用户一行余额（首次 AI 使用时惰性创建，按角色赠送免费额度）
+model TokenBalance {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @db.Uuid
+  balance   Int      @default(0) // 当前余额（内部 token）
+  freeQuota Int      @default(30000) // 注册一次性赠送的初始额度（展示用，非重置基准）
+  tier      String   @default("c") @db.VarChar(8) // 档位：c=求职者，b=招聘方；展示/审计用
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("token_balances")
+}
+
+// 流水账（所有变动留痕，支持额度调节审计）
+model TokenTransaction {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String      @db.Uuid
+  delta        Int // 负=消费，正=发放/扣减
+  kind         TokenTxKind
+  refType      String? @db.VarChar(32) // ai_run | admin | system
+  refId        String? @db.Uuid
+  balanceAfter Int // 变动后余额（快照）
+  note         String? @db.VarChar(255)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("token_transactions")
+}
+
+// 模型价格表（可后台编辑）。inPer1k/outPer1k 单位：¥ / 1K token
+model TokenPrice {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model     String   @unique @db.VarChar(64) // 如 deepseek-chat / gpt-4.1-mini / text-embedding-3-small
+  label     String   @db.VarChar(64)
+  inPer1k   Decimal  @map("in_per_1k") @db.Decimal(10, 6)
+  outPer1k  Decimal  @map("out_per_1k") @db.Decimal(10, 6)
+  currency  String   @default("CNY") @db.VarChar(8)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("token_prices")
 }
 
 // ============ 管理后台审计 ============
