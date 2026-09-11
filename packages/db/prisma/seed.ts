@@ -4,6 +4,7 @@ const prisma = new PrismaClient();
 
 // 开发种子：一个演示用户 + 一段最小职业数据，方便 UI 联调
 async function main() {
+  if (process.env.NODE_ENV !== "production") {
   const user = await prisma.user.upsert({
     where: { email: "dev@careeros.local" },
     update: {},
@@ -51,6 +52,7 @@ async function main() {
   });
 
   console.log(`Seeded dev user: ${user.email} (${user.id})`);
+  }
 
   await seedTokenPrices();
   await backfillTokenBalances();
