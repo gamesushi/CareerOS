@@ -215,6 +215,7 @@ model User {
   applications        Application[]
   passwordResetTokens PasswordResetToken[]
   tokenBalance        TokenBalance?
+  tokenTransactions   TokenTransaction[]
 
   @@map("users")
 }
