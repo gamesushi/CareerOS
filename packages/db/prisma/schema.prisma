@@ -186,6 +186,7 @@ model User {
   tosAcceptedAt  DateTime?       @map("tos_accepted_at") @db.Timestamptz() // 同意《用户协议》《隐私政策》的时间（留痕证据）
   tosVersion     String?         @map("tos_version") @db.VarChar(32) // 同意的条款版本；与当前版本不一致时登录后强制重新确认
   passwordHash   String?         @map("password_hash") @db.VarChar(255) // 本地密码登录的 scrypt 哈希；null = 仅 Google/OAuth 登录（无本地密码）
+  onboardingDone Boolean       @default(false) @map("onboarding_done") // 是否已走完新手引导（仪表盘据此不再提示）
 
   accounts            Account[]
   sessions            Session[]

@@ -1227,5 +1227,12 @@
   "onboarding.done.monitorOk": "已开启（{sources} 个来源 / {keywords} 个关键词）",
   "onboarding.done.goMonitor": "去监测页看抓取结果",
   "onboarding.done.goKnowledge": "查看我的知识库",
-  "onboarding.done.goDashboard": "进入仪表盘"
+  "onboarding.done.goDashboard": "进入仪表盘",
+  "onboarding.kb.previewTitle": "已从简历提取以下内容",
+  "onboarding.kb.skills": "项技能",
+  "onboarding.kb.experiences": "段经历",
+  "onboarding.kb.projects": "个项目",
+  "onboarding.kb.educations": "段学历",
+  "onboarding.kb.achievements": "项成就",
+  "onboarding.kb.topSkills": "代表技能："
 }

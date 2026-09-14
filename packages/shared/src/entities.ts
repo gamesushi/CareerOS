@@ -143,6 +143,7 @@ export const meUpdateInput = z.object({
     .optional(),
   jobStatus: z.enum(["open", "passive", "closed"]).optional(),
   privacy: privacySettings.partial().optional(),
+  onboardingDone: z.boolean().optional(),
 });
 
 export type ExperienceInput = z.infer<typeof experienceInput>;

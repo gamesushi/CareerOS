@@ -38,6 +38,14 @@ type ImportRow = {
   fileName: string;
   status: ImportStatus;
   error?: string | null;
+  extracted?: {
+    skills?: { name: string }[];
+    experiences?: unknown[];
+    projects?: unknown[];
+    educations?: unknown[];
+    achievements?: unknown[];
+    [k: string]: unknown;
+  } | null;
 };
 
 const SOURCE_REGION_ORDER = ["china", "japan", "usa", "uk", "other"] as const;
@@ -55,6 +63,8 @@ export default function OnboardingPage() {
   const [stepIndex, setStepIndex] = useState(0); // 0 = welcome, 1..4 = STEPS
   const [importId, setImportId] = useState<string | null>(null);
   const [kbStatus, setKbStatus] = useState<ImportStatus | null>(null);
+  const [kbExtracted, setKbExtracted] = useState<ImportRow["extracted"]>(null);
+  const doneMarked = useRef(false);
 
   // 步骤 1：上传
   const [uploading, setUploading] = useState(false);
@@ -82,7 +92,10 @@ export default function OnboardingPage() {
       const res = await api<{ data: ImportRow[] }>("/imports");
       if (!active || !res) return;
       const row = res.data.find((i) => i.id === importId);
-      if (row) setKbStatus(row.status);
+      if (row) {
+        setKbStatus(row.status);
+        if (row.extracted) setKbExtracted(row.extracted);
+      }
     };
     void load();
     const timer = setInterval(load, 3000);
@@ -92,7 +105,31 @@ export default function OnboardingPage() {
     };
   }, [stepIndex, importId]);
 
+  // 到达完成页时，标记新手引导已完成（仅一次，避免重复写）
+  useEffect(() => {
+    if (stepIndex !== 4 || doneMarked.current) return;
+    doneMarked.current = true;
+    void api("/me", { method: "PUT", body: JSON.stringify({ onboardingDone: true }) });
+  }, [stepIndex]);
+
   const kbDone = kbStatus === "review" || kbStatus === "applied";
+
+  // 步骤 2 已提取数据预览（来自 resume_imports.extracted 结构化 JSON）
+  const kbPreview = useMemo(() => {
+    if (!kbExtracted) return null;
+    const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+    const skills = arr(kbExtracted.skills) as { name: string }[];
+    const counts = {
+      skills: skills.length,
+      experiences: arr(kbExtracted.experiences).length,
+      projects: arr(kbExtracted.projects).length,
+      educations: arr(kbExtracted.educations).length,
+      achievements: arr(kbExtracted.achievements).length,
+    };
+    const total = counts.skills + counts.experiences + counts.projects + counts.educations + counts.achievements;
+    if (total === 0) return null;
+    return { counts, topSkills: skills.slice(0, 8).map((s) => s.name) };
+  }, [kbExtracted]);
 
   async function upload(file: File) {
     setUploading(true);
@@ -341,6 +378,48 @@ export default function OnboardingPage() {
                   <CheckCircle2 className="size-5" /> {t("onboarding.kb.done")}
                 </div>
                 <p className="text-sm text-muted-foreground">{t("onboarding.kb.doneDesc")}</p>
+                {kbPreview && (
+                  <div className="space-y-2 rounded-md border bg-background/60 p-3">
+                    <p className="text-xs font-medium text-emerald-700">{t("onboarding.kb.previewTitle")}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      {kbPreview.counts.skills > 0 && (
+                        <span>
+                          <b>{kbPreview.counts.skills}</b> {t("onboarding.kb.skills")}
+                        </span>
+                      )}
+                      {kbPreview.counts.experiences > 0 && (
+                        <span>
+                          <b>{kbPreview.counts.experiences}</b> {t("onboarding.kb.experiences")}
+                        </span>
+                      )}
+                      {kbPreview.counts.projects > 0 && (
+                        <span>
+                          <b>{kbPreview.counts.projects}</b> {t("onboarding.kb.projects")}
+                        </span>
+                      )}
+                      {kbPreview.counts.educations > 0 && (
+                        <span>
+                          <b>{kbPreview.counts.educations}</b> {t("onboarding.kb.educations")}
+                        </span>
+                      )}
+                      {kbPreview.counts.achievements > 0 && (
+                        <span>
+                          <b>{kbPreview.counts.achievements}</b> {t("onboarding.kb.achievements")}
+                        </span>
+                      )}
+                    </div>
+                    {kbPreview.topSkills.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">{t("onboarding.kb.topSkills")}</span>
+                        {kbPreview.topSkills.map((s) => (
+                          <span key={s} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {importId && (
                   <Button
                     variant="outline"

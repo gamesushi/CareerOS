@@ -36,6 +36,7 @@ export const PUT = handler(async (req) => {
       snsLinks: input.snsLinks as unknown as Prisma.InputJsonValue | undefined,
       languages: input.languages as unknown as Prisma.InputJsonValue | undefined,
       jobStatus: input.jobStatus,
+      ...(input.onboardingDone !== undefined ? { onboardingDone: input.onboardingDone } : {}),
       ...(privacy ? { privacy } : {}),
     },
   });

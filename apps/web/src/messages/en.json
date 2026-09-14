@@ -1218,5 +1218,12 @@
   "onboarding.done.monitorOk": "Enabled ({sources} sources / {keywords} keywords)",
   "onboarding.done.goMonitor": "See scraped results on monitoring",
   "onboarding.done.goKnowledge": "View my knowledge base",
-  "onboarding.done.goDashboard": "Go to dashboard"
+  "onboarding.done.goDashboard": "Go to dashboard",
+  "onboarding.kb.previewTitle": "Extracted from your resume",
+  "onboarding.kb.skills": "skills",
+  "onboarding.kb.experiences": "experiences",
+  "onboarding.kb.projects": "projects",
+  "onboarding.kb.educations": "education",
+  "onboarding.kb.achievements": "achievements",
+  "onboarding.kb.topSkills": "Top skills:"
 }

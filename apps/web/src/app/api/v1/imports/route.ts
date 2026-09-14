@@ -11,6 +11,7 @@ export const GET = handler(async () => {
       fileName: true,
       status: true,
       error: true,
+      extracted: true,
       createdAt: true,
       updatedAt: true,
     },
