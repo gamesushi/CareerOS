@@ -990,9 +990,9 @@ enum TokenTxKind {
 // 每用户一行余额（首次 AI 使用时惰性创建，按角色赠送免费额度）
 model TokenBalance {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @unique @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
   balance   Int      @default(0) // 当前余额（内部 token）
-  freeQuota Int      @default(30000) // 注册一次性赠送的初始额度（展示用，非重置基准）
+  freeQuota Int      @map("free_quota") @default(30000) // 注册一次性赠送的初始额度（展示用，非重置基准）
   tier      String   @default("c") @db.VarChar(8) // 档位：c=求职者，b=招聘方；展示/审计用
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
@@ -1005,12 +1005,12 @@ model TokenBalance {
 // 流水账（所有变动留痕，支持额度调节审计）
 model TokenTransaction {
   id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String      @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
   delta        Int // 负=消费，正=发放/扣减
   kind         TokenTxKind
-  refType      String? @db.VarChar(32) // ai_run | admin | system
-  refId        String? @db.Uuid
-  balanceAfter Int // 变动后余额（快照）
+  refType      String? @map("ref_type") @db.VarChar(32) // ai_run | admin | system
+  refId        String? @map("ref_id") @db.Uuid
+  balanceAfter Int @map("balance_after") // 变动后余额（快照）
   note         String? @db.VarChar(255)
   createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz()
 
