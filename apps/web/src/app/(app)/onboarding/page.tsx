@@ -66,6 +66,18 @@ export default function OnboardingPage() {
   const [kbExtracted, setKbExtracted] = useState<ImportRow["extracted"]>(null);
   const doneMarked = useRef(false);
 
+  // 标记新手引导已完成（带 ref 防重复写）；可选跳转到目标页
+  const markOnboardingDone = useCallback(
+    (to?: string) => {
+      if (!doneMarked.current) {
+        doneMarked.current = true;
+        void api("/me", { method: "PUT", body: JSON.stringify({ onboardingDone: true }) });
+      }
+      if (to) router.push(to);
+    },
+    [router],
+  );
+
   // 步骤 1：上传
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -107,10 +119,9 @@ export default function OnboardingPage() {
 
   // 到达完成页时，标记新手引导已完成（仅一次，避免重复写）
   useEffect(() => {
-    if (stepIndex !== 4 || doneMarked.current) return;
-    doneMarked.current = true;
-    void api("/me", { method: "PUT", body: JSON.stringify({ onboardingDone: true }) });
-  }, [stepIndex]);
+    if (stepIndex !== 4) return;
+    markOnboardingDone();
+  }, [stepIndex, markOnboardingDone]);
 
   const kbDone = kbStatus === "review" || kbStatus === "applied";
 
@@ -234,7 +245,7 @@ export default function OnboardingPage() {
             </span>
             <button
               className="underline hover:text-foreground"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => markOnboardingDone("/dashboard")}
             >
               {t("onboarding.skip")}
             </button>

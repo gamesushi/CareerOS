@@ -1234,5 +1234,7 @@
   "onboarding.kb.projects": "个项目",
   "onboarding.kb.educations": "段学历",
   "onboarding.kb.achievements": "项成就",
-  "onboarding.kb.topSkills": "代表技能："
+  "onboarding.kb.topSkills": "代表技能：",
+  "onboarding.statusDone": "已完成新手引导",
+  "onboarding.statusPending": "尚未完成"
 }

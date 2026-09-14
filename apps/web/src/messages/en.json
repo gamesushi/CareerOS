@@ -1225,5 +1225,7 @@
   "onboarding.kb.projects": "projects",
   "onboarding.kb.educations": "education",
   "onboarding.kb.achievements": "achievements",
-  "onboarding.kb.topSkills": "Top skills:"
+  "onboarding.kb.topSkills": "Top skills:",
+  "onboarding.statusDone": "Onboarding completed",
+  "onboarding.statusPending": "Not completed yet"
 }

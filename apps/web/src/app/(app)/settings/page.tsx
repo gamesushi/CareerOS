@@ -4,7 +4,9 @@ import { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { prisma } from "@careeros/db";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { AccountDanger } from "./account-danger";
 import { AccountExport } from "./account-export";
@@ -32,7 +34,10 @@ export default async function SettingsPage() {
       take: 10,
     }),
     // 角色查 DB：session 里的 role 是登录快照，切换后不重登会显示过期状态
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, onboardingDone: true },
+    }),
     // Token 额度：首次访问惰性创建并发放免费额度（getTokenStatus 内部 upsert）
     getTokenStatus(userId),
     prisma.tokenPrice.findMany({ orderBy: { model: "asc" } }),
@@ -92,7 +97,21 @@ export default async function SettingsPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("onboarding.title")}</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">{t("onboarding.title")}</h2>
+          {me?.onboardingDone ? (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+            >
+              <CheckCircle2 className="size-3" /> {t("onboarding.statusDone")}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              {t("onboarding.statusPending")}
+            </Badge>
+          )}
+        </div>
         <p className="mb-3 text-sm text-muted-foreground">{t("onboarding.intro")}</p>
         <Button asChild variant="outline">
           <Link href="/onboarding">{t("onboarding.start")}</Link>
