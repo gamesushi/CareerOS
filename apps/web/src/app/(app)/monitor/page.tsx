@@ -25,7 +25,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ExternalLink, Play, Plus, Radar, Trash2, Loader2, ChevronDown, Upload } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { dateLocaleFor } from "@/lib/i18n/config";
 
 type Watch = {
   id: string; name: string; keywords: string[]; sources: string[]; locations: string[];
@@ -85,6 +86,8 @@ const ROLE_FILTER_KEY = "careeros.roleFilter";
 export default function MonitorPage() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
+  const dl = dateLocaleFor(locale);
   const [watches, setWatches] = useState<Watch[] | null>(null);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [cal, setCal] = useState<{ strong: number; moderate: number; weak: number; unscored: number; scored: number; verdict: string } | null>(null);
@@ -628,7 +631,7 @@ export default function MonitorPage() {
                       {(w.matchLanguages?.length ?? 0) > 0 && ` · ${w.matchLanguages!.map((l) => t(`lang.${l}`)).join("/")}`}
                       {(w.matchExperience?.length ?? 0) > 0 && ` · ${w.matchExperience!.map((x) => t(`exp.${x}`)).join("/")}`}
                       {` · ${w.intervalMinutes >= 60 ? t("monitor.everyHours", { hours: w.intervalMinutes / 60 }) : t("monitor.everyMinutes", { minutes: w.intervalMinutes })}`}
-                      {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString("zh-CN") })}`}
+                      {w.lastRunAt && ` · ${t("monitor.lastRun", { time: new Date(w.lastRunAt).toLocaleString(dl) })}`}
                     </p>
                     {w.lastResult && (() => {
                       try {
@@ -789,7 +792,7 @@ export default function MonitorPage() {
                     <p className="text-xs text-muted-foreground">
                       {[j.company, j.location, j.salary].filter(Boolean).join(" · ")}
                       {` · ${SOURCE_LABEL[j.source] ?? j.source} · ${j.watch.name}`}
-                      {j.publishedAt && ` · ${new Date(j.publishedAt).toLocaleDateString("zh-CN")}`}
+                      {j.publishedAt && ` · ${new Date(j.publishedAt).toLocaleDateString(dl)}`}
                     </p>
                     {j.snippet && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{j.snippet}</p>}
                     {j.matchReasons && j.matchReasons.length > 0 && (

@@ -30,10 +30,10 @@ const CATALOGS: Record<Locale, Messages> = {
   it: it as Messages,
 };
 
-/** 取某语言的完整消息目录（缺失键由源语言 zh-CN 兜底）。 */
+/** 取某语言的完整消息目录（缺失键由主站默认语言 en 兜底）。 */
 export function getMessages(locale: Locale): Messages {
   const base = CATALOGS[DEFAULT_LOCALE];
   const target = CATALOGS[locale] ?? base;
-  // 合并：目标语言优先，缺失键回退到源语言，保证界面不会出现空白 key。
+  // 合并：目标语言优先，缺失键回退到主站默认语言（英文），保证界面不会出现空白 key。
   return { ...base, ...target };
 }

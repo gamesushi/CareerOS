@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileUp, Loader2, RotateCcw, Trash2 } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { dateLocaleFor } from "@/lib/i18n/config";
 
 type ImportRow = {
   id: string;
@@ -33,6 +34,8 @@ const RUNNING = new Set(["pending", "parsing", "extracting"]);
 export default function ImportsPage() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
+  const dl = dateLocaleFor(locale);
   const [items, setItems] = useState<ImportRow[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -150,7 +153,7 @@ export default function ImportsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{item.fileName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString("zh-CN")}
+                    {new Date(item.createdAt).toLocaleString(dl)}
                     {item.error && <span className="text-destructive"> · {item.error}</span>}
                   </p>
                 </div>

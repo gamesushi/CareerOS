@@ -1,16 +1,18 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { prisma } from "@careeros/db";
 import { getSession } from "@/lib/auth";
-import { LOCALE_COOKIE, normalizeLocale, isLocale, negotiateLocale, type Locale } from "./config";
+import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE, type Locale } from "./config";
 import { getMessages } from "./messages";
 
 /**
  * 服务端读取当前 locale。
  * 优先级：
  * 1. 已登录用户的显式设置（User.locale），设置页会同步更新到 cookie。
- * 2. LOCALE_COOKIE（未登录或用户未显式设置时使用）。
- * 3. 浏览器 Accept-Language 头协商出的最佳受支持语言。
- * 4. DEFAULT_LOCALE。
+ * 2. LOCALE_COOKIE（用户此前手动切换过语言）。
+ * 3. DEFAULT_LOCALE（英文）——主站默认语言，未识别到任何用户语言偏好时回退。
+ *
+ * 说明：不再按浏览器 Accept-Language 自动协商语言。主站以英文为默认，
+ * 仅当用户已显式选择（账号设置或 cookie）时才切换，避免「中文浏览器默认中文」。
  */
 export async function getLocale(): Promise<Locale> {
   const store = await cookies();
@@ -38,8 +40,7 @@ export async function getLocale(): Promise<Locale> {
     return cookieValue;
   }
 
-  const acceptLanguage = (await headers()).get("accept-language");
-  return negotiateLocale(acceptLanguage);
+  return DEFAULT_LOCALE;
 }
 
 type TParams = Record<string, string | number>;

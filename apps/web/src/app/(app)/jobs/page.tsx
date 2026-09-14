@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Target, Trash2 } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { dateLocaleFor } from "@/lib/i18n/config";
 
 type JdRow = {
   id: string;
@@ -26,6 +27,8 @@ type JdRow = {
 export default function JobsPage() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
+  const dl = dateLocaleFor(locale);
   const [items, setItems] = useState<JdRow[] | null>(null);
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -126,7 +129,7 @@ export default function JobsPage() {
                   {[jd.company, jd.title].filter(Boolean).join(" · ") || t("jobs.jdAutoDetect")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(jd.createdAt).toLocaleString("zh-CN")} · {t(`jobs.jdStatus.${jd.status}`)}
+                  {new Date(jd.createdAt).toLocaleString(dl)} · {t(`jobs.jdStatus.${jd.status}`)}
                 </p>
               </div>
               {jd.latestMatch && (

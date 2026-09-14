@@ -65,7 +65,7 @@ export function buildPasswordResetEmail(
 ): { subject: string; html: string; text: string } {
   const subject = "uCareerOS 密码重置请求 / Password reset request";
   const html = `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <body style="margin:0;background:#f4f5f7;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;color:#1a1a1a;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
     <h2 style="margin:0 0 16px;font-size:18px;font-weight:600;">重置你的 uCareerOS 密码</h2>
@@ -99,7 +99,7 @@ export function buildEmailVerificationEmail(
 ): { subject: string; html: string; text: string } {
   const subject = "uCareerOS 邮箱验证 / Verify your email";
   const html = `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <body style="margin:0;background:#f4f5f7;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;color:#1a1a1a;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
     <h2 style="margin:0 0 16px;font-size:18px;font-weight:600;">验证你的 uCareerOS 邮箱</h2>
@@ -131,7 +131,7 @@ export function buildEmailVerificationEmail(
 export function buildOtpEmail(code: string): { subject: string; html: string; text: string } {
   const subject = "uCareerOS 登录验证码 / Your login code";
   const html = `<!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <body style="margin:0;background:#f4f5f7;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;color:#1a1a1a;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
     <h2 style="margin:0 0 16px;font-size:18px;font-weight:600;">你的登录验证码</h2>

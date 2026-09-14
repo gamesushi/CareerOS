@@ -4,9 +4,10 @@ import { prisma } from "@careeros/db";
 import { hashPassword } from "@/lib/password";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { issueVerificationEmail } from "@/lib/verification";
-import { negotiateLocale } from "@/lib/i18n/config";
 import { getPublicOrigin } from "@/lib/origin";
 import { ApiError, handler, parseBody } from "@/lib/api";
+// 注：新账号默认语言统一为英文（DEFAULT_LOCALE），不再按浏览器 Accept-Language 协商，
+// 以保证主站默认英文；用户登录后可在设置页自行切换。
 
 const schema = z.object({
   email: z.string().email(),
@@ -35,7 +36,7 @@ export const POST = handler(async (req) => {
       email: normalized,
       name: normalized.split("@")[0],
       passwordHash,
-      locale: negotiateLocale(req.headers.get("accept-language")),
+      locale: "en",
       tosAcceptedAt: new Date(),
       tosVersion: CURRENT_TOS_VERSION,
       // emailVerified 保持 null：注册后必须经由验证邮件确认邮箱归属（PIPL 邮箱验证）。

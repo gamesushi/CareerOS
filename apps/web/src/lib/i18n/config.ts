@@ -26,8 +26,8 @@ export interface LocaleMeta {
 }
 
 export const LOCALES: LocaleMeta[] = [
-  { code: "zh-CN", label: "简体中文", htmlLang: "zh-Hans" },
   { code: "en", label: "English", htmlLang: "en" },
+  { code: "zh-CN", label: "简体中文", htmlLang: "zh-Hans" },
   { code: "ja", label: "日本語", htmlLang: "ja" },
   { code: "zh-TW", label: "繁體中文", htmlLang: "zh-Hant" },
   { code: "ko", label: "한국어", htmlLang: "ko" },
@@ -39,7 +39,27 @@ export const LOCALES: LocaleMeta[] = [
   { code: "it", label: "Italiano", htmlLang: "it" },
 ];
 
-export const DEFAULT_LOCALE: Locale = "zh-CN";
+// 主站默认语言。未登录且无 cookie、或账号未显式设置语言时，一律回退到英文。
+export const DEFAULT_LOCALE: Locale = "en";
+
+/** 当前各语言对应的 Intl BCP-47 标签，用于 toLocaleString / toLocaleDateString 等格式化。 */
+const DATE_LOCALE: Record<Locale, string> = {
+  "en": "en-US",
+  "zh-CN": "zh-CN",
+  "ja": "ja-JP",
+  "zh-TW": "zh-TW",
+  "ko": "ko-KR",
+  "fr": "fr-FR",
+  "de": "de-DE",
+  "es": "es-ES",
+  "pt": "pt-PT",
+  "ru": "ru-RU",
+  "it": "it-IT",
+};
+
+export function dateLocaleFor(locale: Locale): string {
+  return DATE_LOCALE[locale] ?? "en-US";
+}
 
 const LOCALE_CODES = new Set<string>(LOCALES.map((l) => l.code));
 

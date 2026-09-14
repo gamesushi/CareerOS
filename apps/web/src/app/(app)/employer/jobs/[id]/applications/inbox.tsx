@@ -13,7 +13,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, FileText } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { dateLocaleFor } from "@/lib/i18n/config";
 
 type Application = {
   id: string;
@@ -37,6 +38,8 @@ export function ApplicationInbox({
   initial: Application[];
 }) {
   const t = useT();
+  const locale = useLocale();
+  const dl = dateLocaleFor(locale);
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
@@ -90,7 +93,7 @@ export function ApplicationInbox({
                 {t(`applyStatus.${a.status}`)}
               </Badge>
               <span className="ml-auto text-xs text-muted-foreground">
-                {new Date(a.createdAt).toLocaleString("zh-CN", { hour12: false })}
+                {new Date(a.createdAt).toLocaleString(dl, { hour12: false })}
               </span>
             </div>
 

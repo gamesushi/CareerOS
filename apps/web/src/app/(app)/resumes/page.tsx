@@ -17,7 +17,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { TEMPLATE_META } from "@/lib/pdf/template-meta";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { dateLocaleFor } from "@/lib/i18n/config";
 
 type ResumeRow = {
   id: string;
@@ -37,6 +38,8 @@ const NONE = "__none__";
 export default function ResumesPage() {
   const router = useRouter();
   const t = useT();
+  const locale = useLocale();
+  const dl = dateLocaleFor(locale);
   const [items, setItems] = useState<ResumeRow[] | null>(null);
   const [jds, setJds] = useState<JdOption[]>([]);
   const [open, setOpen] = useState(false);
@@ -177,7 +180,7 @@ export default function ResumesPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{r.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  v{r.version} · {new Date(r.generatedAt).toLocaleString("zh-CN")}
+                  v{r.version} · {new Date(r.generatedAt).toLocaleString(dl)}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <Badge variant="secondary" className="font-normal">

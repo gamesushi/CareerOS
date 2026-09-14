@@ -1227,5 +1227,14 @@
   "onboarding.kb.achievements": "achievements",
   "onboarding.kb.topSkills": "Top skills:",
   "onboarding.statusDone": "Onboarding completed",
-  "onboarding.statusPending": "Not completed yet"
+  "onboarding.statusPending": "Not completed yet",
+  "resumes.deriveLanguage": "Generate language version",
+  "resumes.deriveLanguageConfirm": "Confirm generate",
+  "resumes.deriveLanguageHint": "A new language version will be generated from the current resume content and saved independently after editing",
+  "resumes.type.ja_rirekisho": "Rirekisho (JP)",
+  "review.datePrecision.day": "Day",
+  "review.datePrecision.month": "Month",
+  "review.datePrecision.year": "Year",
+  "review.ph.endDate": "End date",
+  "review.ph.startDate": "Start date"
 }
