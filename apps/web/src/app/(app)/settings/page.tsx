@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Metadata } from "next";
 import { getSession } from "@/lib/auth";
 import { getT, getLocale } from "@/lib/i18n/server";
 import { prisma } from "@careeros/db";
+import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { AccountDanger } from "./account-danger";
 import { AccountExport } from "./account-export";
@@ -87,6 +89,14 @@ export default async function SettingsPage() {
       <section>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("settings.language")}</h2>
         <LocaleSwitcher className="w-full max-w-xs" />
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">{t("onboarding.title")}</h2>
+        <p className="mb-3 text-sm text-muted-foreground">{t("onboarding.intro")}</p>
+        <Button asChild variant="outline">
+          <Link href="/onboarding">{t("onboarding.start")}</Link>
+        </Button>
       </section>
 
       <EmployerRole role={me?.role ?? "user"} />

@@ -84,11 +84,16 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Button asChild>
-              <Link href="/imports">{t("dashboard.emptyImport")}</Link>
+              <Link href="/onboarding">{t("onboarding.start")}</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/knowledge">{t("dashboard.emptyManual")}</Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild className="flex-1">
+                <Link href="/imports">{t("dashboard.emptyImport")}</Link>
+              </Button>
+              <Button variant="outline" asChild className="flex-1">
+                <Link href="/knowledge">{t("dashboard.emptyManual")}</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
