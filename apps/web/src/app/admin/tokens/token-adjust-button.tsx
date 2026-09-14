@@ -28,7 +28,7 @@ export function TokenAdjustButton({
       return;
     }
     setBusy(true);
-    const r = await api("/admin/tokens/adjust", {
+    const r = await api<{ ok: boolean; balance: number }>("/admin/tokens/adjust", {
       method: "POST",
       body: JSON.stringify({ userId, action, amount: Math.floor(amount), note: note || undefined }),
     });
