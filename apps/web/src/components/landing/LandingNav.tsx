@@ -8,9 +8,8 @@ export function LandingNav({ t }: { t: TFn }) {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" aria-label="uCareerOS" className="flex items-center">
           <img src="/logo.png" alt="uCareerOS" className="h-8 w-auto" />
-          <span className="text-lg font-extrabold tracking-tight">uCareerOS</span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
           <a href="#referred" className="transition-colors hover:text-foreground">

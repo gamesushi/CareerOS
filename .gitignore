@@ -9,3 +9,7 @@ dist/
 .DS_Store
 .turbo/
 coverage/
+
+# local research artifacts (design study, prototypes, screenshots) & playwright browsers
+careerhound-research/
+.pw-browsers/

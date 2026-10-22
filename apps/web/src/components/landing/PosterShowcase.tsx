@@ -11,9 +11,36 @@ const GRAD = [
   "bg-[linear-gradient(135deg,#2563eb,#0e7490)]",
 ];
 
+/** 英文优先 + 软去重：首轮按公司取唯一，不足 n 张再用重复公司补满，保证网格饱满。 */
+const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+function curate(postings: LandingPosting[], n: number): LandingPosting[] {
+  const ordered = [...postings].sort((a, b) => {
+    const ca = CJK.test(a.title) ? 1 : 0;
+    const cb = CJK.test(b.title) ? 1 : 0;
+    return ca - cb;
+  });
+  const seen = new Set<string>();
+  const unique: LandingPosting[] = [];
+  for (const p of ordered) {
+    if (unique.length === n) break;
+    const key = (p.company || p.orgName || p.title).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(p);
+  }
+  if (unique.length >= n) return unique;
+  const picked = new Set(unique.map((p) => p.id));
+  for (const p of ordered) {
+    if (unique.length === n) break;
+    if (picked.has(p.id)) continue;
+    unique.push(p);
+  }
+  return unique;
+}
+
 /** 真实职位海报展示网格（接 listPublicPostings）。 */
 export function PosterShowcase({ t, postings }: { t: TFn; postings: LandingPosting[] }) {
-  const shown = postings.slice(0, 6);
+  const shown = curate(postings, 6);
 
   return (
     <section id="referred" className="mx-auto max-w-6xl px-4 py-20">
