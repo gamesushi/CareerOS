@@ -6,6 +6,7 @@
 
 import { prisma } from "@careeros/db";
 import { ApiError } from "@/lib/errors";
+import { getOrgEntitlement } from "@/lib/billing/entitlement";
 
 /** 每人每 24 小时最多新建的岗位数（含草稿——草稿同样占存储与审核视野）。 */
 export const POSTING_DAILY_LIMIT = 10;
@@ -32,4 +33,24 @@ export async function assertPostingQuota(userId: string, limit = POSTING_DAILY_L
     );
   }
   return { used, limit };
+}
+
+/**
+ * 组织档位在招岗上限校验：统计该组织当前 `open` 岗位数，与套餐上限比较。
+ * 免费档最多 FREE_ACTIVE_POSTING_LIMIT 个；Pro 档按套餐 maxActivePostings。
+ * 超额抛 403，文案区分免费 / 会员，引导升级。
+ */
+export async function assertOrgActivePostingQuota(orgId: string) {
+  const { maxActivePostings, isSubscribed, plan } = await getOrgEntitlement(orgId);
+  const used = await prisma.jobPosting.count({ where: { orgId, status: "open" } });
+  if (used >= maxActivePostings) {
+    throw new ApiError(
+      403,
+      "org_posting_quota",
+      isSubscribed
+        ? `当前「${plan?.name ?? "会员"}」套餐最多 ${maxActivePostings} 个在招岗位，已用满，请升级套餐`
+        : `免费版最多 ${maxActivePostings} 个在招岗位，升级 Pro 解锁更多在招岗`,
+    );
+  }
+  return { used, limit: maxActivePostings };
 }

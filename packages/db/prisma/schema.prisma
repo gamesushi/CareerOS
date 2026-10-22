@@ -824,13 +824,50 @@ model Organization {
   size        String?  @db.VarChar(32) // 1-10 / 11-50 / 51-200 / 200+
   location    String?  @db.VarChar(128)
   verified    Boolean  @default(false) // 预留：企业实名认证，首期不强制
+  // Stripe 订阅：每个组织对应一个 Stripe Customer，首次创建结账会话后写入。
+  stripeCustomerId String? @map("stripe_customer_id") @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
 
-  members  OrganizationMember[]
-  postings JobPosting[]
+  members       OrganizationMember[]
+  postings      JobPosting[]
+  subscription  OrganizationSubscription?
 
+  @@index([stripeCustomerId])
   @@map("organizations")
+}
+
+// ============ Stripe 订阅（B 端组织月费） ============
+// 订阅生命周期由 Stripe Webhook 驱动，这里只落最终状态。一个组织一行。
+
+model OrganizationSubscription {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId               String   @unique @map("org_id") @db.Uuid
+  stripeCustomerId    String   @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId String  @unique @map("stripe_subscription_id") @db.VarChar(255)
+  stripePriceId       String   @map("stripe_price_id") @db.VarChar(255)
+  planSlug            String   @map("plan_slug") @db.VarChar(64) // 对应 lib/billing/plans.ts 的套餐标识
+  // Stripe 订阅状态原值：trialing | active | past_due | canceled | unpaid | incomplete | paused
+  status              String   @map("status") @db.VarChar(32)
+  currentPeriodStart  DateTime @map("current_period_start") @db.Timestamptz()
+  currentPeriodEnd    DateTime @map("current_period_end") @db.Timestamptz()
+  cancelAtPeriodEnd   Boolean  @default(false) @map("cancel_at_period_end")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@map("organization_subscriptions")
+}
+
+// Stripe Webhook 幂等表：event id（evt_...）作主键，防 Stripe 重复投递导致重复开通。
+model StripeWebhookEvent {
+  id        String   @id // Stripe event id
+  type      String   @map("type") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("stripe_webhook_events")
 }
 
 // 站内投递：候选人 → 站内发布岗。与 Application（候选人自己的外部岗看板）是两件事，

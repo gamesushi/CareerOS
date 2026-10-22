@@ -4,12 +4,17 @@ import { EMPLOYER_ROLES } from "@careeros/shared";
 import { getSession } from "@/lib/auth";
 import { listMyOrganizations } from "@/lib/organizations";
 import { CompanyForm } from "./company-form";
+import { BillingPanel } from "./billing-panel";
 
 export const metadata = { title: "公司资料 · uCareerOS" };
 export const dynamic = "force-dynamic";
 
 // 公司资料页。门控与 /employer/jobs 同源——查 DB，不读 JWT 里的 role 快照。
-export default async function EmployerCompanyPage() {
+export default async function EmployerCompanyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ billing?: string }>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -37,10 +42,24 @@ export default async function EmployerCompanyPage() {
     .map((c) => c.company!)
     .filter((c) => !!c && !c.startsWith("某"));
 
+  const primaryOrg = orgs[0] ?? null;
+  const canManageBilling =
+    primaryOrg?.myRole === "owner" || primaryOrg?.myRole === "admin";
+
+  // Stripe 回跳参数（?billing=success|cancel）→ 透传给面板弹提示。
+  const sp = await searchParams;
+  const billingNotice = sp.billing === "success" || sp.billing === "cancel" ? sp.billing : null;
+
   return (
-    <CompanyForm
-      initial={orgs[0] ?? null}
-      existingCompanies={realCompanies}
-    />
+    <div className="mx-auto max-w-3xl space-y-5">
+      <CompanyForm initial={primaryOrg} existingCompanies={realCompanies} />
+      {primaryOrg && (
+        <BillingPanel
+          orgId={primaryOrg.id}
+          canManage={canManageBilling}
+          billingNotice={billingNotice}
+        />
+      )}
+    </div>
   );
 }

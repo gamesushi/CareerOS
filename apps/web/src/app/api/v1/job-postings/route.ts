@@ -7,7 +7,7 @@ import { jobPostingCreateInput, EMPLOYER_ROLES } from "@careeros/shared";
 import { handler, ok, parseBody, requireRole, ApiError } from "@/lib/api";
 import { listMyPostings } from "@/lib/job-postings";
 import { requireOrgMember } from "@/lib/organizations";
-import { assertPostingQuota } from "@/lib/limits";
+import { assertPostingQuota, assertOrgActivePostingQuota } from "@/lib/limits";
 
 const NEED_EMPLOYER = "需要招聘者权限，请在「账号设置」中开启发岗";
 
@@ -31,6 +31,8 @@ export const POST = handler(async (req) => {
       select: { id: true, name: true, orgType: true },
     });
     if (!org) throw new ApiError(404, "org_not_found", "组织不存在");
+    // 组织档位在招岗上限（免费 5 / Pro 100），与每日个人上限叠加以防刷。
+    await assertOrgActivePostingQuota(input.orgId);
   }
 
   const created = await prisma.jobPosting.create({
