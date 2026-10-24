@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/i18n/provider";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="mr-2">
@@ -409,16 +410,33 @@ export default function LoginFormWrapper({
   googleEnabled: boolean;
   devEnabled: boolean;
 }) {
+  const t = useT();
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Suspense>
-        <LoginForm
-          passwordEnabled={passwordEnabled}
-          otpEnabled={otpEnabled}
-          googleEnabled={googleEnabled}
-          devEnabled={devEnabled}
-        />
-      </Suspense>
+    <main className="flex min-h-screen bg-[#2563EB]">
+      {/* 左侧品牌区（lg+ 显示，与落地页同款全出血蓝） */}
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 text-white lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(700px_400px_at_80%_0%,rgba(255,255,255,0.18),transparent_60%)]" />
+        <div className="relative">
+          {/* 蓝底上原 logo 为深蓝/亮蓝双色，几乎不可见；此处转纯白剪影 */}
+          <img src="/logo.png" alt="uCareerOS" className="h-10 w-auto brightness-0 invert" />
+        </div>
+        <div className="relative space-y-4">
+          <h1 className="text-4xl font-extrabold leading-tight">{t("app.tagline")}</h1>
+          <p className="max-w-md text-[15px] leading-relaxed text-white/85">{t("login.description")}</p>
+        </div>
+        <div className="relative text-xs text-white/70">© 2026 uCareerOS · GameSushi Inc.</div>
+      </div>
+      {/* 右侧表单区 */}
+      <div className="flex flex-1 items-center justify-center bg-muted/40 p-4">
+        <Suspense>
+          <LoginForm
+            passwordEnabled={passwordEnabled}
+            otpEnabled={otpEnabled}
+            googleEnabled={googleEnabled}
+            devEnabled={devEnabled}
+          />
+        </Suspense>
+      </div>
     </main>
   );
 }

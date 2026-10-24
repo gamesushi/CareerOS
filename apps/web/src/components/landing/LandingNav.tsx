@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { LandingMobileMenu } from "./LandingMobileMenu";
 import type { TFn } from "./types";
 
-/** 落地页导航：logo + 锚点/路由链接 + 语言切换 + 登录/发岗。 */
+/** 落地页导航：logo + 锚点/路由链接 + 语言切换 + 登录/发岗。桌面内联，移动端汉堡。 */
 export function LandingNav({ t }: { t: TFn }) {
+  const items = [
+    { href: "#referred", label: t("home.navReferred") },
+    { href: "#trust", label: t("home.navCompany") },
+    { href: "#trust", label: t("home.navTrust") },
+    { href: "#trust", label: t("home.navRewards") },
+    { href: "#faq", label: t("home.navPricing") },
+  ];
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -30,12 +38,17 @@ export function LandingNav({ t }: { t: TFn }) {
         </nav>
         <div className="flex items-center gap-2 sm:gap-3">
           <LocaleSwitcher className="h-9 w-auto" />
-          <Link href="/login" className="hidden text-sm font-semibold text-[#2563EB] sm:block">
+          <Link href="/login" className="hidden text-sm font-semibold text-[#2563EB] md:block">
             {t("home.navSignin")}
           </Link>
-          <Button asChild size="sm" className="bg-[#2563EB] hover:bg-[#1d4ed8]">
+          <Button asChild size="sm" className="hidden bg-[#2563EB] hover:bg-[#1d4ed8] sm:inline-flex">
             <Link href="/employer/jobs">{t("home.navPost")}</Link>
           </Button>
+          <LandingMobileMenu
+            items={items}
+            signinLabel={t("home.navSignin")}
+            postLabel={t("home.navPost")}
+          />
         </div>
       </div>
     </header>
