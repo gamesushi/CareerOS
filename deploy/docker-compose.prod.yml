@@ -101,6 +101,13 @@ services:
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       AI_DAILY_BUDGET_USD: ${AI_DAILY_BUDGET_USD}
+      # ---- Stripe（B 端组织订阅，Hosted Checkout + Webhook）----
+      # 这几个变量必须在 environment: 显式列出，compose 不会自动透传 .env.production 里的任意键。
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_BEND_PRICE_ID: ${STRIPE_BEND_PRICE_ID}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      APP_BASE_URL: ${APP_BASE_URL:-https://ucareeros.com}
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
